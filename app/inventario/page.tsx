@@ -239,7 +239,11 @@ function InventarioInner() {
                     className={`grid grid-cols-[1fr_auto_auto] gap-2 px-4 py-3 items-center ${idx < sp.length - 1 ? "border-b border-gray-100" : ""} ${stockBajo ? "bg-yellow-50" : ""}`}
                   >
                     <span className={`text-sm font-medium ${stockBajo ? "text-yellow-700" : "text-gray-800"}`}>
-                      {stockBajo && <span className="mr-1">⚠️</span>}{p.nombre}
+                      {stockBajo && (
+                      <svg className="inline-block mr-1 mb-0.5 text-yellow-500" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                      </svg>
+                    )}{p.nombre}
                     </span>
                     {/* A4 */}
                     {p.tiene_a4 ? (
@@ -305,7 +309,7 @@ function TallaCell({ posterId, talla, stock, saving, editando, setEditando, guar
           value={cantidad}
           onChange={(e) => setEditando((prev) => ({ ...prev, [key]: parseInt(e.target.value) || 0 }))}
           onBlur={() => guardarCantidad(posterId, talla)}
-          className="w-12 text-center text-sm border border-gray-200 rounded-lg py-1 focus:outline-none focus:border-gray-400"
+          className="w-12 text-center text-sm font-semibold text-gray-900 border border-gray-200 rounded-lg py-1 focus:outline-none focus:border-gray-400"
         />
         {isSaving && <span className="w-3 h-3 rounded-full bg-gray-300 animate-pulse inline-block" />}
       </div>
