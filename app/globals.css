@@ -19,10 +19,16 @@
   }
 }
 
+@keyframes dotDrift {
+  0% { background-position: 0 0; }
+  100% { background-position: 20px 20px; }
+}
+
 body {
   background-color: #f9fafb;
   background-image: radial-gradient(circle, #d1d5db 1px, transparent 1px);
   background-size: 20px 20px;
+  animation: dotDrift 4s linear infinite;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
