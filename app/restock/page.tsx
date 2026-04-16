@@ -80,7 +80,7 @@ export default function RestockPage() {
   async function confirmarRestock() {
     setGuardando(true);
 
-    const updates: Promise<unknown>[] = [];
+    const updates: PromiseLike<unknown>[] = [];
 
     for (const [key, cantidad] of Object.entries(cantidades)) {
       if (cantidad <= 0) continue;

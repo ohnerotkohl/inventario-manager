@@ -97,7 +97,7 @@ function EditarSesionInner() {
     setSubmitting(true);
 
     const allKeys = new Set([...Object.keys(ventasOriginales), ...Object.keys(ventas)]);
-    const inventarioUpdates: Promise<unknown>[] = [];
+    const inventarioUpdates: PromiseLike<unknown>[] = [];
 
     for (const key of allKeys) {
       const talla = key.slice(-2) as "A4" | "A3";
@@ -145,7 +145,7 @@ function EditarSesionInner() {
     setSubmitting(true);
 
     // Devolver stock al inventario
-    const inventarioUpdates: Promise<unknown>[] = [];
+    const inventarioUpdates: PromiseLike<unknown>[] = [];
     for (const [key, cantidad] of Object.entries(ventasOriginales)) {
       if (cantidad <= 0) continue;
       const talla = key.slice(-2) as "A4" | "A3";
