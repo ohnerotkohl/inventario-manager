@@ -29,7 +29,7 @@ interface UltimaSesion {
 }
 
 export default function Dashboard() {
-  const [alertas, setAlertas] = useState<AlertCounts>({ out: 0, sampleFalta: 0, materiales: 0, insumos: 0 });
+  const [alertas, setAlertas] = useState<AlertCounts>({ out: 0, stockBajo: 0, sampleFalta: 0, materiales: 0, insumos: 0 });
   const [cajas, setCajas] = useState<CajaResumen[]>([]);
   const [ultimasSesiones, setUltimasSesiones] = useState<UltimaSesion[]>([]);
   const [loading, setLoading] = useState(true);
