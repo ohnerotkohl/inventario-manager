@@ -20,7 +20,9 @@
 }
 
 body {
-  background: var(--background);
+  background-color: #f9fafb;
+  background-image: radial-gradient(circle, #d1d5db 1px, transparent 1px);
+  background-size: 20px 20px;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
