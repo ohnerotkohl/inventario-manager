@@ -162,11 +162,11 @@ export default function RestockPage() {
               key={c.id}
               onClick={() => setCajaId(c.id)}
               className={`w-full text-left px-4 py-4 rounded-xl border-2 transition-colors ${
-                cajaId === c.id ? "border-black bg-black text-white" : "border-gray-200 hover:border-gray-400"
+                cajaId === c.id ? "border-black bg-black text-white" : "border-gray-300 hover:border-gray-500"
               }`}
             >
-              <p className="font-bold">{c.nombre}</p>
-              <p className={`text-xs mt-0.5 ${cajaId === c.id ? "text-gray-300" : "text-gray-400"}`}>{c.descripcion}</p>
+              <p className={`font-bold ${cajaId === c.id ? "text-white" : "text-gray-900"}`}>{c.nombre}</p>
+              <p className={`text-xs mt-0.5 ${cajaId === c.id ? "text-gray-300" : "text-gray-600"}`}>{c.descripcion}</p>
             </button>
           ))}
         </div>
