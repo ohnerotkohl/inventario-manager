@@ -35,6 +35,7 @@ interface RestockHistorial {
   id: string;
   fecha: string;
   caja: string;
+  trabajador: string;
   totalA4: number;
   totalA3: number;
   total: number;
@@ -49,6 +50,7 @@ export default function RestockPage() {
   const [series, setSeries] = useState<Serie[]>([]);
   const [posters, setPosters] = useState<PosterConStock[]>([]);
   const [cantidades, setCantidades] = useState<{ [key: string]: number }>({});
+  const [trabajador, setTrabajador] = useState("");
   const [loading, setLoading] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [historial, setHistorial] = useState<RestockHistorial[]>([]);
@@ -69,13 +71,14 @@ export default function RestockPage() {
     setLoadingHistorial(true);
     const { data } = await supabase
       .from("restocks")
-      .select("id, fecha, caja_id, cajas(nombre), restock_lineas(cantidad, talla, posters(nombre))")
+      .select("id, fecha, caja_id, trabajador, cajas(nombre), restock_lineas(cantidad, talla, posters(nombre))")
       .order("fecha", { ascending: false });
 
     type RestockRow = {
       id: string;
       fecha: string;
       caja_id: string;
+      trabajador: string;
       cajas: { nombre: string } | null;
       restock_lineas: { cantidad: number; talla: string; posters: { nombre: string } | null }[];
     };
@@ -85,6 +88,7 @@ export default function RestockPage() {
       id: r.id,
       fecha: r.fecha,
       caja: r.cajas?.nombre || "—",
+      trabajador: r.trabajador || "—",
       totalA4: r.restock_lineas.filter((l) => l.talla === "A4").reduce((a, l) => a + l.cantidad, 0),
       totalA3: r.restock_lineas.filter((l) => l.talla === "A3").reduce((a, l) => a + l.cantidad, 0),
       total: r.restock_lineas.reduce((a, l) => a + l.cantidad, 0),
@@ -143,7 +147,7 @@ export default function RestockPage() {
     } else {
       const { data: nuevoRestock } = await supabase
         .from("restocks")
-        .insert({ caja_id: cajaId, fecha: hoy })
+        .insert({ caja_id: cajaId, fecha: hoy, trabajador: trabajador.trim() })
         .select()
         .single();
       restockId = nuevoRestock?.id;
@@ -273,7 +277,7 @@ export default function RestockPage() {
                   <div className="text-left">
                     <p className="font-bold text-gray-900">{r.caja}</p>
                     <p className="text-xs text-gray-500">
-                      {new Date(r.fecha + "T12:00:00").toLocaleDateString("es-DE", { weekday: "long", day: "numeric", month: "long" })}
+                      {new Date(r.fecha + "T12:00:00").toLocaleDateString("es-DE", { weekday: "long", day: "numeric", month: "long" })} · {r.trabajador}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -307,6 +311,19 @@ export default function RestockPage() {
 
         {tabPrincipal === "restock" && <>
 
+        <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Encargado del restock</label>
+            <input
+              type="text"
+              value={trabajador}
+              onChange={(e) => setTrabajador(e.target.value)}
+              placeholder="Nombre"
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gray-400"
+            />
+          </div>
+        </div>
+
         <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-3">
           <p className="font-semibold text-gray-700">¿Qué caja vas a reponer?</p>
           {cajas.map((c) => (
@@ -325,7 +342,7 @@ export default function RestockPage() {
 
         <button
           onClick={cargarPosters}
-          disabled={!cajaId || loading}
+          disabled={!cajaId || !trabajador.trim() || loading}
           className="w-full bg-black text-white py-4 rounded-2xl font-semibold text-lg disabled:opacity-40 hover:bg-gray-900 transition-colors"
         >
           {loading ? "Cargando..." : "Continuar →"}
