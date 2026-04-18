@@ -6,6 +6,8 @@ import type { Caja, MaterialCaja, InsumoEstudio } from "@/lib/types";
 import { SkeletonPage } from "@/app/components/Skeleton";
 import { AlertTriangle, Check, Mail } from "@/app/components/Icons";
 
+type PendingSave = { cantidad: number; necesita_compra: boolean };
+
 type Tab = "cajas" | "estudio";
 
 export default function ComprasPage() {
@@ -17,6 +19,20 @@ export default function ComprasPage() {
   const [sending, setSending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const debouncers = useRef<{ [id: string]: ReturnType<typeof setTimeout> }>({});
+  const pendingSaves = useRef<{ [id: string]: PendingSave }>({});
+
+  // Vuelca cualquier cambio pendiente al desmontar la página (por si el usuario
+  // navega al Dashboard antes de que el debounce haya disparado).
+  useEffect(() => {
+    const timers = debouncers.current;
+    const pending = pendingSaves.current;
+    return () => {
+      for (const id of Object.keys(timers)) clearTimeout(timers[id]);
+      for (const [id, data] of Object.entries(pending)) {
+        supabase.from("insumos_estudio").update(data).eq("id", id);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -46,20 +62,33 @@ export default function ComprasPage() {
   }
 
   function updateCantidad(id: string, cantidad: number) {
-    // Auto-flag: si el stock queda bajo mínimo, marca "necesita comprar" automáticamente.
-    // Si sube por encima, lo desmarca.
     setInsumos((prev) => prev.map((i) => {
       if (i.id !== id) return i;
       const necesita_compra = cantidad <= (i.stock_minimo ?? 1);
+      // Guarda pendiente para el flush al desmontar / onBlur
+      pendingSaves.current[id] = { cantidad, necesita_compra };
       return { ...i, cantidad, necesita_compra };
     }));
-    // Guarda en Supabase con debounce para no disparar una petición por tecla
+    // Debounce corto: guarda a los 300ms de inactividad
     if (debouncers.current[id]) clearTimeout(debouncers.current[id]);
     debouncers.current[id] = setTimeout(() => {
-      const insumo = insumos.find((i) => i.id === id);
-      const necesita_compra = cantidad <= (insumo?.stock_minimo ?? 1);
-      supabase.from("insumos_estudio").update({ cantidad, necesita_compra }).eq("id", id);
-    }, 500);
+      if (pendingSaves.current[id]) {
+        supabase.from("insumos_estudio").update(pendingSaves.current[id]).eq("id", id);
+        delete pendingSaves.current[id];
+      }
+    }, 300);
+  }
+
+  // Fuerza guardado inmediato (cuando el usuario sale del input o abandona la página)
+  function flushCantidad(id: string) {
+    if (debouncers.current[id]) {
+      clearTimeout(debouncers.current[id]);
+      delete debouncers.current[id];
+    }
+    if (pendingSaves.current[id]) {
+      supabase.from("insumos_estudio").update(pendingSaves.current[id]).eq("id", id);
+      delete pendingSaves.current[id];
+    }
   }
 
   async function enviarEmail() {
@@ -191,6 +220,7 @@ export default function ComprasPage() {
                   value={ins.cantidad}
                   onFocus={(e) => e.target.select()}
                   onChange={(e) => updateCantidad(ins.id, parseInt(e.target.value) || 0)}
+                  onBlur={() => flushCantidad(ins.id)}
                   className="w-full text-center text-sm border border-gray-200 rounded-lg py-1.5 focus:outline-none focus:border-black"
                 />
                 <button
