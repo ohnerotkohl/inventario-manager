@@ -8,10 +8,14 @@ const geist = Geist({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Ohne Rotkohl",
   description: "Inventory Management",
+  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Ohne Rotkohl",
+    title: "Inventario",
+  },
+  icons: {
+    apple: "/apple-touch-icon.png",
   },
   viewport: {
     width: "device-width",
