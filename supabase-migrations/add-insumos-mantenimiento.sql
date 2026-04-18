@@ -25,6 +25,5 @@ INSERT INTO insumos_estudio (nombre, unidad, stock_minimo, cantidad) VALUES
   ('Tinta BK (Black)', 'cartuchos', 1, 0),
   ('Tinta PB (Photo Black)', 'cartuchos', 1, 0);
 
--- Opcional: si quieres eliminar el insumo genérico "Tintas"
--- (ya reemplazado por el desglose por color):
--- DELETE FROM insumos_estudio WHERE nombre = 'Tintas';
+-- Eliminar el insumo genérico "Tintas" (reemplazado por el pack + desglose por color)
+DELETE FROM insumos_estudio WHERE nombre = 'Tintas';
