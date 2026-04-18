@@ -12,7 +12,11 @@ INSERT INTO insumos_estudio (nombre, unidad, stock_minimo, cantidad) VALUES
 INSERT INTO insumos_estudio (nombre, unidad, stock_minimo, cantidad) VALUES
   ('Depósito de tinta', 'unidades', 1, 0);
 
--- Tintas desglosadas por color
+-- Pack completo de tintas (todos los colores)
+INSERT INTO insumos_estudio (nombre, unidad, stock_minimo, cantidad) VALUES
+  ('Pack tintas (todos los colores)', 'packs', 1, 0);
+
+-- Tintas desglosadas por color (para comprar individualmente)
 INSERT INTO insumos_estudio (nombre, unidad, stock_minimo, cantidad) VALUES
   ('Tinta Magenta', 'cartuchos', 1, 0),
   ('Tinta Cyan', 'cartuchos', 1, 0),
