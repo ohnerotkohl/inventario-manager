@@ -327,7 +327,7 @@ export default function SesionPage() {
     const mercadoNombre = mercados.find((m) => m.id === mercadoId)?.nombre || "";
     const ahora = new Date().toLocaleTimeString("es-DE", { hour: "2-digit", minute: "2-digit" });
     try {
-      await fetch("/api/email/reporte", {
+      const res = await fetch("/api/email/reporte", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -339,9 +339,15 @@ export default function SesionPage() {
           a3: reporteImpresion.a3,
         }),
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        alert(`Error enviando el email:\n${data.error || `HTTP ${res.status}`}`);
+        setEnviandoEmail(false);
+        return;
+      }
       setEmailEnviado(true);
-    } catch {
-      alert("Error enviando el email. Comprueba la configuración.");
+    } catch (err) {
+      alert(`Error de red: ${err instanceof Error ? err.message : String(err)}`);
     }
     setEnviandoEmail(false);
   }
