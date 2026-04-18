@@ -440,19 +440,55 @@ export default function SesionPage() {
           ✏️ Seguir editando esta sesión
         </button>
 
-        {/* Botón enviar reporte */}
+        {/* Botones compartir / email reporte */}
         {(reporteImpresion.a4.length > 0 || reporteImpresion.a3.length > 0) && (
-          <button
-            onClick={handleEnviarReporte}
-            disabled={enviandoEmail || emailEnviado}
-            className={`w-full py-3 rounded-2xl font-semibold transition-colors ${
-              emailEnviado
-                ? "bg-green-100 text-green-700"
-                : "bg-gray-900 text-white hover:bg-gray-700"
-            } disabled:opacity-60`}
-          >
-            {enviandoEmail ? "Enviando..." : emailEnviado ? "✓ Reporte enviado" : "📧 Enviar reporte por email"}
-          </button>
+          <div className="space-y-2">
+            <button
+              onClick={async () => {
+                const fechaFmt = new Date(fecha + "T12:00:00").toLocaleDateString("es-DE", {
+                  weekday: "long", day: "numeric", month: "long", year: "numeric",
+                });
+                const linesA4 = reporteImpresion.a4.map(i =>
+                  `${i.stockRestante < 5 ? "🖨️" : "✓"} ${i.linea} — ${i.stockRestante < 5 ? `imprimir (quedan ${i.stockRestante})` : `stock ok (${i.stockRestante})`}`
+                ).join("\n");
+                const linesA3 = reporteImpresion.a3.map(i =>
+                  `${i.stockRestante < 5 ? "🖨️" : "✓"} ${i.linea} — ${i.stockRestante < 5 ? `imprimir (quedan ${i.stockRestante})` : `stock ok (${i.stockRestante})`}`
+                ).join("\n");
+                const texto = `🖨️ REPORTE DE IMPRESIÓN\n${mercado?.nombre || ""}\n${fechaFmt}\n${trabajador}\n\n${linesA4 ? `— A4 —\n${linesA4}\n\n` : ""}${linesA3 ? `— A3 —\n${linesA3}` : ""}`.trim();
+
+                if (navigator.share) {
+                  try {
+                    await navigator.share({
+                      title: `Reporte de impresión — ${mercado?.nombre || ""}`,
+                      text: texto,
+                    });
+                  } catch {
+                    // usuario canceló, no hacer nada
+                  }
+                } else if (navigator.clipboard) {
+                  await navigator.clipboard.writeText(texto);
+                  alert("Reporte copiado al portapapeles");
+                } else {
+                  alert(texto);
+                }
+              }}
+              className="w-full bg-black text-white py-3 rounded-2xl font-semibold hover:bg-gray-800 transition-colors"
+            >
+              📲 Compartir / guardar reporte
+            </button>
+
+            <button
+              onClick={handleEnviarReporte}
+              disabled={enviandoEmail || emailEnviado}
+              className={`w-full py-3 rounded-2xl font-semibold transition-colors ${
+                emailEnviado
+                  ? "bg-green-100 text-green-700"
+                  : "bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50"
+              } disabled:opacity-60`}
+            >
+              {enviandoEmail ? "Enviando..." : emailEnviado ? "✓ Reporte enviado" : "📧 Enviar por email"}
+            </button>
+          </div>
         )}
 
         <button
