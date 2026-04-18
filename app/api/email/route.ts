@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
         OHNE <span style="color: #ef4444;">ROTKOHL</span>
       </h1>
       <div style="padding: 20px;">
-        <h2 style="color: #111;">📋 Lista de compras — ${fecha}</h2>
+        <h2 style="color: #111;">Lista de compras — ${fecha}</h2>
   `;
 
   if (materialesRestock.length > 0) {
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
       porCaja[m.caja_id].push(m);
     }
 
-    html += `<h3 style="color: #333; border-bottom: 2px solid #f59e0b; padding-bottom: 8px;">📦 Materiales de cajas</h3>`;
+    html += `<h3 style="color: #333; border-bottom: 2px solid #f59e0b; padding-bottom: 8px;">Materiales de cajas</h3>`;
     for (const [cajaId, mats] of Object.entries(porCaja)) {
       const caja = cajas.find((c: { id: string; nombre: string }) => c.id === cajaId);
       html += `<p style="font-weight: bold; color: #555;">${caja?.nombre || cajaId}</p><ul>`;
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
 
   if (insumosCompra.length > 0) {
     html += `
-      <h3 style="color: #333; border-bottom: 2px solid #3b82f6; padding-bottom: 8px; margin-top: 24px;">🔬 Insumos del estudio — Comprar/Producir</h3>
+      <h3 style="color: #333; border-bottom: 2px solid #3b82f6; padding-bottom: 8px; margin-top: 24px;">Insumos del estudio — Comprar/Producir</h3>
       <ul>
     `;
     for (const ins of insumosCompra) {

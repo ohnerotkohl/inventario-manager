@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
             ${item.linea}
           </td>
           <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0; text-align:right; font-weight:bold; color:${necesita ? "#ef4444" : "#22c55e"};">
-            ${necesita ? `🖨️ Imprimir (quedan ${item.stockRestante})` : `✓ Stock ok (${item.stockRestante})`}
+            ${necesita ? `Imprimir (quedan ${item.stockRestante})` : `Stock ok (${item.stockRestante})`}
           </td>
         </tr>
       `;
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
         <p style="margin:8px 0 0; color:#aaa; font-size:14px;">Reporte de impresión</p>
       </div>
       <div style="padding: 20px;">
-        <h2 style="color:#111; margin-top:0;">🖨️ Reporte de impresión — ${mercado}</h2>
+        <h2 style="color:#111; margin-top:0;">Reporte de impresión — ${mercado}</h2>
         <p style="color:#666; font-size:14px; margin-top:-8px;">${fechaFormateada} · ${trabajador}</p>
         <p style="color:#aaa; font-size:12px; margin-top:4px;">Enviado a las ${hora}</p>
   `;
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
     await transporter.sendMail({
       from: `"Ohne Rotkohl App" <${process.env.EMAIL_USER}>`,
       to: process.env.EMAIL_TO,
-      subject: `🖨️ Reporte de impresión — ${mercado} — ${fechaFormateada}`,
+      subject: `Reporte de impresión — ${mercado} — ${fechaFormateada}`,
       html,
     });
     return NextResponse.json({ ok: true });

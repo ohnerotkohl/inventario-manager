@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { SkeletonCard, SkeletonList } from "@/app/components/Skeleton";
+import { AlertTriangle, Check, CheckCircle, Settings, Dot } from "@/app/components/Icons";
 
 interface AlertCounts {
   out: number;
@@ -116,7 +117,7 @@ export default function Dashboard() {
   if (!configured) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center gap-4">
-        <div className="text-5xl">⚙️</div>
+        <div className="text-gray-500"><Settings size={48} strokeWidth={1.4} /></div>
         <h2 className="text-xl font-bold">Conecta Supabase</h2>
         <p className="text-gray-500 text-sm max-w-xs">
           La app está lista pero necesita conectarse a la base de datos.
@@ -163,7 +164,10 @@ export default function Dashboard() {
       {/* Alertas */}
       {totalAlertas > 0 ? (
         <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
-          <p className="font-semibold text-red-700 mb-3">⚠️ {totalAlertas} alertas activas</p>
+          <p className="font-semibold text-red-700 mb-3 flex items-center gap-2">
+            <AlertTriangle size={18} />
+            {totalAlertas} alertas activas
+          </p>
           <div className="grid grid-cols-2 gap-2">
             {alertas.out > 0 && (
               <div className="bg-red-100 rounded-xl p-3 text-center">
@@ -199,7 +203,10 @@ export default function Dashboard() {
         </div>
       ) : (
         <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
-          <p className="text-green-700 font-semibold">✅ Todo en orden</p>
+          <p className="text-green-700 font-semibold flex items-center justify-center gap-2">
+            <CheckCircle size={18} />
+            Todo en orden
+          </p>
           <p className="text-green-600 text-sm">Sin alertas activas</p>
         </div>
       )}
@@ -209,16 +216,26 @@ export default function Dashboard() {
         <Link href="/compras" className="block">
           <div className="bg-white border-2 border-red-200 rounded-2xl overflow-hidden hover:border-red-400 transition-colors">
             <div className="bg-red-50 px-4 py-3 flex items-center justify-between">
-              <p className="font-bold text-red-700">🛒 Pendiente de comprar</p>
+              <p className="font-bold text-red-700 flex items-center gap-2">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="9" cy="21" r="1" />
+                  <circle cx="20" cy="21" r="1" />
+                  <path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" />
+                </svg>
+                Pendiente de comprar
+              </p>
               <span className="text-xs text-red-600 font-semibold">Ver lista →</span>
             </div>
             {materialesPendientes.length > 0 && (
               <div className="px-4 py-3 border-b border-gray-100">
                 <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">Materiales de cajas</p>
-                <ul className="space-y-1">
+                <ul className="space-y-1.5">
                   {materialesPendientes.map((m, i) => (
                     <li key={i} className="flex items-center justify-between text-sm">
-                      <span className="text-gray-900 font-medium">⚠️ {m.nombre}</span>
+                      <span className="text-gray-900 font-medium flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
+                        {m.nombre}
+                      </span>
                       {m.detalle && <span className="text-xs text-gray-500">{m.detalle}</span>}
                     </li>
                   ))}
@@ -228,10 +245,13 @@ export default function Dashboard() {
             {insumosPendientes.length > 0 && (
               <div className="px-4 py-3">
                 <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">Insumos del estudio</p>
-                <ul className="space-y-1">
+                <ul className="space-y-1.5">
                   {insumosPendientes.map((ins, i) => (
                     <li key={i} className="flex items-center justify-between text-sm">
-                      <span className="text-gray-900 font-medium">⚠️ {ins.nombre}</span>
+                      <span className="text-gray-900 font-medium flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
+                        {ins.nombre}
+                      </span>
                       {ins.detalle && <span className="text-xs text-gray-500">{ins.detalle}</span>}
                     </li>
                   ))}
@@ -264,10 +284,26 @@ export default function Dashboard() {
               <div className="bg-white border border-gray-200 rounded-2xl p-4 hover:border-gray-400 transition-colors">
                 <p className="font-bold text-gray-900">{c.nombre}</p>
                 <p className="text-xs text-gray-500 mb-3 leading-tight">{c.descripcion}</p>
-                {c.outCount > 0 && <p className="text-xs text-red-600">🔴 {c.outCount} sold out</p>}
-                {c.stockBajoCount > 0 && <p className="text-xs text-yellow-600">🟡 {c.stockBajoCount} stock bajo</p>}
-                {c.sampleCount > 0 && <p className="text-xs text-orange-600">🟠 {c.sampleCount} samples faltan</p>}
-                {c.outCount === 0 && c.stockBajoCount === 0 && c.sampleCount === 0 && <p className="text-xs text-green-600">✅ OK</p>}
+                {c.outCount > 0 && (
+                  <p className="text-xs text-red-600 flex items-center gap-1.5">
+                    <Dot color="#dc2626" /> {c.outCount} sold out
+                  </p>
+                )}
+                {c.stockBajoCount > 0 && (
+                  <p className="text-xs text-yellow-600 flex items-center gap-1.5">
+                    <Dot color="#ca8a04" /> {c.stockBajoCount} stock bajo
+                  </p>
+                )}
+                {c.sampleCount > 0 && (
+                  <p className="text-xs text-orange-600 flex items-center gap-1.5">
+                    <Dot color="#ea580c" /> {c.sampleCount} samples faltan
+                  </p>
+                )}
+                {c.outCount === 0 && c.stockBajoCount === 0 && c.sampleCount === 0 && (
+                  <p className="text-xs text-green-600 flex items-center gap-1.5">
+                    <Check size={12} /> OK
+                  </p>
+                )}
               </div>
             </Link>
           ))}

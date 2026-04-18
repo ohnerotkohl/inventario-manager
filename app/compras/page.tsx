@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Caja, MaterialCaja, InsumoEstudio } from "@/lib/types";
 import { SkeletonPage } from "@/app/components/Skeleton";
+import { AlertTriangle, Check, Mail } from "@/app/components/Icons";
 
 type Tab = "cajas" | "estudio";
 
@@ -134,13 +135,13 @@ export default function ComprasPage() {
                       </span>
                       <button
                         onClick={() => toggleMaterial(m.id, m.necesita_restock)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${
                           m.necesita_restock
                             ? "bg-red-500 text-white"
                             : "bg-gray-100 text-gray-500 hover:bg-gray-200"
                         }`}
                       >
-                        {m.necesita_restock ? "⚠️ Falta" : "OK"}
+                        {m.necesita_restock ? <><AlertTriangle size={12} /> Falta</> : "OK"}
                       </button>
                     </div>
                   ))}
@@ -185,13 +186,13 @@ export default function ComprasPage() {
                 />
                 <button
                   onClick={() => toggleInsumo(ins.id, ins.necesita_compra)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors flex items-center gap-1.5 ${
                     ins.necesita_compra
                       ? "bg-red-500 text-white"
                       : "bg-gray-100 text-gray-500 hover:bg-gray-200"
                   }`}
                 >
-                  {ins.necesita_compra ? "⚠️ Comprar" : "OK"}
+                  {ins.necesita_compra ? <><AlertTriangle size={12} /> Comprar</> : "OK"}
                 </button>
               </div>
             ))}
@@ -210,9 +211,9 @@ export default function ComprasPage() {
             <button
               onClick={enviarEmail}
               disabled={sending}
-              className="bg-black text-white px-5 py-2.5 rounded-xl font-semibold disabled:opacity-40 hover:bg-gray-900 transition-colors"
+              className="bg-black text-white px-5 py-2.5 rounded-xl font-semibold disabled:opacity-40 hover:bg-gray-900 transition-colors flex items-center gap-2"
             >
-              {sending ? "Enviando..." : emailSent ? "✅ Enviado" : "📧 Enviar lista"}
+              {sending ? "Enviando..." : emailSent ? <><Check size={16} /> Enviado</> : <><Mail size={16} /> Enviar lista</>}
             </button>
           </div>
         </div>

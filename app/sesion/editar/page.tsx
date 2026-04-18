@@ -285,7 +285,14 @@ function EditarSesionInner() {
 
           {/* Eliminar sesión */}
           <div className="border border-red-200 rounded-2xl p-4">
-            <p className="text-sm font-semibold text-red-700 mb-2">⚠️ Zona peligrosa</p>
+            <p className="text-sm font-semibold text-red-700 mb-2 flex items-center gap-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              Zona peligrosa
+            </p>
             <p className="text-xs text-gray-500 mb-3">Eliminar esta sesión devuelve todo el stock al inventario.</p>
             {!confirmDelete ? (
               <button

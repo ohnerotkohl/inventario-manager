@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Mercado, Poster, Serie, Inventario } from "@/lib/types";
 import { SkeletonList } from "@/app/components/Skeleton";
+import { Check, CheckCircle, Printer, Pencil, Dot } from "@/app/components/Icons";
 
 const SERIES_ORDER = [
   "Life is Food - Kitchen",
@@ -365,7 +366,9 @@ export default function SesionPage() {
     return (
       <div className="space-y-6">
         <div className="text-center">
-          <div className="text-5xl mb-2">✅</div>
+          <div className="flex justify-center mb-2 text-green-600">
+            <CheckCircle size={56} strokeWidth={1.4} />
+          </div>
           <h2 className="text-2xl font-bold text-gray-900">¡Sesión guardada!</h2>
           <p className="text-gray-500 text-sm">Inventario actualizado correctamente</p>
         </div>
@@ -374,7 +377,9 @@ export default function SesionPage() {
         {(reporteImpresion.a4.length > 0 || reporteImpresion.a3.length > 0) && (
           <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
             <div className="bg-black text-white px-4 py-3">
-              <p className="font-bold">🖨️ Reporte de impresión</p>
+              <p className="font-bold flex items-center gap-2">
+                <Printer size={16} /> Reporte de impresión
+              </p>
               <p className="text-xs text-gray-400">{mercado?.nombre} · {new Date(fecha + "T12:00:00").toLocaleDateString("es-DE", { day: "numeric", month: "long" })}</p>
             </div>
 
@@ -384,12 +389,12 @@ export default function SesionPage() {
                 {reporteImpresion.a4.map((item, i) => (
                   <div key={i} className="flex items-center justify-between py-1.5">
                     <div className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${item.stockRestante < 5 ? "bg-red-400" : "bg-green-400"}`} />
+                      <Dot color={item.stockRestante < 5 ? "#f87171" : "#4ade80"} />
                       <span className="text-sm text-gray-800">{item.linea}</span>
                     </div>
                     {item.stockRestante >= 5
-                      ? <span className="text-xs text-green-600 font-medium">✓ Stock ok ({item.stockRestante})</span>
-                      : <span className="text-xs text-red-600 font-medium">🖨️ Imprimir (quedan {item.stockRestante})</span>
+                      ? <span className="text-xs text-green-600 font-medium flex items-center gap-1"><Check size={12} /> Stock ok ({item.stockRestante})</span>
+                      : <span className="text-xs text-red-600 font-medium flex items-center gap-1"><Printer size={12} /> Imprimir (quedan {item.stockRestante})</span>
                     }
                   </div>
                 ))}
@@ -402,12 +407,12 @@ export default function SesionPage() {
                 {reporteImpresion.a3.map((item, i) => (
                   <div key={i} className="flex items-center justify-between py-1.5">
                     <div className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${item.stockRestante < 5 ? "bg-red-400" : "bg-green-400"}`} />
+                      <Dot color={item.stockRestante < 5 ? "#f87171" : "#4ade80"} />
                       <span className="text-sm text-gray-800">{item.linea}</span>
                     </div>
                     {item.stockRestante >= 5
-                      ? <span className="text-xs text-green-600 font-medium">✓ Stock ok ({item.stockRestante})</span>
-                      : <span className="text-xs text-red-600 font-medium">🖨️ Imprimir (quedan {item.stockRestante})</span>
+                      ? <span className="text-xs text-green-600 font-medium flex items-center gap-1"><Check size={12} /> Stock ok ({item.stockRestante})</span>
+                      : <span className="text-xs text-red-600 font-medium flex items-center gap-1"><Printer size={12} /> Imprimir (quedan {item.stockRestante})</span>
                     }
                   </div>
                 ))}
@@ -435,9 +440,9 @@ export default function SesionPage() {
             setEmailEnviado(false);
             setStep("ventas");
           }}
-          className="w-full border-2 border-black text-black py-3 rounded-2xl font-semibold hover:bg-gray-50 transition-colors"
+          className="w-full border-2 border-black text-black py-3 rounded-2xl font-semibold hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
         >
-          ✏️ Seguir editando esta sesión
+          <Pencil size={16} /> Seguir editando esta sesión
         </button>
 
         {/* Botones compartir / email reporte */}
@@ -449,12 +454,12 @@ export default function SesionPage() {
                   weekday: "long", day: "numeric", month: "long", year: "numeric",
                 });
                 const linesA4 = reporteImpresion.a4.map(i =>
-                  `${i.stockRestante < 5 ? "🖨️" : "✓"} ${i.linea} — ${i.stockRestante < 5 ? `imprimir (quedan ${i.stockRestante})` : `stock ok (${i.stockRestante})`}`
+                  `[${i.stockRestante < 5 ? "!" : "OK"}] ${i.linea} — ${i.stockRestante < 5 ? `imprimir (quedan ${i.stockRestante})` : `stock ok (${i.stockRestante})`}`
                 ).join("\n");
                 const linesA3 = reporteImpresion.a3.map(i =>
-                  `${i.stockRestante < 5 ? "🖨️" : "✓"} ${i.linea} — ${i.stockRestante < 5 ? `imprimir (quedan ${i.stockRestante})` : `stock ok (${i.stockRestante})`}`
+                  `[${i.stockRestante < 5 ? "!" : "OK"}] ${i.linea} — ${i.stockRestante < 5 ? `imprimir (quedan ${i.stockRestante})` : `stock ok (${i.stockRestante})`}`
                 ).join("\n");
-                const texto = `🖨️ REPORTE DE IMPRESIÓN\n${mercado?.nombre || ""}\n${fechaFmt}\n${trabajador}\n\n${linesA4 ? `— A4 —\n${linesA4}\n\n` : ""}${linesA3 ? `— A3 —\n${linesA3}` : ""}`.trim();
+                const texto = `REPORTE DE IMPRESIÓN\n${mercado?.nombre || ""}\n${fechaFmt}\n${trabajador}\n\n${linesA4 ? `— A4 —\n${linesA4}\n\n` : ""}${linesA3 ? `— A3 —\n${linesA3}` : ""}`.trim();
 
                 if (navigator.share) {
                   try {
@@ -472,21 +477,32 @@ export default function SesionPage() {
                   alert(texto);
                 }
               }}
-              className="w-full bg-black text-white py-3 rounded-2xl font-semibold hover:bg-gray-800 transition-colors"
+              className="w-full bg-black text-white py-3 rounded-2xl font-semibold hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
             >
-              📲 Compartir / guardar reporte
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" />
+                <polyline points="16 6 12 2 8 6" />
+                <line x1="12" y1="2" x2="12" y2="15" />
+              </svg>
+              Compartir / guardar reporte
             </button>
 
             <button
               onClick={handleEnviarReporte}
               disabled={enviandoEmail || emailEnviado}
-              className={`w-full py-3 rounded-2xl font-semibold transition-colors ${
+              className={`w-full py-3 rounded-2xl font-semibold transition-colors flex items-center justify-center gap-2 ${
                 emailEnviado
                   ? "bg-green-100 text-green-700"
                   : "bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50"
               } disabled:opacity-60`}
             >
-              {enviandoEmail ? "Enviando..." : emailEnviado ? "✓ Reporte enviado" : "📧 Enviar por email"}
+              {!enviandoEmail && !emailEnviado && (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="4" width="20" height="16" rx="2" />
+                  <path d="M22 7l-10 6L2 7" />
+                </svg>
+              )}
+              {enviandoEmail ? "Enviando..." : emailEnviado ? "✓ Reporte enviado" : "Enviar por email"}
             </button>
           </div>
         )}

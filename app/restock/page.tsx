@@ -204,7 +204,12 @@ export default function RestockPage() {
   if (step === "confirmado") {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center gap-4">
-        <div className="text-5xl">✅</div>
+        <div className="text-green-600">
+          <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+            <polyline points="22 4 12 14.01 9 11.01" />
+          </svg>
+        </div>
         <h2 className="text-2xl font-bold text-gray-900">¡Restock completado!</h2>
         <p className="text-gray-500">
           Se añadieron <strong>{totalUnidades} unidades</strong> ({totalA4 > 0 ? `A4: ${totalA4}` : ""}{totalA4 > 0 && totalA3 > 0 ? " · " : ""}{totalA3 > 0 ? `A3: ${totalA3}` : ""}) al stock de <strong>{caja?.nombre}</strong>.
@@ -265,7 +270,13 @@ export default function RestockPage() {
               </div>
             ) : historial.length === 0 ? (
               <div className="text-center py-16 text-gray-400">
-                <p className="text-2xl mb-2">🖨️</p>
+                <div className="flex justify-center mb-2">
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 6 2 18 2 18 9"/>
+                    <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/>
+                    <rect x="6" y="14" width="12" height="8"/>
+                  </svg>
+                </div>
                 <p>No hay historial de restock aún</p>
               </div>
             ) : historial.map((r) => (
