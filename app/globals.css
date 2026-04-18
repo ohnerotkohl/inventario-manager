@@ -43,4 +43,6 @@ input[type="email"],
 select,
 textarea {
   color: #111827;
+  /* Evita que iOS haga zoom al enfocar un input con fuente <16px */
+  font-size: 16px;
 }
