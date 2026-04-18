@@ -1,6 +1,6 @@
 "use client";
 export const dynamic = "force-dynamic";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Caja, MaterialCaja, InsumoEstudio } from "@/lib/types";
 import { SkeletonPage } from "@/app/components/Skeleton";
@@ -15,6 +15,7 @@ export default function ComprasPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const debouncers = useRef<{ [id: string]: ReturnType<typeof setTimeout> }>({});
 
   useEffect(() => {
     fetchData();
@@ -43,9 +44,14 @@ export default function ComprasPage() {
     setInsumos((prev) => prev.map((i) => (i.id === id ? { ...i, necesita_compra: !current } : i)));
   }
 
-  async function updateCantidad(id: string, cantidad: number) {
-    await supabase.from("insumos_estudio").update({ cantidad }).eq("id", id);
+  function updateCantidad(id: string, cantidad: number) {
+    // Actualiza la UI inmediatamente (optimista)
     setInsumos((prev) => prev.map((i) => (i.id === id ? { ...i, cantidad } : i)));
+    // Guarda en Supabase con debounce para no disparar una petición por tecla
+    if (debouncers.current[id]) clearTimeout(debouncers.current[id]);
+    debouncers.current[id] = setTimeout(() => {
+      supabase.from("insumos_estudio").update({ cantidad }).eq("id", id);
+    }, 500);
   }
 
   async function enviarEmail() {
@@ -169,8 +175,11 @@ export default function ComprasPage() {
                 </div>
                 <input
                   type="number"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   min={0}
                   value={ins.cantidad}
+                  onFocus={(e) => e.target.select()}
                   onChange={(e) => updateCantidad(ins.id, parseInt(e.target.value) || 0)}
                   className="w-full text-center text-sm border border-gray-200 rounded-lg py-1.5 focus:outline-none focus:border-black"
                 />

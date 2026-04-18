@@ -28,10 +28,17 @@ interface UltimaSesion {
   trabajador: string;
 }
 
+interface ItemCompra {
+  nombre: string;
+  detalle?: string;
+}
+
 export default function Dashboard() {
   const [alertas, setAlertas] = useState<AlertCounts>({ out: 0, stockBajo: 0, sampleFalta: 0, materiales: 0, insumos: 0 });
   const [cajas, setCajas] = useState<CajaResumen[]>([]);
   const [ultimasSesiones, setUltimasSesiones] = useState<UltimaSesion[]>([]);
+  const [materialesPendientes, setMaterialesPendientes] = useState<ItemCompra[]>([]);
+  const [insumosPendientes, setInsumosPendientes] = useState<ItemCompra[]>([]);
   const [loading, setLoading] = useState(true);
   const [configured, setConfigured] = useState(true);
 
@@ -49,8 +56,8 @@ export default function Dashboard() {
     try {
       const [invRes, matRes, insRes, cajasRes, sesRes] = await Promise.all([
         supabase.from("inventario").select("out, sample_falta, caja_id, cantidad"),
-        supabase.from("materiales_caja").select("necesita_restock").eq("necesita_restock", true),
-        supabase.from("insumos_estudio").select("necesita_compra").eq("necesita_compra", true),
+        supabase.from("materiales_caja").select("nombre, cajas(nombre)").eq("necesita_restock", true),
+        supabase.from("insumos_estudio").select("nombre, cantidad, unidad").eq("necesita_compra", true),
         supabase.from("cajas").select("id, nombre, descripcion"),
         supabase.from("sesiones").select("fecha, trabajador, mercados(nombre)").order("created_at", { ascending: false }).limit(5),
       ]);
@@ -63,6 +70,22 @@ export default function Dashboard() {
         materiales: matRes.data?.length || 0,
         insumos: insRes.data?.length || 0,
       });
+
+      type MatRow = { nombre: string; cajas: { nombre: string } | null };
+      setMaterialesPendientes(
+        ((matRes.data as unknown as MatRow[]) || []).map((m) => ({
+          nombre: m.nombre,
+          detalle: m.cajas?.nombre,
+        }))
+      );
+
+      type InsRow = { nombre: string; cantidad: number; unidad: string };
+      setInsumosPendientes(
+        ((insRes.data as unknown as InsRow[]) || []).map((i) => ({
+          nombre: i.nombre,
+          detalle: `${i.cantidad} ${i.unidad}`,
+        }))
+      );
 
       const cajasData = cajasRes.data || [];
       setCajas(cajasData.map((c) => {
@@ -179,6 +202,44 @@ export default function Dashboard() {
           <p className="text-green-700 font-semibold">✅ Todo en orden</p>
           <p className="text-green-600 text-sm">Sin alertas activas</p>
         </div>
+      )}
+
+      {/* Lista de compras pendientes */}
+      {(materialesPendientes.length > 0 || insumosPendientes.length > 0) && (
+        <Link href="/compras" className="block">
+          <div className="bg-white border-2 border-red-200 rounded-2xl overflow-hidden hover:border-red-400 transition-colors">
+            <div className="bg-red-50 px-4 py-3 flex items-center justify-between">
+              <p className="font-bold text-red-700">🛒 Pendiente de comprar</p>
+              <span className="text-xs text-red-600 font-semibold">Ver lista →</span>
+            </div>
+            {materialesPendientes.length > 0 && (
+              <div className="px-4 py-3 border-b border-gray-100">
+                <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">Materiales de cajas</p>
+                <ul className="space-y-1">
+                  {materialesPendientes.map((m, i) => (
+                    <li key={i} className="flex items-center justify-between text-sm">
+                      <span className="text-gray-900 font-medium">⚠️ {m.nombre}</span>
+                      {m.detalle && <span className="text-xs text-gray-500">{m.detalle}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {insumosPendientes.length > 0 && (
+              <div className="px-4 py-3">
+                <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">Insumos del estudio</p>
+                <ul className="space-y-1">
+                  {insumosPendientes.map((ins, i) => (
+                    <li key={i} className="flex items-center justify-between text-sm">
+                      <span className="text-gray-900 font-medium">⚠️ {ins.nombre}</span>
+                      {ins.detalle && <span className="text-xs text-gray-500">{ins.detalle}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </Link>
       )}
 
       {/* Acción rápida */}
