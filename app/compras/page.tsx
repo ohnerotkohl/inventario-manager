@@ -18,21 +18,10 @@ export default function ComprasPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
-  const debouncers = useRef<{ [id: string]: ReturnType<typeof setTimeout> }>({});
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const pendingSaves = useRef<{ [id: string]: PendingSave }>({});
-
-  // Vuelca cualquier cambio pendiente al desmontar la página (por si el usuario
-  // navega al Dashboard antes de que el debounce haya disparado).
-  useEffect(() => {
-    const timers = debouncers.current;
-    const pending = pendingSaves.current;
-    return () => {
-      for (const id of Object.keys(timers)) clearTimeout(timers[id]);
-      for (const [id, data] of Object.entries(pending)) {
-        supabase.from("insumos_estudio").update(data).eq("id", id);
-      }
-    };
-  }, []);
+  const [dirtyCount, setDirtyCount] = useState(0);
 
   useEffect(() => {
     fetchData();
@@ -65,30 +54,31 @@ export default function ComprasPage() {
     setInsumos((prev) => prev.map((i) => {
       if (i.id !== id) return i;
       const necesita_compra = cantidad <= (i.stock_minimo ?? 1);
-      // Guarda pendiente para el flush al desmontar / onBlur
       pendingSaves.current[id] = { cantidad, necesita_compra };
       return { ...i, cantidad, necesita_compra };
     }));
-    // Debounce corto: guarda a los 300ms de inactividad
-    if (debouncers.current[id]) clearTimeout(debouncers.current[id]);
-    debouncers.current[id] = setTimeout(() => {
-      if (pendingSaves.current[id]) {
-        supabase.from("insumos_estudio").update(pendingSaves.current[id]).eq("id", id);
-        delete pendingSaves.current[id];
-      }
-    }, 300);
+    setDirtyCount(Object.keys(pendingSaves.current).length);
+    setSaved(false);
   }
 
-  // Fuerza guardado inmediato (cuando el usuario sale del input o abandona la página)
-  function flushCantidad(id: string) {
-    if (debouncers.current[id]) {
-      clearTimeout(debouncers.current[id]);
-      delete debouncers.current[id];
+  async function guardarCambios() {
+    const entries = Object.entries(pendingSaves.current);
+    if (entries.length === 0) return;
+    setSaving(true);
+    try {
+      await Promise.all(
+        entries.map(([id, data]) =>
+          supabase.from("insumos_estudio").update(data).eq("id", id)
+        )
+      );
+      pendingSaves.current = {};
+      setDirtyCount(0);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch {
+      alert("Error guardando. Intenta de nuevo.");
     }
-    if (pendingSaves.current[id]) {
-      supabase.from("insumos_estudio").update(pendingSaves.current[id]).eq("id", id);
-      delete pendingSaves.current[id];
-    }
+    setSaving(false);
   }
 
   async function enviarEmail() {
@@ -220,7 +210,6 @@ export default function ComprasPage() {
                   value={ins.cantidad}
                   onFocus={(e) => e.target.select()}
                   onChange={(e) => updateCantidad(ins.id, parseInt(e.target.value) || 0)}
-                  onBlur={() => flushCantidad(ins.id)}
                   className="w-full text-center text-sm border border-gray-200 rounded-lg py-1.5 focus:outline-none focus:border-black"
                 />
                 <button
@@ -239,8 +228,39 @@ export default function ComprasPage() {
         </div>
       )}
 
+      {/* Botón Guardar cambios (solo en tab estudio y con cambios pendientes) */}
+      {tab === "estudio" && (dirtyCount > 0 || saved) && (
+        <div className="sticky bottom-20 bg-white border-2 border-black rounded-2xl p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              {dirtyCount > 0 ? (
+                <>
+                  <p className="font-bold text-gray-900">
+                    {dirtyCount} cambio{dirtyCount > 1 ? "s" : ""} sin guardar
+                  </p>
+                  <p className="text-xs text-gray-500">Toca Guardar para aplicar</p>
+                </>
+              ) : (
+                <p className="font-bold text-green-700 flex items-center gap-2">
+                  <Check size={18} /> Guardado
+                </p>
+              )}
+            </div>
+            {dirtyCount > 0 && (
+              <button
+                onClick={guardarCambios}
+                disabled={saving}
+                className="bg-black text-white px-5 py-2.5 rounded-xl font-semibold disabled:opacity-40 hover:bg-gray-900 transition-colors"
+              >
+                {saving ? "Guardando..." : "Guardar"}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Botón enviar email */}
-      {totalAlertas > 0 && (
+      {totalAlertas > 0 && dirtyCount === 0 && !saved && (
         <div className="sticky bottom-20 bg-white border border-gray-200 rounded-2xl p-4">
           <div className="flex items-center justify-between">
             <div>
