@@ -483,11 +483,11 @@ export default function SesionPage() {
                   key={m.id}
                   onClick={() => setMercadoId(m.id)}
                   className={`text-left px-4 py-3 rounded-xl border-2 transition-colors ${
-                    mercadoId === m.id ? "border-black bg-black text-white" : "border-gray-200 hover:border-gray-400"
+                    mercadoId === m.id ? "border-black bg-black text-white" : "border-gray-300 text-gray-900 hover:border-gray-500"
                   }`}
                 >
                   <span className="font-medium">{m.nombre}</span>
-                  <span className={`ml-2 text-xs opacity-60 capitalize ${m.dia_semana === "especial" ? "italic" : ""}`}>
+                  <span className={`ml-2 text-xs capitalize ${mercadoId === m.id ? "opacity-60" : "text-gray-600"} ${m.dia_semana === "especial" ? "italic" : ""}`}>
                     {m.dia_semana === "especial" ? "mercado especial" : m.dia_semana}
                   </span>
                 </button>
@@ -547,7 +547,7 @@ export default function SesionPage() {
               type="date"
               value={fecha}
               onChange={(e) => setFecha(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gray-400"
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-gray-500"
             />
           </div>
 
@@ -558,7 +558,7 @@ export default function SesionPage() {
               value={trabajador}
               onChange={(e) => setTrabajador(e.target.value)}
               placeholder="Nombre del empleado"
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gray-400"
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:border-gray-500"
             />
           </div>
         </div>
@@ -614,9 +614,9 @@ export default function SesionPage() {
                   </div>
                   <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
                     <div className="grid grid-cols-[1fr_80px_80px] gap-2 px-4 py-2 bg-gray-50 border-b border-gray-100">
-                      <span className="text-xs font-semibold text-gray-500">Póster</span>
-                      <span className="text-xs font-semibold text-gray-500 text-center">A4</span>
-                      <span className="text-xs font-semibold text-gray-500 text-center">A3</span>
+                      <span className="text-xs font-semibold text-gray-700">Póster</span>
+                      <span className="text-xs font-semibold text-gray-700 text-center">A4</span>
+                      <span className="text-xs font-semibold text-gray-700 text-center">A3</span>
                     </div>
                     {sp.map((p, idx) => {
                       const invA4 = inventario.find((i) => i.poster_id === p.id && i.talla === "A4");
@@ -626,7 +626,7 @@ export default function SesionPage() {
                           key={p.id}
                           className={`grid grid-cols-[1fr_80px_80px] gap-2 px-4 py-3 items-center ${idx < sp.length - 1 ? "border-b border-gray-100" : ""}`}
                         >
-                          <span className="text-sm text-gray-800">{p.nombre}</span>
+                          <span className="text-sm text-gray-900 font-medium">{p.nombre}</span>
                           {p.tiene_a4 ? (
                             <div className="flex flex-col items-center">
                               <input
@@ -635,9 +635,9 @@ export default function SesionPage() {
                                 max={invA4?.cantidad || 99}
                                 value={ventas[`${p.id}-A4`] || 0}
                                 onChange={(e) => setVenta(p.id, "A4", parseInt(e.target.value) || 0)}
-                                className="w-16 text-center text-sm border border-gray-200 rounded-lg py-1 focus:outline-none focus:border-black"
+                                className="w-16 text-center text-sm text-gray-900 border border-gray-300 rounded-lg py-1 focus:outline-none focus:border-black"
                               />
-                              {invA4 && <span className="text-xs text-gray-400">/{invA4.cantidad}</span>}
+                              {invA4 && <span className="text-xs text-gray-600 font-medium">/{invA4.cantidad}</span>}
                             </div>
                           ) : <div />}
                           {p.tiene_a3 ? (
@@ -648,9 +648,9 @@ export default function SesionPage() {
                                 max={invA3?.cantidad || 99}
                                 value={ventas[`${p.id}-A3`] || 0}
                                 onChange={(e) => setVenta(p.id, "A3", parseInt(e.target.value) || 0)}
-                                className="w-16 text-center text-sm border border-gray-200 rounded-lg py-1 focus:outline-none focus:border-black"
+                                className="w-16 text-center text-sm text-gray-900 border border-gray-300 rounded-lg py-1 focus:outline-none focus:border-black"
                               />
-                              {invA3 && <span className="text-xs text-gray-400">/{invA3.cantidad}</span>}
+                              {invA3 && <span className="text-xs text-gray-600 font-medium">/{invA3.cantidad}</span>}
                             </div>
                           ) : <div />}
                         </div>

@@ -12,16 +12,13 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 @keyframes dotDrift {
   0% { background-position: 0 0; }
   100% { background-position: 20px 20px; }
+}
+
+html {
+  color-scheme: light;
 }
 
 body {
@@ -29,6 +26,21 @@ body {
   background-image: radial-gradient(circle, #d1d5db 1px, transparent 1px);
   background-size: 20px 20px;
   animation: dotDrift 4s linear infinite;
-  color: var(--foreground);
+  color: #111827;
   font-family: Arial, Helvetica, sans-serif;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #4b5563 !important;
+  opacity: 1 !important;
+}
+
+input[type="date"],
+input[type="number"],
+input[type="text"],
+input[type="email"],
+select,
+textarea {
+  color: #111827;
 }
