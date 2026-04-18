@@ -46,12 +46,19 @@ export default function ComprasPage() {
   }
 
   function updateCantidad(id: string, cantidad: number) {
-    // Actualiza la UI inmediatamente (optimista)
-    setInsumos((prev) => prev.map((i) => (i.id === id ? { ...i, cantidad } : i)));
+    // Auto-flag: si el stock queda bajo mínimo, marca "necesita comprar" automáticamente.
+    // Si sube por encima, lo desmarca.
+    setInsumos((prev) => prev.map((i) => {
+      if (i.id !== id) return i;
+      const necesita_compra = cantidad <= (i.stock_minimo ?? 1);
+      return { ...i, cantidad, necesita_compra };
+    }));
     // Guarda en Supabase con debounce para no disparar una petición por tecla
     if (debouncers.current[id]) clearTimeout(debouncers.current[id]);
     debouncers.current[id] = setTimeout(() => {
-      supabase.from("insumos_estudio").update({ cantidad }).eq("id", id);
+      const insumo = insumos.find((i) => i.id === id);
+      const necesita_compra = cantidad <= (insumo?.stock_minimo ?? 1);
+      supabase.from("insumos_estudio").update({ cantidad, necesita_compra }).eq("id", id);
     }, 500);
   }
 
@@ -155,13 +162,13 @@ export default function ComprasPage() {
       {tab === "estudio" && (
         <div className="space-y-4">
           <p className="text-xs text-gray-500">
-            Gestiona el stock del estudio. Marca lo que hay que comprar o producir.
+            Actualiza el stock actual del estudio. Si baja del mínimo, se marca como <strong>Comprar</strong> automáticamente.
           </p>
           <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
             <div className="grid grid-cols-[1fr_80px_auto] gap-3 px-4 py-2 bg-gray-50 border-b border-gray-100">
-              <span className="text-xs font-semibold text-gray-500">Insumo</span>
-              <span className="text-xs font-semibold text-gray-500 text-center">Cantidad</span>
-              <span className="text-xs font-semibold text-gray-500">Estado</span>
+              <span className="text-xs font-semibold text-gray-700">Insumo</span>
+              <span className="text-xs font-semibold text-gray-700 text-center">Stock</span>
+              <span className="text-xs font-semibold text-gray-700">Estado</span>
             </div>
             {insumos.map((ins, idx) => (
               <div
@@ -172,7 +179,9 @@ export default function ComprasPage() {
                   <p className={`text-sm ${ins.necesita_compra ? "font-semibold text-red-600" : "text-gray-800"}`}>
                     {ins.nombre}
                   </p>
-                  <p className="text-xs text-gray-400">{ins.unidad}</p>
+                  <p className="text-xs text-gray-500">
+                    {ins.unidad} · mín. {ins.stock_minimo ?? 1}
+                  </p>
                 </div>
                 <input
                   type="number"
