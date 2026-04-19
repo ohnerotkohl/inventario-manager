@@ -6,12 +6,10 @@ import type { Caja, MaterialCaja, InsumoEstudio } from "@/lib/types";
 import { SkeletonPage } from "@/app/components/Skeleton";
 import { AlertTriangle, Check, Mail } from "@/app/components/Icons";
 
-type PendingSave = { cantidad: number; necesita_compra: boolean };
-
 type Tab = "cajas" | "estudio";
 
 export default function ComprasPage() {
-  const [tab, setTab] = useState<Tab>("cajas");
+  const [tab, setTab] = useState<Tab>("estudio");
   const [cajas, setCajas] = useState<Caja[]>([]);
   const [materiales, setMateriales] = useState<MaterialCaja[]>([]);
   const [insumos, setInsumos] = useState<InsumoEstudio[]>([]);
@@ -20,7 +18,7 @@ export default function ComprasPage() {
   const [emailSent, setEmailSent] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const pendingSaves = useRef<{ [id: string]: PendingSave }>({});
+  const pendingSaves = useRef<{ [id: string]: number }>({});
   const [dirtyCount, setDirtyCount] = useState(0);
 
   useEffect(() => {
@@ -45,18 +43,14 @@ export default function ComprasPage() {
     setMateriales((prev) => prev.map((m) => (m.id === id ? { ...m, necesita_restock: !current } : m)));
   }
 
-  async function toggleInsumo(id: string, current: boolean) {
-    await supabase.from("insumos_estudio").update({ necesita_compra: !current }).eq("id", id);
-    setInsumos((prev) => prev.map((i) => (i.id === id ? { ...i, necesita_compra: !current } : i)));
-  }
-
   function updateCantidad(id: string, cantidad: number) {
+    const safe = Math.max(0, cantidad);
     setInsumos((prev) => prev.map((i) => {
       if (i.id !== id) return i;
-      const necesita_compra = cantidad <= (i.stock_minimo ?? 1);
-      pendingSaves.current[id] = { cantidad, necesita_compra };
-      return { ...i, cantidad, necesita_compra };
+      const minimo = i.stock_minimo ?? 1;
+      return { ...i, cantidad: safe, necesita_compra: safe <= minimo };
     }));
+    pendingSaves.current[id] = safe;
     setDirtyCount(Object.keys(pendingSaves.current).length);
     setSaved(false);
   }
@@ -67,9 +61,14 @@ export default function ComprasPage() {
     setSaving(true);
     try {
       await Promise.all(
-        entries.map(([id, data]) =>
-          supabase.from("insumos_estudio").update(data).eq("id", id)
-        )
+        entries.map(([id, cantidad]) => {
+          const ins = insumos.find((i) => i.id === id);
+          const minimo = ins?.stock_minimo ?? 1;
+          return supabase
+            .from("insumos_estudio")
+            .update({ cantidad, necesita_compra: cantidad <= minimo })
+            .eq("id", id);
+        })
       );
       pendingSaves.current = {};
       setDirtyCount(0);
@@ -111,22 +110,11 @@ export default function ComprasPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Compras</h1>
-        <p className="text-gray-500 text-sm">Materiales de cajas e insumos del estudio</p>
+        <p className="text-gray-500 text-sm">Qué hay que comprar y cuánto</p>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-2">
-        <button
-          onClick={() => setTab("cajas")}
-          className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-colors ${
-            tab === "cajas" ? "bg-black text-white" : "bg-gray-100 text-gray-600"
-          }`}
-        >
-          Materiales de cajas
-          {totalAlertasMat > 0 && (
-            <span className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">{totalAlertasMat}</span>
-          )}
-        </button>
         <button
           onClick={() => setTab("estudio")}
           className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-colors ${
@@ -138,7 +126,56 @@ export default function ComprasPage() {
             <span className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">{totalAlertasIns}</span>
           )}
         </button>
+        <button
+          onClick={() => setTab("cajas")}
+          className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-colors ${
+            tab === "cajas" ? "bg-black text-white" : "bg-gray-100 text-gray-600"
+          }`}
+        >
+          Materiales de cajas
+          {totalAlertasMat > 0 && (
+            <span className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">{totalAlertasMat}</span>
+          )}
+        </button>
       </div>
+
+      {tab === "estudio" && (
+        <div className="space-y-3">
+          <p className="text-xs text-gray-500">
+            Actualiza cuánto queda de cada insumo. Si baja del mínimo, se marca como <strong>Comprar</strong> automáticamente.
+          </p>
+          <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+            {insumos.map((ins, idx) => {
+              const cant = ins.cantidad ?? 0;
+              const minimo = ins.stock_minimo ?? 1;
+              const falta = cant <= minimo;
+              return (
+                <div
+                  key={ins.id}
+                  className={`grid grid-cols-[1fr_100px] gap-3 px-4 py-3 items-center ${idx < insumos.length - 1 ? "border-b border-gray-100" : ""}`}
+                >
+                  <div>
+                    <p className={`text-sm ${falta ? "font-semibold text-red-600" : "text-gray-800"}`}>
+                      {ins.nombre}
+                    </p>
+                    <p className="text-xs text-gray-500">queda {cant} {ins.unidad} · mín. {minimo}</p>
+                  </div>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    min={0}
+                    value={cant}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => updateCantidad(ins.id, parseInt(e.target.value) || 0)}
+                    className="w-full text-center text-sm border border-gray-200 rounded-lg py-2 focus:outline-none focus:border-black"
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {tab === "cajas" && (
         <div className="space-y-4">
@@ -178,57 +215,7 @@ export default function ComprasPage() {
         </div>
       )}
 
-      {tab === "estudio" && (
-        <div className="space-y-4">
-          <p className="text-xs text-gray-500">
-            Actualiza el stock actual del estudio. Si baja del mínimo, se marca como <strong>Comprar</strong> automáticamente.
-          </p>
-          <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-            <div className="grid grid-cols-[1fr_80px_auto] gap-3 px-4 py-2 bg-gray-50 border-b border-gray-100">
-              <span className="text-xs font-semibold text-gray-700">Insumo</span>
-              <span className="text-xs font-semibold text-gray-700 text-center">Stock</span>
-              <span className="text-xs font-semibold text-gray-700">Estado</span>
-            </div>
-            {insumos.map((ins, idx) => (
-              <div
-                key={ins.id}
-                className={`grid grid-cols-[1fr_80px_auto] gap-3 px-4 py-3 items-center ${idx < insumos.length - 1 ? "border-b border-gray-100" : ""}`}
-              >
-                <div>
-                  <p className={`text-sm ${ins.necesita_compra ? "font-semibold text-red-600" : "text-gray-800"}`}>
-                    {ins.nombre}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {ins.unidad} · mín. {ins.stock_minimo ?? 1}
-                  </p>
-                </div>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  min={0}
-                  value={ins.cantidad}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => updateCantidad(ins.id, parseInt(e.target.value) || 0)}
-                  className="w-full text-center text-sm border border-gray-200 rounded-lg py-1.5 focus:outline-none focus:border-black"
-                />
-                <button
-                  onClick={() => toggleInsumo(ins.id, ins.necesita_compra)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors flex items-center gap-1.5 ${
-                    ins.necesita_compra
-                      ? "bg-red-500 text-white"
-                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                  }`}
-                >
-                  {ins.necesita_compra ? <><AlertTriangle size={12} /> Comprar</> : "OK"}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Botón Guardar cambios (solo en tab estudio y con cambios pendientes) */}
+      {/* Botón Guardar cambios */}
       {tab === "estudio" && (dirtyCount > 0 || saved) && (
         <div className="sticky bottom-20 bg-white border-2 border-black rounded-2xl p-4">
           <div className="flex items-center justify-between gap-3">

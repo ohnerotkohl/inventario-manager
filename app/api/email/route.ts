@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
       <ul>
     `;
     for (const ins of insumosCompra) {
-      html += `<li style="color: #ef4444; font-weight: bold;">${ins.nombre} <span style="color: #999; font-weight: normal;">(stock actual: ${ins.cantidad} ${ins.unidad})</span></li>`;
+      html += `<li style="color: #ef4444; font-weight: bold;">${ins.nombre} <span style="color: #111; font-weight: bold;">— queda ${ins.cantidad} ${ins.unidad}</span></li>`;
     }
     html += `</ul>`;
   }

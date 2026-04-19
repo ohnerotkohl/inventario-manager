@@ -84,7 +84,7 @@ export default function Dashboard() {
       setInsumosPendientes(
         ((insRes.data as unknown as InsRow[]) || []).map((i) => ({
           nombre: i.nombre,
-          detalle: `${i.cantidad} ${i.unidad}`,
+          detalle: `queda ${i.cantidad} ${i.unidad}`,
         }))
       );
 
