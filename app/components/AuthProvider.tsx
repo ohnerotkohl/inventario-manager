@@ -16,7 +16,7 @@ export function useAuth() {
   return useContext(Ctx);
 }
 
-const PUBLIC_PATHS = ["/login"];
+const PUBLIC_PATHS = ["/login", "/setup"];
 
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<Usuario | null>(null);
