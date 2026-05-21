@@ -65,6 +65,11 @@ export default function RestockPage() {
   const [calendarMonth, setCalendarMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [tabRestock, setTabRestock] = useState<"imprimir" | "restock">("imprimir");
+  const [top8, setTop8] = useState<Set<string>>(new Set());
+  const [hasSales, setHasSales] = useState<Set<string>>(new Set());
+  const [printQty, setPrintQty] = useState<{ [key: string]: number }>({});
+  const [printLoading, setPrintLoading] = useState(false);
 
   function toggleSerie(id: string) {
     setCollapsed((prev) => {
@@ -72,6 +77,46 @@ export default function RestockPage() {
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+  }
+
+  function computePrintQty(t8: Set<string>, hs: Set<string>, ps: PosterConStock[]) {
+    const qty: { [key: string]: number } = {};
+    ps.forEach((p) => {
+      const target = t8.has(p.id) ? 5 : hs.has(p.id) ? 4 : 3;
+      if (p.tiene_a4) {
+        const stock = p.a4Stock;
+        if (stock < 3) qty[`${p.id}-A4`] = Math.max(1, target - stock);
+      }
+      if (p.tiene_a3) {
+        const stock = p.a3Stock;
+        if (stock < 3) qty[`${p.id}-A3`] = Math.max(1, target - stock);
+      }
+    });
+    return qty;
+  }
+
+  async function loadPrintData(ps: PosterConStock[]) {
+    if (top8.size > 0 || hasSales.size > 0) {
+      setPrintQty(computePrintQty(top8, hasSales, ps));
+      return;
+    }
+    setPrintLoading(true);
+    const { data } = await supabase
+      .from("ventas")
+      .select("poster_id, cantidad, sesiones!inner(fecha)");
+    const hace30 = new Date();
+    hace30.setDate(hace30.getDate() - 30);
+    const totales: { [id: string]: number } = {};
+    ((data || []) as unknown as { poster_id: string; cantidad: number; sesiones: { fecha: string } }[])
+      .filter((v) => v.sesiones?.fecha && new Date(v.sesiones.fecha) >= hace30)
+      .forEach((v) => { totales[v.poster_id] = (totales[v.poster_id] || 0) + v.cantidad; });
+    const sorted = Object.entries(totales).sort((a, b) => b[1] - a[1]);
+    const newTop8 = new Set(sorted.slice(0, 8).map(([id]) => id));
+    const newHasSales = new Set(sorted.map(([id]) => id));
+    setTop8(newTop8);
+    setHasSales(newHasSales);
+    setPrintQty(computePrintQty(newTop8, newHasSales, ps));
+    setPrintLoading(false);
   }
 
   useEffect(() => {
@@ -143,8 +188,11 @@ export default function RestockPage() {
 
     setPosters(postersConStock);
     setCantidades({});
+    setPrintQty({});
+    setTabRestock("imprimir");
     setLoading(false);
     setStep("restock");
+    loadPrintData(postersConStock);
   }
 
   async function confirmarRestock() {
@@ -480,10 +528,94 @@ export default function RestockPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Restock — {caja?.nombre}</h1>
-        <p className="text-gray-500 text-sm">{t.writeUnitsToAdd}</p>
       </div>
 
-      <div className="space-y-6">
+      {/* Tab switcher Imprimir / Restock */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setTabRestock("imprimir")}
+          className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center justify-center gap-1.5 ${tabRestock === "imprimir" ? "bg-black text-white" : "bg-gray-100 text-gray-600"}`}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+          </svg>
+          {t.printTab}
+        </button>
+        <button
+          onClick={() => setTabRestock("restock")}
+          className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-colors ${tabRestock === "restock" ? "bg-black text-white" : "bg-gray-100 text-gray-600"}`}
+        >
+          {t.restock}
+        </button>
+      </div>
+
+      {/* Tab Imprimir */}
+      {tabRestock === "imprimir" && (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500">{t.printTabDesc}</p>
+          {printLoading ? (
+            <div className="text-sm text-gray-400 text-center py-8">{t.loadingBestsellers}</div>
+          ) : (() => {
+            const a4Items = posters.filter((p) => p.tiene_a4 && (printQty[`${p.id}-A4`] ?? 0) > 0);
+            const a3Items = posters.filter((p) => p.tiene_a3 && (printQty[`${p.id}-A3`] ?? 0) > 0);
+            if (a4Items.length === 0 && a3Items.length === 0) {
+              return (
+                <div className="text-center py-12 text-gray-400">
+                  <svg className="mx-auto mb-3 text-green-400" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                  </svg>
+                  <p className="font-medium text-gray-500">{t.nothingToPrint}</p>
+                </div>
+              );
+            }
+            const PrintSection = ({ items, talla, label }: { items: PosterConStock[]; talla: "A4" | "A3"; label: string }) => (
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">{label}</p>
+                <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                  {items.map((p, idx) => {
+                    const key = `${p.id}-${talla}`;
+                    const qty = printQty[key] ?? 0;
+                    const stock = talla === "A4" ? p.a4Stock : p.a3Stock;
+                    const isTop8 = top8.has(p.id);
+                    const isMed = !isTop8 && hasSales.has(p.id);
+                    return (
+                      <div key={p.id} className={`flex items-center gap-3 px-4 py-3 ${idx < items.length - 1 ? "border-b border-gray-100" : ""}`}>
+                        <div className="flex-1 min-w-0">
+                          {isTop8 && <span className="text-xs bg-amber-100 text-amber-700 font-semibold px-1.5 py-0.5 rounded-md">⭐ {t.bestseller}</span>}
+                          {isMed && <span className="text-xs bg-blue-50 text-blue-600 font-semibold px-1.5 py-0.5 rounded-md">↗ {t.medSeller}</span>}
+                          <p className="text-sm font-medium text-gray-900 mt-0.5">{p.nombre}</p>
+                          <p className="text-xs text-gray-400">{tr("currentStock", { n: stock })}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => setPrintQty((prev) => ({ ...prev, [key]: Math.max(1, qty - 1) }))} className="w-7 h-7 rounded-lg bg-gray-100 text-gray-700 font-bold flex items-center justify-center hover:bg-gray-200">−</button>
+                          <span className="w-6 text-center font-bold text-gray-900">{qty}</span>
+                          <button onClick={() => setPrintQty((prev) => ({ ...prev, [key]: qty + 1 }))} className="w-7 h-7 rounded-lg bg-gray-100 text-gray-700 font-bold flex items-center justify-center hover:bg-gray-200">+</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+            return (
+              <>
+                {a4Items.length > 0 && <PrintSection items={a4Items} talla="A4" label={`A4 — ${a4Items.length} diseños`} />}
+                {a3Items.length > 0 && <PrintSection items={a3Items} talla="A3" label={`A3 — ${a3Items.length} diseños`} />}
+                <button
+                  onClick={() => setTabRestock("restock")}
+                  className="w-full py-3 bg-black text-white rounded-2xl font-semibold hover:bg-gray-900 transition-colors"
+                >
+                  {t.continueBtn}
+                </button>
+              </>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* Tab Restock */}
+      {tabRestock === "restock" && <div className="space-y-6">
+        <p className="text-xs text-gray-500">{t.writeUnitsToAdd}</p>
         {seriesIds.map((sid) => {
           const serie = series.find((s) => s.id === sid);
           const isCollapsed = collapsed.has(sid);
@@ -556,22 +688,24 @@ export default function RestockPage() {
             </div>
           );
         })}
-      </div>
+      </div>}
 
-      {/* Botón confirmar */}
-      <div className="sticky bottom-20 bg-white border border-gray-200 rounded-2xl p-4 flex items-center justify-between">
-        <div>
-          <p className="font-bold text-gray-900">{tr("unitsOf", { total: totalUnidades, designs: totalPosters })}</p>
-          <p className="text-xs text-gray-500">{totalA4 > 0 ? `A4: ${totalA4}` : ""}{totalA4 > 0 && totalA3 > 0 ? " · " : ""}{totalA3 > 0 ? `A3: ${totalA3}` : ""} · {caja?.nombre}</p>
+      {/* Botón confirmar (solo en tab restock) */}
+      {tabRestock === "restock" && (
+        <div className="sticky bottom-20 bg-white border border-gray-200 rounded-2xl p-4 flex items-center justify-between">
+          <div>
+            <p className="font-bold text-gray-900">{tr("unitsOf", { total: totalUnidades, designs: totalPosters })}</p>
+            <p className="text-xs text-gray-500">{totalA4 > 0 ? `A4: ${totalA4}` : ""}{totalA4 > 0 && totalA3 > 0 ? " · " : ""}{totalA3 > 0 ? `A3: ${totalA3}` : ""} · {caja?.nombre}</p>
+          </div>
+          <button
+            onClick={confirmarRestock}
+            disabled={guardando || totalUnidades === 0}
+            className="bg-black text-white px-5 py-2.5 rounded-xl font-semibold disabled:opacity-40 hover:bg-gray-900 transition-colors"
+          >
+            {guardando ? t.saving : t.save}
+          </button>
         </div>
-        <button
-          onClick={confirmarRestock}
-          disabled={guardando || totalUnidades === 0}
-          className="bg-black text-white px-5 py-2.5 rounded-xl font-semibold disabled:opacity-40 hover:bg-gray-900 transition-colors"
-        >
-          {guardando ? t.saving : t.save}
-        </button>
-      </div>
+      )}
     </div>
   );
 }
