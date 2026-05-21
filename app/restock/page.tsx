@@ -301,15 +301,23 @@ export default function RestockPage() {
                 </button>
                 {historialAbierto === r.id && (
                   <div className="border-t border-gray-100 px-4 py-3">
-                    <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-1.5">
+                    <div className="grid grid-cols-[1fr_40px_40px] gap-x-3 gap-y-1.5">
                       <span className="text-xs font-semibold text-gray-400">Póster</span>
-                      <span className="text-xs font-semibold text-gray-400">Talla</span>
-                      <span className="text-xs font-semibold text-gray-400 text-right">Uds.</span>
-                      {r.lineas.map((l, i) => (
+                      <span className="text-xs font-semibold text-gray-400 text-center">A4</span>
+                      <span className="text-xs font-semibold text-gray-400 text-center">A3</span>
+                      {Object.entries(
+                        r.lineas.reduce((acc, l) => {
+                          acc[l.nombre] = acc[l.nombre] || {};
+                          if (l.talla === "A4") acc[l.nombre].a4 = l.cantidad;
+                          if (l.talla === "A3") acc[l.nombre].a3 = l.cantidad;
+                          return acc;
+                        }, {} as { [n: string]: { a4?: number; a3?: number } })
+                      ).sort((a, b) => Math.max(b[1].a4||0, b[1].a3||0) - Math.max(a[1].a4||0, a[1].a3||0))
+                        .map(([nombre, vals], i) => (
                         <>
-                          <span key={`n-${i}`} className="text-sm text-gray-800 truncate">{l.nombre}</span>
-                          <span key={`t-${i}`} className="text-sm text-gray-500">{l.talla}</span>
-                          <span key={`c-${i}`} className="text-sm font-semibold text-gray-900 text-right">{l.cantidad}</span>
+                          <span key={`n-${i}`} className="text-sm text-gray-800">{nombre}</span>
+                          <span key={`a4-${i}`} className="text-sm font-semibold text-gray-900 text-center">{vals.a4 ?? "—"}</span>
+                          <span key={`a3-${i}`} className="text-sm font-semibold text-gray-900 text-center">{vals.a3 ?? "—"}</span>
                         </>
                       ))}
                     </div>
