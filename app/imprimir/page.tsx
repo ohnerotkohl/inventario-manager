@@ -8,6 +8,15 @@ interface PrintItem {
   qty: number;
 }
 
+function toStorageFilename(nombre: string): string {
+  return nombre
+    .replace(/ö/g, "o").replace(/Ö/g, "O")
+    .replace(/ü/g, "u").replace(/Ü/g, "U")
+    .replace(/ä/g, "a").replace(/Ä/g, "A")
+    .replace(/ñ/g, "n").replace(/Ñ/g, "N")
+    + ".jpg";
+}
+
 interface Slot {
   nombre: string;
   talla: "A4" | "A3";
@@ -29,7 +38,7 @@ export default function ImprimirPage() {
         if (items.length === 0) { setLoading(false); return; }
 
         const uniqueNames = [...new Set(items.map((i) => i.nombre))];
-        const paths = uniqueNames.map((n) => `${n}.jpg`);
+        const paths = uniqueNames.map((n) => toStorageFilename(n));
 
         const { data, error: storageError } = await supabase.storage
           .from("Posters")
@@ -38,10 +47,9 @@ export default function ImprimirPage() {
         if (storageError) throw storageError;
 
         const urlMap: Record<string, string> = {};
-        (data || []).forEach((entry) => {
-          if (!entry.path || !entry.signedUrl) return;
-          const nombre = entry.path.replace(".jpg", "");
-          urlMap[nombre] = entry.signedUrl;
+        (data || []).forEach((entry, i) => {
+          if (!entry.signedUrl) return;
+          urlMap[uniqueNames[i]] = entry.signedUrl;
         });
 
         const expanded: Slot[] = items.flatMap((item) =>
