@@ -693,6 +693,7 @@ export default function SesionPage() {
                                 max={invA4?.cantidad || 99}
                                 value={ventas[`${p.id}-A4`] || 0}
                                 onChange={(e) => setVenta(p.id, "A4", parseInt(e.target.value) || 0)}
+                                onFocus={(e) => e.target.select()}
                                 className="w-16 text-center text-sm text-gray-900 border border-gray-300 rounded-lg py-1 focus:outline-none focus:border-black"
                               />
                               {invA4 && <span className="text-xs text-gray-600 font-medium">/{invA4.cantidad}</span>}
@@ -706,6 +707,7 @@ export default function SesionPage() {
                                 max={invA3?.cantidad || 99}
                                 value={ventas[`${p.id}-A3`] || 0}
                                 onChange={(e) => setVenta(p.id, "A3", parseInt(e.target.value) || 0)}
+                                onFocus={(e) => e.target.select()}
                                 className="w-16 text-center text-sm text-gray-900 border border-gray-300 rounded-lg py-1 focus:outline-none focus:border-black"
                               />
                               {invA3 && <span className="text-xs text-gray-600 font-medium">/{invA3.cantidad}</span>}

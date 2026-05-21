@@ -155,6 +155,9 @@ function InventarioInner() {
     const cantidad = editando[key];
     if (cantidad === undefined) return;
     await upsertInventario(posterId, talla, "cantidad", cantidad);
+    if (cantidad === 0) {
+      await upsertInventario(posterId, talla, "out", true);
+    }
     setEditando((prev) => {
       const next = { ...prev };
       delete next[key];
@@ -308,6 +311,7 @@ function TallaCell({ posterId, talla, stock, saving, editando, setEditando, guar
           min={0}
           value={cantidad}
           onChange={(e) => setEditando((prev) => ({ ...prev, [key]: parseInt(e.target.value) || 0 }))}
+          onFocus={(e) => e.target.select()}
           onBlur={() => guardarCantidad(posterId, talla)}
           className="w-12 text-center text-sm font-semibold text-gray-900 border border-gray-200 rounded-lg py-1 focus:outline-none focus:border-gray-400"
         />
