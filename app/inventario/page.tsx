@@ -81,6 +81,15 @@ function InventarioInner() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [editando, setEditando] = useState<{ [key: string]: number }>({});
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+
+  function toggleSerie(id: string) {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
 
   useEffect(() => {
     supabase.from("cajas").select("*").then(({ data }) => {
@@ -227,15 +236,25 @@ function InventarioInner() {
         <SkeletonPage />
       ) : (
         <div className="space-y-6">
-          {seriesConPosters.map(({ serie, posters: sp }) => (
+          {seriesConPosters.map(({ serie, posters: sp }) => {
+            const isCollapsed = collapsed.has(serie?.id || "sin-serie");
+            return (
             <div key={serie?.id || "sin-serie"}>
-              <div
-                className="text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-lg mb-2 inline-block"
+              <button
+                onClick={() => toggleSerie(serie?.id || "sin-serie")}
+                className="flex items-center gap-2 mb-2 text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-lg"
                 style={{ backgroundColor: serie?.color + "22", color: serie?.color }}
               >
+                <svg
+                  width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                  strokeLinecap="round" strokeLinejoin="round"
+                  style={{ transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)", transition: "transform 0.15s" }}
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
                 {serie?.nombre}
-              </div>
-              <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+              </button>
+              {!isCollapsed && <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
                 {/* Header */}
                 <div className="grid grid-cols-[1fr_auto_auto] gap-2 px-4 py-2 bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-500">
                   <span>{t.poster}</span>
@@ -289,9 +308,10 @@ function InventarioInner() {
                   </div>
                   );
                 })}
-              </div>
+              </div>}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

@@ -64,6 +64,15 @@ export default function RestockPage() {
   const [loadingHistorial, setLoadingHistorial] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+
+  function toggleSerie(id: string) {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
 
   useEffect(() => {
     if (user?.rol === "empleado") { router.replace("/sesion"); return; }
@@ -477,6 +486,7 @@ export default function RestockPage() {
       <div className="space-y-6">
         {seriesIds.map((sid) => {
           const serie = series.find((s) => s.id === sid);
+          const isCollapsed = collapsed.has(sid);
           const orden = POSTERS_ORDER[serie?.nombre || ""] || [];
           const sp = posters
             .filter((p) => p.serie_id === sid)
@@ -488,13 +498,21 @@ export default function RestockPage() {
 
           return (
             <div key={sid}>
-              <div
-                className="text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-lg mb-2 inline-block"
+              <button
+                onClick={() => toggleSerie(sid)}
+                className="flex items-center gap-2 mb-2 text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-lg"
                 style={{ backgroundColor: (serie?.color || "#6B7280") + "22", color: serie?.color || "#6B7280" }}
               >
+                <svg
+                  width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                  strokeLinecap="round" strokeLinejoin="round"
+                  style={{ transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)", transition: "transform 0.15s" }}
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
                 {serie?.nombre}
-              </div>
-              <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+              </button>
+              {!isCollapsed && <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
                 <div className="grid grid-cols-[1fr_90px_90px] gap-2 px-4 py-2 bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-500">
                   <span>{t.poster}</span>
                   <span className="text-center">A4</span>
@@ -534,7 +552,7 @@ export default function RestockPage() {
                     ) : <div />}
                   </div>
                 ))}
-              </div>
+              </div>}
             </div>
           );
         })}
