@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/app/components/AuthProvider";
+import { useLang } from "@/app/components/LangProvider";
 import { SkeletonCard, SkeletonList } from "@/app/components/Skeleton";
 import { AlertTriangle, Check, CheckCircle, Settings, Dot } from "@/app/components/Icons";
 
@@ -39,6 +40,7 @@ interface ItemCompra {
 export default function Dashboard() {
   const router = useRouter();
   const { user } = useAuth();
+  const { t, tr } = useLang();
   const [alertas, setAlertas] = useState<AlertCounts>({ out: 0, stockBajo: 0, sampleFalta: 0, materiales: 0, insumos: 0 });
   const [cajas, setCajas] = useState<CajaResumen[]>([]);
   const [ultimasSesiones, setUltimasSesiones] = useState<UltimaSesion[]>([]);
@@ -89,7 +91,7 @@ export default function Dashboard() {
       setInsumosPendientes(
         ((insRes.data as unknown as InsRow[]) || []).map((i) => ({
           nombre: i.nombre,
-          detalle: `queda ${i.cantidad} ${i.unidad}`,
+          detalle: tr("remaining", { qty: i.cantidad, unit: i.unidad }),
         }))
       );
 
@@ -123,15 +125,15 @@ export default function Dashboard() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center gap-4">
         <div className="text-gray-500"><Settings size={48} strokeWidth={1.4} /></div>
-        <h2 className="text-xl font-bold">Conecta Supabase</h2>
+        <h2 className="text-xl font-bold">{t.connectSupabase}</h2>
         <p className="text-gray-500 text-sm max-w-xs">
-          La app está lista pero necesita conectarse a la base de datos.
+          {t.connectSupabaseDesc}
         </p>
         <div className="bg-gray-100 rounded-xl p-4 text-left text-sm w-full max-w-sm space-y-1">
-          <p className="text-gray-700">1. Crea proyecto en supabase.com</p>
-          <p className="text-gray-700">2. Copia la URL y Anon Key</p>
-          <p className="text-gray-700">3. Pégalos en el archivo .env.local</p>
-          <p className="text-gray-700">4. Ejecuta supabase-schema.sql en Supabase</p>
+          <p className="text-gray-700">{t.step1}</p>
+          <p className="text-gray-700">{t.step2}</p>
+          <p className="text-gray-700">{t.step3}</p>
+          <p className="text-gray-700">{t.step4}</p>
         </div>
       </div>
     );
@@ -162,8 +164,8 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-500 text-sm">Resumen de Ohne Rotkohl</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t.dashboard}</h1>
+        <p className="text-gray-500 text-sm">{t.dashboardSubtitle}</p>
       </div>
 
       {/* Alertas */}
@@ -171,37 +173,37 @@ export default function Dashboard() {
         <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
           <p className="font-semibold text-red-700 mb-3 flex items-center gap-2">
             <AlertTriangle size={18} />
-            {totalAlertas} alertas activas
+            {tr("activeAlerts", { n: totalAlertas })}
           </p>
           <div className="grid grid-cols-2 gap-2">
             {alertas.out > 0 && (
               <div className="bg-red-100 rounded-xl p-3 text-center">
                 <p className="text-2xl font-bold text-red-600">{alertas.out}</p>
-                <p className="text-xs text-red-700">Sold Out</p>
+                <p className="text-xs text-red-700">{t.soldOut}</p>
               </div>
             )}
             {alertas.stockBajo > 0 && (
               <div className="bg-yellow-100 rounded-xl p-3 text-center">
                 <p className="text-2xl font-bold text-yellow-600">{alertas.stockBajo}</p>
-                <p className="text-xs text-yellow-700">Stock bajo (menos de 3)</p>
+                <p className="text-xs text-yellow-700">{t.lowStock}</p>
               </div>
             )}
             {alertas.sampleFalta > 0 && (
               <div className="bg-orange-100 rounded-xl p-3 text-center">
                 <p className="text-2xl font-bold text-orange-600">{alertas.sampleFalta}</p>
-                <p className="text-xs text-orange-700">Samples faltan</p>
+                <p className="text-xs text-orange-700">{t.missingSamples}</p>
               </div>
             )}
             {alertas.materiales > 0 && (
               <div className="bg-yellow-100 rounded-xl p-3 text-center">
                 <p className="text-2xl font-bold text-yellow-600">{alertas.materiales}</p>
-                <p className="text-xs text-yellow-700">Materiales caja</p>
+                <p className="text-xs text-yellow-700">{t.boxMaterials}</p>
               </div>
             )}
             {alertas.insumos > 0 && (
               <div className="bg-blue-100 rounded-xl p-3 text-center">
                 <p className="text-2xl font-bold text-blue-600">{alertas.insumos}</p>
-                <p className="text-xs text-blue-700">Insumos estudio</p>
+                <p className="text-xs text-blue-700">{t.studioSupplies}</p>
               </div>
             )}
           </div>
@@ -210,9 +212,9 @@ export default function Dashboard() {
         <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
           <p className="text-green-700 font-semibold flex items-center justify-center gap-2">
             <CheckCircle size={18} />
-            Todo en orden
+            {t.allGood}
           </p>
-          <p className="text-green-600 text-sm">Sin alertas activas</p>
+          <p className="text-green-600 text-sm">{t.noAlerts}</p>
         </div>
       )}
 
@@ -227,13 +229,13 @@ export default function Dashboard() {
                   <circle cx="20" cy="21" r="1" />
                   <path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" />
                 </svg>
-                Pendiente de comprar
+                {t.pendingPurchase}
               </p>
-              <span className="text-xs text-red-600 font-semibold">Ver lista →</span>
+              <span className="text-xs text-red-600 font-semibold">{t.viewList} →</span>
             </div>
             {materialesPendientes.length > 0 && (
               <div className="px-4 py-3 border-b border-gray-100">
-                <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">Materiales de cajas</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">{t.boxMaterialsSection}</p>
                 <ul className="space-y-1.5">
                   {materialesPendientes.map((m, i) => (
                     <li key={i} className="flex items-center justify-between text-sm">
@@ -249,7 +251,7 @@ export default function Dashboard() {
             )}
             {insumosPendientes.length > 0 && (
               <div className="px-4 py-3">
-                <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">Insumos del estudio</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">{t.studioSuppliesSection}</p>
                 <ul className="space-y-1.5">
                   {insumosPendientes.map((ins, i) => (
                     <li key={i} className="flex items-center justify-between text-sm">
@@ -277,12 +279,12 @@ export default function Dashboard() {
           <line x1="3" y1="6" x2="21" y2="6"/>
           <path d="M16 10a4 4 0 01-8 0"/>
         </svg>
-        Registrar sesión de mercado
+        {t.registerSession}
       </Link>
 
       {/* Estado de cajas */}
       <div>
-        <h2 className="font-bold text-gray-700 mb-3">Estado de cajas</h2>
+        <h2 className="font-bold text-gray-700 mb-3">{t.boxStatus}</h2>
         <div className="grid grid-cols-2 gap-3">
           {cajas.map((c) => (
             <Link key={c.id} href={`/inventario?caja=${c.nombre.replace(/ /g, '-')}`}>
@@ -291,22 +293,22 @@ export default function Dashboard() {
                 <p className="text-xs text-gray-500 mb-3 leading-tight">{c.descripcion}</p>
                 {c.outCount > 0 && (
                   <p className="text-xs text-red-600 flex items-center gap-1.5">
-                    <Dot color="#dc2626" /> {c.outCount} sold out
+                    <Dot color="#dc2626" /> {c.outCount} {t.soldOut}
                   </p>
                 )}
                 {c.stockBajoCount > 0 && (
                   <p className="text-xs text-yellow-600 flex items-center gap-1.5">
-                    <Dot color="#ca8a04" /> {c.stockBajoCount} stock bajo
+                    <Dot color="#ca8a04" /> {c.stockBajoCount} {t.lowStock}
                   </p>
                 )}
                 {c.sampleCount > 0 && (
                   <p className="text-xs text-orange-600 flex items-center gap-1.5">
-                    <Dot color="#ea580c" /> {c.sampleCount} samples faltan
+                    <Dot color="#ea580c" /> {c.sampleCount} {t.missingSamples}
                   </p>
                 )}
                 {c.outCount === 0 && c.stockBajoCount === 0 && c.sampleCount === 0 && (
                   <p className="text-xs text-green-600 flex items-center gap-1.5">
-                    <Check size={12} /> OK
+                    <Check size={12} /> {t.ok}
                   </p>
                 )}
               </div>
@@ -318,7 +320,7 @@ export default function Dashboard() {
       {/* Últimas sesiones */}
       {ultimasSesiones.length > 0 && (
         <div>
-          <h2 className="font-bold text-gray-700 mb-3">Últimas sesiones</h2>
+          <h2 className="font-bold text-gray-700 mb-3">{t.latestSessions}</h2>
           <div className="bg-white border border-gray-200 rounded-2xl divide-y divide-gray-100">
             {ultimasSesiones.map((s, i) => (
               <div key={i} className="flex items-center justify-between px-4 py-3">

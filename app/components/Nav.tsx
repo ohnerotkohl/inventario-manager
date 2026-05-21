@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "./AuthProvider";
+import { useLang } from "./LangProvider";
 
 const HomeIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -61,26 +62,27 @@ const AdminIcon = () => (
 );
 
 
-const adminLinks = [
-  { href: "/", label: "Inicio", Icon: HomeIcon },
-  { href: "/inventario", label: "Stock", Icon: StockIcon },
-  { href: "/restock", label: "Restock", Icon: RestockIcon },
-  { href: "/sesion", label: "Sesión", Icon: SesionIcon },
-  { href: "/estadisticas", label: "Stats", Icon: StatsIcon },
-  { href: "/compras", label: "Compras", Icon: ComprasIcon },
-  { href: "/admin", label: "Equipo", Icon: AdminIcon },
-];
-
-const empleadoLinks = [
-  { href: "/sesion", label: "Sesión", Icon: SesionIcon },
-  { href: "/inventario", label: "Stock", Icon: StockIcon },
-];
-
 export default function Nav() {
   const pathname = usePathname();
   const { user } = useAuth();
+  const { t } = useLang();
 
   if (!user || pathname === "/login") return null;
+
+  const adminLinks = [
+    { href: "/", label: t.home, Icon: HomeIcon },
+    { href: "/inventario", label: t.stock, Icon: StockIcon },
+    { href: "/restock", label: t.restock, Icon: RestockIcon },
+    { href: "/sesion", label: t.session, Icon: SesionIcon },
+    { href: "/estadisticas", label: t.stats, Icon: StatsIcon },
+    { href: "/compras", label: t.purchases, Icon: ComprasIcon },
+    { href: "/admin", label: t.team, Icon: AdminIcon },
+  ];
+
+  const empleadoLinks = [
+    { href: "/sesion", label: t.session, Icon: SesionIcon },
+    { href: "/inventario", label: t.stock, Icon: StockIcon },
+  ];
 
   const links = user.rol === "admin" ? adminLinks : empleadoLinks;
 

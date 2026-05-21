@@ -4,6 +4,7 @@ import "./globals.css";
 import Nav from "./components/Nav";
 import AuthProvider from "./components/AuthProvider";
 import Header from "./components/Header";
+import LangProvider from "./components/LangProvider";
 
 const geist = Geist({ subsets: ["latin"] });
 
@@ -31,11 +32,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es" className={geist.className}>
       <body className="bg-gray-50 min-h-screen pb-20">
+        <LangProvider>
         <AuthProvider>
           <Header />
           <main className="max-w-2xl mx-auto px-4 py-6">{children}</main>
           <Nav />
         </AuthProvider>
+        </LangProvider>
       </body>
     </html>
   );

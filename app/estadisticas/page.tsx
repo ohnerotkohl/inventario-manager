@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/app/components/AuthProvider";
+import { useLang } from "@/app/components/LangProvider";
 import { SkeletonCard, SkeletonList } from "@/app/components/Skeleton";
 
 interface TopPoster {
@@ -40,6 +41,7 @@ type Tab = "resumen" | "historial";
 export default function EstadisticasPage() {
   const router = useRouter();
   const { user } = useAuth();
+  const { t, tr } = useLang();
   const [tab, setTab] = useState<Tab>("resumen");
   const [topPosters, setTopPosters] = useState<TopPoster[]>([]);
   const [porMercado, setPorMercado] = useState<VentasPorMercado[]>([]);
@@ -168,8 +170,8 @@ export default function EstadisticasPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Estadísticas</h1>
-        <p className="text-gray-500 text-sm">Ventas y rendimiento</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t.statsTitle}</h1>
+        <p className="text-gray-500 text-sm">{t.statsSubtitle}</p>
       </div>
 
       {/* Tabs */}
@@ -181,7 +183,7 @@ export default function EstadisticasPage() {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
             <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
           </svg>
-          Resumen
+          {t.summary}
         </button>
         <button
           onClick={() => setTab("historial")}
@@ -190,13 +192,13 @@ export default function EstadisticasPage() {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
           </svg>
-          Historial
+          {t.history}
         </button>
       </div>
 
       {/* Filtro período */}
       <div className="flex gap-2">
-        {[{ val: "30", label: "30 días" }, { val: "90", label: "3 meses" }, { val: "365", label: "1 año" }, { val: "todo", label: "Todo" }].map((p) => (
+        {[{ val: "30", label: t.days30 }, { val: "90", label: t.months3 }, { val: "365", label: t.year1 }, { val: "todo", label: t.all }].map((p) => (
           <button
             key={p.val}
             onClick={() => setPeriodo(p.val as "30" | "90" | "365" | "todo")}
@@ -222,30 +224,29 @@ export default function EstadisticasPage() {
               <line x1="6" y1="20" x2="6" y2="16" />
             </svg>
           </div>
-          <p>No hay ventas registradas aún</p>
+          <p>{t.noSales}</p>
         </div>
       ) : tab === "resumen" ? (
         <>
           {/* Total */}
           <div className="bg-black text-white rounded-2xl p-5 text-center">
             <p className="text-5xl font-bold">{totalVentas}</p>
-            <p className="text-gray-400 mt-1">pósters vendidos</p>
+            <p className="text-gray-400 mt-1">{t.postersSold}</p>
           </div>
 
           {/* Gráfica por mes */}
           {porMes.some((m) => m > 0) && (() => {
-            const meses = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
             const maxMes = Math.max(...porMes, 1);
             return (
               <div>
-                <h2 className="font-bold text-gray-700 mb-3">Ventas por mes</h2>
+                <h2 className="font-bold text-gray-700 mb-3">{t.salesByMonth}</h2>
                 <div className="bg-white border border-gray-200 rounded-2xl p-4">
                   <div className="flex items-end gap-1 h-28">
                     {porMes.map((total, i) => (
                       <div key={i} className="flex-1 flex flex-col items-center gap-1">
                         <span className="text-xs text-gray-500">{total > 0 ? total : ""}</span>
                         <div className="w-full rounded-t-sm bg-black" style={{ height: `${Math.max((total / maxMes) * 80, total > 0 ? 4 : 0)}px` }} />
-                        <span className="text-xs text-gray-400">{meses[i]}</span>
+                        <span className="text-xs text-gray-400">{t.months[i]}</span>
                       </div>
                     ))}
                   </div>
@@ -256,7 +257,7 @@ export default function EstadisticasPage() {
 
           {/* Por mercado */}
           <div>
-            <h2 className="font-bold text-gray-700 mb-3">Por mercado</h2>
+            <h2 className="font-bold text-gray-700 mb-3">{t.byMarket}</h2>
             <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-3">
               {porMercado.map((m) => (
                 <div key={m.mercado}>
@@ -274,7 +275,7 @@ export default function EstadisticasPage() {
 
           {/* Por serie */}
           <div>
-            <h2 className="font-bold text-gray-700 mb-3">Por serie</h2>
+            <h2 className="font-bold text-gray-700 mb-3">{t.bySeries}</h2>
             <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-3">
               {porSerie.map((s) => (
                 <div key={s.serie}>
@@ -292,7 +293,7 @@ export default function EstadisticasPage() {
 
           {/* Top pósters */}
           <div>
-            <h2 className="font-bold text-gray-700 mb-3">Top pósters</h2>
+            <h2 className="font-bold text-gray-700 mb-3">{t.topPosters}</h2>
             <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
               {topPosters.map((p, idx) => (
                 <div key={p.nombre} className={`flex items-center gap-3 px-4 py-3 ${idx < topPosters.length - 1 ? "border-b border-gray-100" : ""}`}>
@@ -328,7 +329,7 @@ export default function EstadisticasPage() {
                   <line x1="3" y1="10" x2="21" y2="10" />
                 </svg>
               </div>
-              <p>No hay sesiones registradas</p>
+              <p>{t.noSessions}</p>
             </div>
           ) : historial.map((s) => (
             <div key={s.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
@@ -343,7 +344,7 @@ export default function EstadisticasPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-gray-900">{s.total} vendidos</span>
+                  <span className="font-bold text-gray-900">{tr("sold", { n: s.total })}</span>
                   <button
                     onClick={(e) => { e.stopPropagation(); router.push(`/sesion/editar?id=${s.id}`); }}
                     className="flex items-center gap-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-2 py-1 rounded-lg font-medium transition-colors"
@@ -351,7 +352,7 @@ export default function EstadisticasPage() {
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
                     </svg>
-                    Editar
+                    {t.edit}
                   </button>
                   <span className="text-gray-400">{sesionAbierta === s.id ? "▲" : "▼"}</span>
                 </div>
@@ -359,7 +360,7 @@ export default function EstadisticasPage() {
               {sesionAbierta === s.id && (
                 <div className="border-t border-gray-100 px-4 py-3">
                   <div className="grid grid-cols-[1fr_40px_40px] gap-x-3 gap-y-1.5">
-                    <span className="text-xs font-semibold text-gray-400">Póster</span>
+                    <span className="text-xs font-semibold text-gray-400">{t.poster}</span>
                     <span className="text-xs font-semibold text-gray-400 text-center">A4</span>
                     <span className="text-xs font-semibold text-gray-400 text-center">A3</span>
                     {Object.entries(

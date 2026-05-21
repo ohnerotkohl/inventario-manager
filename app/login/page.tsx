@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { hashPin, setSession, getSession } from "@/lib/auth";
 import type { Usuario } from "@/lib/auth";
+import { useLang } from "@/app/components/LangProvider";
 
 interface UsuarioRow {
   id: string;
@@ -16,6 +17,7 @@ interface UsuarioRow {
 
 export default function LoginPage() {
   const router = useRouter();
+  const { t } = useLang();
   const [usuarios, setUsuarios] = useState<UsuarioRow[]>([]);
   const [selected, setSelected] = useState<UsuarioRow | null>(null);
   const [pin, setPin] = useState("");
@@ -54,7 +56,7 @@ export default function LoginPage() {
     if (!selected || pin.length < 4) return;
     const hashed = await hashPin(pin);
     if (hashed !== selected.pin_hash) {
-      setError("PIN incorrecto");
+      setError(t.wrongPin);
       setPin("");
       return;
     }
@@ -71,7 +73,7 @@ export default function LoginPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-gray-500 text-sm">Cargando...</div>
+        <div className="text-gray-500 text-sm">{t.loading}</div>
       </div>
     );
   }
@@ -86,7 +88,7 @@ export default function LoginPage() {
 
       {!selected ? (
         <div className="w-full max-w-xs flex flex-col gap-3">
-          <p className="text-gray-400 text-sm text-center mb-1">¿Quién eres?</p>
+          <p className="text-gray-400 text-sm text-center mb-1">{t.whoAreYou}</p>
           {usuarios.map((u) => (
             <button
               key={u.id}
@@ -104,13 +106,12 @@ export default function LoginPage() {
               onClick={() => { setSelected(null); setPin(""); setError(""); }}
               className="text-gray-400 text-xs hover:text-white transition-colors"
             >
-              ← Cambiar usuario
+              {t.changeUser}
             </button>
             <p className="text-white text-lg font-semibold">{selected.nombre}</p>
-            <p className="text-gray-500 text-xs">Introduce tu PIN</p>
+            <p className="text-gray-500 text-xs">{t.enterPin}</p>
           </div>
 
-          {/* PIN dots — 4 dígitos */}
           <div className="flex gap-4">
             {[0, 1, 2, 3].map((i) => (
               <div
@@ -124,7 +125,6 @@ export default function LoginPage() {
 
           {error && <p className="text-red-400 text-sm">{error}</p>}
 
-          {/* Numpad */}
           <div className="grid grid-cols-3 gap-3 w-full">
             {["1","2","3","4","5","6","7","8","9","","0","⌫"].map((key, i) => {
               if (key === "") return <div key={i} />;
@@ -140,13 +140,12 @@ export default function LoginPage() {
             })}
           </div>
 
-          {/* Botón confirmar */}
           <button
             onClick={tryLogin}
             disabled={pin.length < 4}
             className="w-full bg-white text-black rounded-2xl py-4 text-base font-semibold disabled:opacity-30 transition-opacity"
           >
-            Entrar →
+            {t.enter}
           </button>
         </div>
       )}

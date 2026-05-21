@@ -7,10 +7,12 @@ import { useAuth } from "@/app/components/AuthProvider";
 import type { Caja, MaterialCaja, InsumoEstudio } from "@/lib/types";
 import { SkeletonPage } from "@/app/components/Skeleton";
 import { AlertTriangle, Check, Mail } from "@/app/components/Icons";
+import { useLang } from "@/app/components/LangProvider";
 
 type Tab = "cajas" | "estudio";
 
 export default function ComprasPage() {
+  const { t, tr } = useLang();
   const router = useRouter();
   const { user } = useAuth();
   const [tab, setTab] = useState<Tab>("estudio");
@@ -80,7 +82,7 @@ export default function ComprasPage() {
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch {
-      alert("Error guardando. Intenta de nuevo.");
+      alert(t.purchasesSaveError);
     }
     setSaving(false);
   }
@@ -100,7 +102,7 @@ export default function ComprasPage() {
       setEmailSent(true);
       setTimeout(() => setEmailSent(false), 4000);
     } else {
-      alert("Error enviando el email. Revisa la configuración.");
+      alert(t.emailError);
     }
     setSending(false);
   }
@@ -114,8 +116,8 @@ export default function ComprasPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Compras</h1>
-        <p className="text-gray-500 text-sm">Qué hay que comprar y cuánto</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t.purchasesTitle}</h1>
+        <p className="text-gray-500 text-sm">{t.purchasesSubtitle}</p>
       </div>
 
       {/* Tabs */}
@@ -126,7 +128,7 @@ export default function ComprasPage() {
             tab === "estudio" ? "bg-black text-white" : "bg-gray-100 text-gray-600"
           }`}
         >
-          Insumos estudio
+          {t.studioSuppliesTab}
           {totalAlertasIns > 0 && (
             <span className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">{totalAlertasIns}</span>
           )}
@@ -137,7 +139,7 @@ export default function ComprasPage() {
             tab === "cajas" ? "bg-black text-white" : "bg-gray-100 text-gray-600"
           }`}
         >
-          Materiales de cajas
+          {t.boxMaterialsTab}
           {totalAlertasMat > 0 && (
             <span className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">{totalAlertasMat}</span>
           )}
@@ -147,7 +149,7 @@ export default function ComprasPage() {
       {tab === "estudio" && (
         <div className="space-y-3">
           <p className="text-xs text-gray-500">
-            Actualiza cuánto queda de cada insumo. Si baja del mínimo, se marca como <strong>Comprar</strong> automáticamente.
+            {t.updateStockDesc}
           </p>
           <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
             {insumos.map((ins, idx) => {
@@ -163,7 +165,7 @@ export default function ComprasPage() {
                     <p className={`text-sm ${falta ? "font-semibold text-red-600" : "text-gray-800"}`}>
                       {ins.nombre}
                     </p>
-                    <p className="text-xs text-gray-500">queda {cant} {ins.unidad} · mín. {minimo}</p>
+                    <p className="text-xs text-gray-500">{tr("remainingMin", { qty: cant, unit: ins.unidad, min: minimo })}</p>
                   </div>
                   <input
                     type="number"
@@ -185,7 +187,7 @@ export default function ComprasPage() {
       {tab === "cajas" && (
         <div className="space-y-4">
           <p className="text-xs text-gray-500">
-            Marca lo que falta en cada caja. Se repondrá desde el stock del estudio.
+            {t.markMissingDesc}
           </p>
           {cajas.map((caja) => {
             const matsCaja = materiales.filter((m) => m.caja_id === caja.id);
@@ -209,7 +211,7 @@ export default function ComprasPage() {
                             : "bg-gray-100 text-gray-500 hover:bg-gray-200"
                         }`}
                       >
-                        {m.necesita_restock ? <><AlertTriangle size={12} /> Falta</> : "OK"}
+                        {m.necesita_restock ? <><AlertTriangle size={12} /> {t.missing}</> : t.ok}
                       </button>
                     </div>
                   ))}
@@ -228,13 +230,13 @@ export default function ComprasPage() {
               {dirtyCount > 0 ? (
                 <>
                   <p className="font-bold text-gray-900">
-                    {dirtyCount} cambio{dirtyCount > 1 ? "s" : ""} sin guardar
+                    {tr("unsavedChanges", { n: dirtyCount })}
                   </p>
-                  <p className="text-xs text-gray-500">Toca Guardar para aplicar</p>
+                  <p className="text-xs text-gray-500">{t.tapToSave}</p>
                 </>
               ) : (
                 <p className="font-bold text-green-700 flex items-center gap-2">
-                  <Check size={18} /> Guardado
+                  <Check size={18} /> {t.saved}
                 </p>
               )}
             </div>
@@ -244,7 +246,7 @@ export default function ComprasPage() {
                 disabled={saving}
                 className="bg-black text-white px-5 py-2.5 rounded-xl font-semibold disabled:opacity-40 hover:bg-gray-900 transition-colors"
               >
-                {saving ? "Guardando..." : "Guardar"}
+                {saving ? t.saving : t.save}
               </button>
             )}
           </div>
@@ -256,15 +258,15 @@ export default function ComprasPage() {
         <div className="sticky bottom-20 bg-white border border-gray-200 rounded-2xl p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-bold text-gray-900">{totalAlertas} item{totalAlertas > 1 ? "s" : ""} pendiente{totalAlertas > 1 ? "s" : ""}</p>
-              <p className="text-xs text-gray-500">Envía la lista al equipo</p>
+              <p className="font-bold text-gray-900">{tr("pendingItems", { n: totalAlertas })}</p>
+              <p className="text-xs text-gray-500">{t.sendToTeam}</p>
             </div>
             <button
               onClick={enviarEmail}
               disabled={sending}
               className="bg-black text-white px-5 py-2.5 rounded-xl font-semibold disabled:opacity-40 hover:bg-gray-900 transition-colors flex items-center gap-2"
             >
-              {sending ? "Enviando..." : emailSent ? <><Check size={16} /> Enviado</> : <><Mail size={16} /> Enviar lista</>}
+              {sending ? t.sending : emailSent ? <><Check size={16} /> {t.sent}</> : <><Mail size={16} /> {t.sendList}</>}
             </button>
           </div>
         </div>

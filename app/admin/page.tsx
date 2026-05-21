@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { hashPin } from "@/lib/auth";
 import { useAuth } from "@/app/components/AuthProvider";
+import { useLang } from "@/app/components/LangProvider";
 
 interface UsuarioRow {
   id: string;
@@ -17,6 +18,7 @@ interface UsuarioRow {
 export default function AdminPage() {
   const router = useRouter();
   const { user } = useAuth();
+  const { t } = useLang();
   const [usuarios, setUsuarios] = useState<UsuarioRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -63,7 +65,7 @@ export default function AdminPage() {
 
   async function cambiarPin(id: string) {
     setPinError("");
-    if (newPin.length !== 4) { setPinError("El PIN debe tener 4 dígitos."); return; }
+    if (newPin.length !== 4) { setPinError(t.pinMustBe4Exact); return; }
     const pin_hash = await hashPin(newPin);
     const { error: err } = await supabase.from("usuarios").update({ pin_hash }).eq("id", id);
     if (err) { setPinError(err.message); return; }
@@ -75,7 +77,7 @@ export default function AdminPage() {
 
   async function crearUsuario() {
     if (!nombre.trim() || pin.length !== 4) {
-      setError("Nombre y PIN de exactamente 4 dígitos son requeridos.");
+      setError(t.nameAndPin4Required);
       return;
     }
     setSaving(true);
@@ -93,32 +95,32 @@ export default function AdminPage() {
     fetchUsuarios();
   }
 
-  if (loading) return <p className="text-gray-500 text-sm">Cargando...</p>;
+  if (loading) return <p className="text-gray-500 text-sm">{t.loading}</p>;
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Equipo</h1>
+        <h1 className="text-xl font-bold">{t.team}</h1>
         <button
           onClick={() => setShowForm(!showForm)}
           className="text-sm bg-black text-white px-4 py-2 rounded-xl"
         >
-          {showForm ? "Cancelar" : "+ Añadir"}
+          {showForm ? t.cancel : t.addBtn}
         </button>
       </div>
 
       {showForm && (
         <div className="bg-white rounded-2xl p-4 flex flex-col gap-3 shadow-sm">
-          <p className="font-semibold text-sm">Nuevo usuario</p>
+          <p className="font-semibold text-sm">{t.newUser}</p>
           <input
             className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-black"
-            placeholder="Nombre"
+            placeholder={t.name}
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
           />
           <input
             className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-black"
-            placeholder="PIN (4 dígitos)"
+            placeholder={t.pin4digits}
             type="password"
             inputMode="numeric"
             value={pin}
@@ -129,8 +131,8 @@ export default function AdminPage() {
             value={rol}
             onChange={(e) => setRol(e.target.value as "admin" | "empleado")}
           >
-            <option value="empleado">Empleado</option>
-            <option value="admin">Admin</option>
+            <option value="empleado">{t.employee}</option>
+            <option value="admin">{t.admin}</option>
           </select>
           {error && <p className="text-red-500 text-xs">{error}</p>}
           <button
@@ -138,7 +140,7 @@ export default function AdminPage() {
             disabled={saving}
             className="bg-black text-white rounded-xl py-2 text-sm font-medium disabled:opacity-50"
           >
-            {saving ? "Guardando..." : "Crear usuario"}
+            {saving ? t.saving : t.createUser}
           </button>
         </div>
       )}
@@ -156,7 +158,7 @@ export default function AdminPage() {
               </div>
               <div className="flex items-center gap-2">
                 {savedId === u.id && (
-                  <span className="text-green-600 text-xs font-medium">✓ Guardado</span>
+                  <span className="text-green-600 text-xs font-medium">✓ {t.saved}</span>
                 )}
                 <button
                   onClick={() => toggleActivo(u)}
@@ -166,7 +168,7 @@ export default function AdminPage() {
                       : "border-green-300 text-green-600 hover:bg-green-50"
                   }`}
                 >
-                  {u.activo ? "Desactivar" : "Activar"}
+                  {u.activo ? t.deactivate : t.activate}
                 </button>
               </div>
             </div>
@@ -176,7 +178,7 @@ export default function AdminPage() {
               <div className="flex flex-col gap-2">
                 <input
                   className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-black"
-                  placeholder="Nuevo PIN (4 dígitos)"
+                  placeholder={t.newPin}
                   type="password"
                   inputMode="numeric"
                   autoFocus
@@ -189,13 +191,13 @@ export default function AdminPage() {
                     onClick={() => cambiarPin(u.id)}
                     className="flex-1 bg-black text-white rounded-xl py-2 text-xs font-medium"
                   >
-                    Guardar PIN
+                    {t.savePin}
                   </button>
                   <button
                     onClick={() => { setChangePinId(null); setNewPin(""); setPinError(""); }}
                     className="flex-1 border border-gray-200 rounded-xl py-2 text-xs text-gray-500"
                   >
-                    Cancelar
+                    {t.cancel}
                   </button>
                 </div>
               </div>
@@ -204,7 +206,7 @@ export default function AdminPage() {
                 onClick={() => { setChangePinId(u.id); setNewPin(""); setPinError(""); }}
                 className="text-xs text-gray-400 hover:text-black transition-colors text-left"
               >
-                🔑 Cambiar PIN
+                🔑 {t.changePin}
               </button>
             )}
 
@@ -216,7 +218,7 @@ export default function AdminPage() {
                   onChange={() => toggleInventario(u)}
                   className="w-4 h-4 rounded"
                 />
-                Puede hacer conteo de stock
+                {t.canCountStock}
               </label>
             )}
           </div>

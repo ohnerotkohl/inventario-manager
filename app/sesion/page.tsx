@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import type { Mercado, Poster, Serie, Inventario } from "@/lib/types";
 import { SkeletonList } from "@/app/components/Skeleton";
 import { Check, CheckCircle, Printer, Pencil, Dot } from "@/app/components/Icons";
+import { useLang } from "@/app/components/LangProvider";
 
 const SERIES_ORDER = [
   "Life is Food - Kitchen",
@@ -78,6 +79,7 @@ interface VentaEntry {
 }
 
 export default function SesionPage() {
+  const { t, tr } = useLang();
   const [step, setStep] = useState<Step>("info");
   const [mercados, setMercados] = useState<Mercado[]>([]);
   const [mercadoId, setMercadoId] = useState("");
@@ -164,7 +166,7 @@ export default function SesionPage() {
   }
 
   async function eliminarSesion(sesion: SesionHistorial) {
-    if (!confirm(`¿Eliminar la sesión de ${sesion.mercadoNombre} del ${new Date(sesion.fecha + "T12:00:00").toLocaleDateString("es-DE", { day: "numeric", month: "long" })}?\n\nEsto revertirá el inventario sumando de vuelta las unidades vendidas.`)) return;
+    if (!confirm(tr("deleteSessionConfirm", { market: sesion.mercadoNombre, date: new Date(sesion.fecha + "T12:00:00").toLocaleDateString("es-DE", { day: "numeric", month: "long" }) }))) return;
 
     // Revertir inventario: sumar de vuelta las ventas
     const { data: ventasRes } = await supabase.from("ventas").select("poster_id, talla, cantidad").eq("sesion_id", sesion.id);
@@ -346,7 +348,7 @@ export default function SesionPage() {
           .select()
           .single();
         if (error || !nuevaSesion) {
-          alert("Error guardando la sesión. Intenta de nuevo.");
+          alert(t.saveError);
           setSubmitting(false);
           return;
         }
@@ -482,8 +484,8 @@ export default function SesionPage() {
           <div className="flex justify-center mb-2 text-green-600">
             <CheckCircle size={56} strokeWidth={1.4} />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900">¡Sesión guardada!</h2>
-          <p className="text-gray-500 text-sm">Inventario actualizado correctamente</p>
+          <h2 className="text-2xl font-bold text-gray-900">{t.sessionSaved}</h2>
+          <p className="text-gray-500 text-sm">{t.inventoryUpdated}</p>
         </div>
 
         {/* Reporte de impresión */}
@@ -491,14 +493,14 @@ export default function SesionPage() {
           <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
             <div className="bg-black text-white px-4 py-3">
               <p className="font-bold flex items-center gap-2">
-                <Printer size={16} /> Reporte de impresión
+                <Printer size={16} /> {t.printReport}
               </p>
               <p className="text-xs text-gray-400">{mercado?.nombre} · {new Date(fecha + "T12:00:00").toLocaleDateString("es-DE", { day: "numeric", month: "long" })}</p>
             </div>
 
             {reporteImpresion.a4.length > 0 && (
               <div className="px-4 py-3 border-b border-gray-100">
-                <p className="text-xs font-bold uppercase tracking-widest text-yellow-600 mb-2">Tamaño A4</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-yellow-600 mb-2">{t.sizeA4}</p>
                 {reporteImpresion.a4.map((item, i) => (
                   <div key={i} className="flex items-center justify-between py-1.5">
                     <div className="flex items-center gap-2">
@@ -506,8 +508,8 @@ export default function SesionPage() {
                       <span className="text-sm text-gray-800">{item.linea}</span>
                     </div>
                     {item.stockRestante >= 5
-                      ? <span className="text-xs text-green-600 font-medium flex items-center gap-1"><Check size={12} /> Stock ok ({item.stockRestante})</span>
-                      : <span className="text-xs text-red-600 font-medium flex items-center gap-1"><Printer size={12} /> Imprimir (quedan {item.stockRestante})</span>
+                      ? <span className="text-xs text-green-600 font-medium flex items-center gap-1"><Check size={12} /> {tr("stockOk", { n: item.stockRestante })}</span>
+                      : <span className="text-xs text-red-600 font-medium flex items-center gap-1"><Printer size={12} /> {tr("printRemaining", { n: item.stockRestante })}</span>
                     }
                   </div>
                 ))}
@@ -516,7 +518,7 @@ export default function SesionPage() {
 
             {reporteImpresion.a3.length > 0 && (
               <div className="px-4 py-3">
-                <p className="text-xs font-bold uppercase tracking-widest text-blue-600 mb-2">Tamaño A3</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-blue-600 mb-2">{t.sizeA3}</p>
                 {reporteImpresion.a3.map((item, i) => (
                   <div key={i} className="flex items-center justify-between py-1.5">
                     <div className="flex items-center gap-2">
@@ -524,8 +526,8 @@ export default function SesionPage() {
                       <span className="text-sm text-gray-800">{item.linea}</span>
                     </div>
                     {item.stockRestante >= 5
-                      ? <span className="text-xs text-green-600 font-medium flex items-center gap-1"><Check size={12} /> Stock ok ({item.stockRestante})</span>
-                      : <span className="text-xs text-red-600 font-medium flex items-center gap-1"><Printer size={12} /> Imprimir (quedan {item.stockRestante})</span>
+                      ? <span className="text-xs text-green-600 font-medium flex items-center gap-1"><Check size={12} /> {tr("stockOk", { n: item.stockRestante })}</span>
+                      : <span className="text-xs text-red-600 font-medium flex items-center gap-1"><Printer size={12} /> {tr("printRemaining", { n: item.stockRestante })}</span>
                     }
                   </div>
                 ))}
@@ -555,7 +557,7 @@ export default function SesionPage() {
           }}
           className="w-full border-2 border-black text-black py-3 rounded-2xl font-semibold hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
         >
-          <Pencil size={16} /> Seguir editando esta sesión
+          <Pencil size={16} /> {t.keepEditing}
         </button>
 
         {/* Botones compartir / email reporte */}
@@ -597,7 +599,7 @@ export default function SesionPage() {
                 <polyline points="16 6 12 2 8 6" />
                 <line x1="12" y1="2" x2="12" y2="15" />
               </svg>
-              Compartir / guardar reporte
+              {t.shareReport}
             </button>
 
             <button
@@ -615,7 +617,7 @@ export default function SesionPage() {
                   <path d="M22 7l-10 6L2 7" />
                 </svg>
               )}
-              {enviandoEmail ? "Enviando..." : emailEnviado ? "✓ Reporte enviado" : "Enviar por email"}
+              {enviandoEmail ? t.sending : emailEnviado ? t.reportSent : t.sendEmail}
             </button>
           </div>
         )}
@@ -631,7 +633,7 @@ export default function SesionPage() {
           }}
           className="w-full bg-black text-white px-6 py-3 rounded-2xl font-semibold hover:bg-gray-900"
         >
-          Nueva sesión
+          {t.newSession}
         </button>
       </div>
     );
@@ -641,8 +643,8 @@ export default function SesionPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Sesiones</h1>
-          <p className="text-gray-500 text-sm">Registra las ventas del mercado</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t.sessions}</h1>
+          <p className="text-gray-500 text-sm">{t.sessionsSubtitle}</p>
         </div>
 
         {/* Tabs principales */}
@@ -654,7 +656,7 @@ export default function SesionPage() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
-            Nueva sesión
+            {t.newSession}
           </button>
           <button
             onClick={() => setTabPrincipal("historial")}
@@ -663,7 +665,7 @@ export default function SesionPage() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
             </svg>
-            Historial
+            {t.history}
           </button>
         </div>
 
@@ -715,7 +717,7 @@ export default function SesionPage() {
                     <button onClick={nextMonth} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-600 font-bold text-lg">›</button>
                   </div>
                   <div className="grid grid-cols-7 mb-1">
-                    {["L","M","X","J","V","S","D"].map(d => (
+                    {t.calDays.map(d => (
                       <span key={d} className="text-center text-xs text-gray-400 font-medium py-1">{d}</span>
                     ))}
                   </div>
@@ -747,12 +749,12 @@ export default function SesionPage() {
                     <p className="text-xs text-gray-500">
                       {new Date(selectedDate + "T12:00:00").toLocaleDateString("es-DE", { weekday: "long", day: "numeric", month: "long" })}
                     </p>
-                    <button onClick={() => setSelectedDate(null)} className="text-xs text-gray-400 hover:text-gray-700 underline">Ver todo</button>
+                    <button onClick={() => setSelectedDate(null)} className="text-xs text-gray-400 hover:text-gray-700 underline">{t.viewAll}</button>
                   </div>
                 )}
 
                 {filtered.length === 0 ? (
-                  <div className="text-center py-10 text-gray-400 text-sm">No hay sesiones este día</div>
+                  <div className="text-center py-10 text-gray-400 text-sm">{t.noSessionsThisDay}</div>
                 ) : meses.map((mes) => (
                 <div key={mes} className="space-y-2">
                   {!selectedDate && <p className="text-xs font-bold uppercase tracking-widest text-gray-400 px-1">
@@ -772,7 +774,7 @@ export default function SesionPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="text-right">
-                      <p className="font-bold text-gray-900">{s.totalVentas} vendidos</p>
+                      <p className="font-bold text-gray-900">{tr("sold", { n: s.totalVentas })}</p>
                     </div>
                     <span className="text-gray-400">{historialAbierto === s.id ? "▲" : "▼"}</span>
                   </div>
@@ -780,7 +782,7 @@ export default function SesionPage() {
                 {historialAbierto === s.id && (
                   <div className="border-t border-gray-100 px-4 py-3 space-y-3">
                     <div className="grid grid-cols-[1fr_40px_40px] gap-x-3 gap-y-1.5">
-                      <span className="text-xs font-semibold text-gray-400">Póster</span>
+                      <span className="text-xs font-semibold text-gray-400">{t.poster}</span>
                       <span className="text-xs font-semibold text-gray-400 text-center">A4</span>
                       <span className="text-xs font-semibold text-gray-400 text-center">A3</span>
                       {Object.entries(
@@ -807,7 +809,7 @@ export default function SesionPage() {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
                         </svg>
-                        Editar
+                        {t.edit}
                       </button>
                       <button
                         onClick={() => eliminarSesion(s)}
@@ -816,7 +818,7 @@ export default function SesionPage() {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
                         </svg>
-                        Eliminar
+                        {t.delete}
                       </button>
                     </div>
                   </div>
@@ -832,7 +834,7 @@ export default function SesionPage() {
 
         {tabPrincipal === "nueva" && <><div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Mercado</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">{t.market}</label>
             <div className="grid grid-cols-1 gap-2">
               {mercados.map((m) => (
                 <button
@@ -844,7 +846,7 @@ export default function SesionPage() {
                 >
                   <span className="font-medium">{m.nombre}</span>
                   <span className={`ml-2 text-xs capitalize ${mercadoId === m.id ? "opacity-60" : "text-gray-600"} ${m.dia_semana === "especial" ? "italic" : ""}`}>
-                    {m.dia_semana === "especial" ? "mercado especial" : m.dia_semana}
+                    {m.dia_semana === "especial" ? t.specialMarket : m.dia_semana}
                   </span>
                 </button>
               ))}
@@ -854,7 +856,7 @@ export default function SesionPage() {
                 <div className="border-2 border-dashed border-gray-300 rounded-xl p-3 space-y-2">
                   <input
                     type="text"
-                    placeholder="Nombre del mercado"
+                    placeholder={t.marketName}
                     value={nuevoNombre}
                     onChange={(e) => setNuevoNombre(e.target.value)}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-black"
@@ -865,7 +867,7 @@ export default function SesionPage() {
                     onChange={(e) => setNuevaCajaId(e.target.value)}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-black bg-white"
                   >
-                    <option value="">Selecciona una caja...</option>
+                    <option value="">{t.selectBox}</option>
                     {cajas.map((c) => (
                       <option key={c.id} value={c.id}>{c.nombre}</option>
                     ))}
@@ -876,13 +878,13 @@ export default function SesionPage() {
                       disabled={!nuevoNombre.trim() || !nuevaCajaId || guardandoMercado}
                       className="flex-1 bg-black text-white py-2 rounded-lg text-sm font-semibold disabled:opacity-40"
                     >
-                      {guardandoMercado ? "Guardando..." : "Crear mercado"}
+                      {guardandoMercado ? t.saving : t.createMarket}
                     </button>
                     <button
                       onClick={() => { setNuevoMercado(false); setNuevoNombre(""); setNuevaCajaId(""); }}
                       className="px-4 py-2 rounded-lg text-sm text-gray-500 bg-gray-100"
                     >
-                      Cancelar
+                      {t.cancel}
                     </button>
                   </div>
                 </div>
@@ -891,14 +893,14 @@ export default function SesionPage() {
                   onClick={() => setNuevoMercado(true)}
                   className="text-left px-4 py-3 rounded-xl border-2 border-dashed border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-colors text-sm"
                 >
-                  + Añadir mercado especial
+                  {t.addSpecialMarket}
                 </button>
               )}
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Fecha</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">{t.date}</label>
             <input
               type="date"
               value={fecha}
@@ -908,12 +910,12 @@ export default function SesionPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Trabajador</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">{t.worker}</label>
             <input
               type="text"
               value={trabajador}
               onChange={(e) => setTrabajador(e.target.value)}
-              placeholder="Nombre del empleado"
+              placeholder={t.workerName}
               className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:border-gray-500"
             />
           </div>
@@ -924,7 +926,7 @@ export default function SesionPage() {
           disabled={!mercadoId || !trabajador.trim()}
           className="w-full bg-black text-white py-4 rounded-2xl font-semibold text-lg disabled:opacity-40 hover:bg-gray-900 transition-colors"
         >
-          Registrar ventas →
+          {t.registerSales}
         </button>
         </>}
       </div>
@@ -937,7 +939,7 @@ export default function SesionPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Ventas del día</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t.salesOfDay}</h1>
         <p className="text-gray-500 text-sm">
           {mercado?.nombre} · {new Date(fecha + "T12:00:00").toLocaleDateString("es-DE", { weekday: "long", day: "numeric", month: "long" })} · {trabajador}
         </p>
@@ -971,7 +973,7 @@ export default function SesionPage() {
                   </div>
                   <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
                     <div className="grid grid-cols-[1fr_80px_80px] gap-2 px-4 py-2 bg-gray-50 border-b border-gray-100">
-                      <span className="text-xs font-semibold text-gray-700">Póster</span>
+                      <span className="text-xs font-semibold text-gray-700">{t.poster}</span>
                       <span className="text-xs font-semibold text-gray-700 text-center">A4</span>
                       <span className="text-xs font-semibold text-gray-700 text-center">A3</span>
                     </div>
@@ -1023,15 +1025,15 @@ export default function SesionPage() {
 
           <div className="sticky bottom-20 bg-white border border-gray-200 rounded-2xl p-4 flex items-center justify-between">
             <div>
-              <p className="font-bold text-gray-900">{totalVentas} ventas registradas</p>
-              <p className="text-xs text-gray-500">Confirma para actualizar el stock</p>
+              <p className="font-bold text-gray-900">{tr("totalSales", { n: totalVentas })}</p>
+              <p className="text-xs text-gray-500">{t.confirmUpdate}</p>
             </div>
             <button
               onClick={handleSubmit}
               disabled={submitting || totalVentas === 0}
               className="bg-black text-white px-5 py-2.5 rounded-xl font-semibold disabled:opacity-40 hover:bg-gray-900 transition-colors"
             >
-              {submitting ? "Guardando..." : "Confirmar"}
+              {submitting ? t.saving : t.confirm}
             </button>
           </div>
         </>

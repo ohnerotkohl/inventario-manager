@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import type { Caja, Serie, Poster, Inventario } from "@/lib/types";
 import { SkeletonPage } from "@/app/components/Skeleton";
 import { useAuth } from "@/app/components/AuthProvider";
+import { useLang } from "@/app/components/LangProvider";
 
 const SERIES_ORDER = [
   "Life is Food - Kitchen",
@@ -71,6 +72,7 @@ export default function InventarioPage() {
 function InventarioInner() {
   const params = useSearchParams();
   const { user } = useAuth();
+  const { t } = useLang();
   const readOnly = user?.rol === "empleado" && !user?.puede_inventario;
   const [cajas, setCajas] = useState<Caja[]>([]);
   const [cajaId, setCajaId] = useState<string>("");
@@ -197,12 +199,12 @@ function InventarioInner() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Inventario</h1>
-        <p className="text-gray-500 text-sm">Stock por caja y póster</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t.inventory}</h1>
+        <p className="text-gray-500 text-sm">{t.inventorySubtitle}</p>
       </div>
       {readOnly && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-2xl px-4 py-3 text-sm text-yellow-700">
-          Modo lectura — pide autorización a un admin para editar el stock.
+          {t.readOnlyMode}
         </div>
       )}
 
@@ -236,7 +238,7 @@ function InventarioInner() {
               <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
                 {/* Header */}
                 <div className="grid grid-cols-[1fr_auto_auto] gap-2 px-4 py-2 bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-500">
-                  <span>Póster</span>
+                  <span>{t.poster}</span>
                   <span className="w-24 text-center">A4</span>
                   <span className="w-24 text-center">A3</span>
                 </div>
@@ -309,6 +311,7 @@ interface TallaCellProps {
 }
 
 function TallaCell({ posterId, talla, stock, saving, editando, setEditando, guardarCantidad, upsertInventario, readOnly }: TallaCellProps) {
+  const { t } = useLang();
   const key = `${posterId}-${talla}`;
   const isSaving = saving?.startsWith(key);
   const cantidad = editando[key] !== undefined ? editando[key] : (stock?.cantidad ?? 0);
@@ -340,7 +343,7 @@ function TallaCell({ posterId, talla, stock, saving, editando, setEditando, guar
           className={`text-xs px-1.5 py-0.5 rounded font-medium transition-colors ${
             stock?.out ? "bg-red-500 text-white" : "bg-gray-100 text-gray-400"
           } ${readOnly ? "cursor-default" : ""}`}
-          title="Sold Out"
+          title={t.soldOutTitle}
         >
           OUT
         </button>
@@ -350,7 +353,7 @@ function TallaCell({ posterId, talla, stock, saving, editando, setEditando, guar
           className={`text-xs px-1.5 py-0.5 rounded font-medium transition-colors ${
             stock?.sample_falta ? "bg-orange-400 text-white" : "bg-gray-100 text-gray-400"
           } ${readOnly ? "cursor-default" : ""}`}
-          title="Falta sample"
+          title={t.missingSampleTitle}
         >
           SMP
         </button>

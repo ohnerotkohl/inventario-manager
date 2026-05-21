@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/app/components/AuthProvider";
+import { useLang } from "@/app/components/LangProvider";
 import type { Caja, Serie, Poster, Inventario } from "@/lib/types";
 
 const SERIES_ORDER = [
@@ -47,6 +48,7 @@ interface RestockHistorial {
 export default function RestockPage() {
   const router = useRouter();
   const { user } = useAuth();
+  const { t, tr } = useLang();
   const [tabPrincipal, setTabPrincipal] = useState<TabPrincipal>("restock");
   const [step, setStep] = useState<Step>("seleccion");
   const [cajas, setCajas] = useState<Caja[]>([]);
@@ -217,7 +219,7 @@ export default function RestockPage() {
             <polyline points="22 4 12 14.01 9 11.01" />
           </svg>
         </div>
-        <h2 className="text-2xl font-bold text-gray-900">¡Restock completado!</h2>
+        <h2 className="text-2xl font-bold text-gray-900">{t.restockDone}</h2>
         <p className="text-gray-500">
           Se añadieron <strong>{totalUnidades} unidades</strong> ({totalA4 > 0 ? `A4: ${totalA4}` : ""}{totalA4 > 0 && totalA3 > 0 ? " · " : ""}{totalA3 > 0 ? `A3: ${totalA3}` : ""}) al stock de <strong>{caja?.nombre}</strong>.
         </p>
@@ -226,13 +228,13 @@ export default function RestockPage() {
             onClick={() => { setStep("seleccion"); setCantidades({}); setCajaId(""); }}
             className="bg-black text-white px-6 py-3 rounded-2xl font-semibold hover:bg-gray-900"
           >
-            Hacer otro restock
+            {t.anotherRestock}
           </button>
           <button
             onClick={() => { setStep("seleccion"); setCantidades({}); setCajaId(""); setTabPrincipal("historial"); }}
             className="border-2 border-black text-black px-6 py-3 rounded-2xl font-semibold hover:bg-gray-50"
           >
-            Ver historial
+            {t.viewHistory}
           </button>
         </div>
       </div>
@@ -243,8 +245,8 @@ export default function RestockPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Restock</h1>
-          <p className="text-gray-500 text-sm">Añade nuevas unidades impresas al stock</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t.restockTitle}</h1>
+          <p className="text-gray-500 text-sm">{t.restockSubtitle}</p>
         </div>
 
         {/* Tabs principales */}
@@ -256,7 +258,7 @@ export default function RestockPage() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
             </svg>
-            Nuevo restock
+            {t.newRestock}
           </button>
           <button
             onClick={() => setTabPrincipal("historial")}
@@ -265,7 +267,7 @@ export default function RestockPage() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
             </svg>
-            Historial
+            {t.history}
           </button>
         </div>
 
@@ -284,7 +286,7 @@ export default function RestockPage() {
                     <rect x="6" y="14" width="12" height="8"/>
                   </svg>
                 </div>
-                <p>No hay historial de restock aún</p>
+                <p>{t.noHistory}</p>
               </div>
             ) : (() => {
               const [cy, cm] = calendarMonth.split("-").map(Number);
@@ -326,7 +328,7 @@ export default function RestockPage() {
                     <button onClick={nextMonth} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-600 font-bold text-lg">›</button>
                   </div>
                   <div className="grid grid-cols-7 mb-1">
-                    {["L","M","X","J","V","S","D"].map(d => (
+                    {t.calDays.map((d: string) => (
                       <span key={d} className="text-center text-xs text-gray-400 font-medium py-1">{d}</span>
                     ))}
                   </div>
@@ -392,7 +394,7 @@ export default function RestockPage() {
                 {historialAbierto === r.id && (
                   <div className="border-t border-gray-100 px-4 py-3">
                     <div className="grid grid-cols-[1fr_40px_40px] gap-x-3 gap-y-1.5">
-                      <span className="text-xs font-semibold text-gray-400">Póster</span>
+                      <span className="text-xs font-semibold text-gray-400">{t.poster}</span>
                       <span className="text-xs font-semibold text-gray-400 text-center">A4</span>
                       <span className="text-xs font-semibold text-gray-400 text-center">A3</span>
                       {Object.entries(
@@ -426,7 +428,7 @@ export default function RestockPage() {
 
         <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Encargado del restock</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">{t.restockManager}</label>
             <input
               type="text"
               value={trabajador}
@@ -438,7 +440,7 @@ export default function RestockPage() {
         </div>
 
         <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-3">
-          <p className="font-semibold text-gray-700">¿Qué caja vas a reponer?</p>
+          <p className="font-semibold text-gray-700">{t.whichBox}</p>
           {cajas.map((c) => (
             <button
               key={c.id}
@@ -458,7 +460,7 @@ export default function RestockPage() {
           disabled={!cajaId || !trabajador.trim() || loading}
           className="w-full bg-black text-white py-4 rounded-2xl font-semibold text-lg disabled:opacity-40 hover:bg-gray-900 transition-colors"
         >
-          {loading ? "Cargando..." : "Continuar →"}
+          {loading ? t.loading : t.continueBtn}
         </button>
         </>}
       </div>
@@ -469,7 +471,7 @@ export default function RestockPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Restock — {caja?.nombre}</h1>
-        <p className="text-gray-500 text-sm">Escribe cuántas unidades nuevas añades. El stock actual se muestra en gris.</p>
+        <p className="text-gray-500 text-sm">{t.writeUnitsToAdd}</p>
       </div>
 
       <div className="space-y-6">
@@ -494,7 +496,7 @@ export default function RestockPage() {
               </div>
               <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
                 <div className="grid grid-cols-[1fr_90px_90px] gap-2 px-4 py-2 bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-500">
-                  <span>Póster</span>
+                  <span>{t.poster}</span>
                   <span className="text-center">A4</span>
                   <span className="text-center">A3</span>
                 </div>
@@ -514,7 +516,7 @@ export default function RestockPage() {
                           onChange={(e) => setCantidades((prev) => ({ ...prev, [`${p.id}-A4`]: parseInt(e.target.value) || 0 }))}
                           className="w-16 text-center text-sm border border-gray-200 rounded-lg py-1.5 focus:outline-none focus:border-black"
                         />
-                        <span className="text-xs text-gray-400">stock: {p.a4Stock}</span>
+                        <span className="text-xs text-gray-400">{tr("currentStock", { n: p.a4Stock })}</span>
                       </div>
                     ) : <div />}
                     {p.tiene_a3 ? (
@@ -527,7 +529,7 @@ export default function RestockPage() {
                           onChange={(e) => setCantidades((prev) => ({ ...prev, [`${p.id}-A3`]: parseInt(e.target.value) || 0 }))}
                           className="w-16 text-center text-sm border border-gray-200 rounded-lg py-1.5 focus:outline-none focus:border-black"
                         />
-                        <span className="text-xs text-gray-400">stock: {p.a3Stock}</span>
+                        <span className="text-xs text-gray-400">{tr("currentStock", { n: p.a3Stock })}</span>
                       </div>
                     ) : <div />}
                   </div>
@@ -541,7 +543,7 @@ export default function RestockPage() {
       {/* Botón confirmar */}
       <div className="sticky bottom-20 bg-white border border-gray-200 rounded-2xl p-4 flex items-center justify-between">
         <div>
-          <p className="font-bold text-gray-900">{totalUnidades} unidades de {totalPosters} diseños</p>
+          <p className="font-bold text-gray-900">{tr("unitsOf", { total: totalUnidades, designs: totalPosters })}</p>
           <p className="text-xs text-gray-500">{totalA4 > 0 ? `A4: ${totalA4}` : ""}{totalA4 > 0 && totalA3 > 0 ? " · " : ""}{totalA3 > 0 ? `A3: ${totalA3}` : ""} · {caja?.nombre}</p>
         </div>
         <button
@@ -549,7 +551,7 @@ export default function RestockPage() {
           disabled={guardando || totalUnidades === 0}
           className="bg-black text-white px-5 py-2.5 rounded-xl font-semibold disabled:opacity-40 hover:bg-gray-900 transition-colors"
         >
-          {guardando ? "Guardando..." : "Confirmar"}
+          {guardando ? t.saving : t.save}
         </button>
       </div>
     </div>
