@@ -174,6 +174,7 @@ function InventarioInner() {
 
   useEffect(() => {
     fetchInventario();
+    setPrintQty({});
   }, [fetchInventario]);
 
   async function upsertInventario(posterId: string, talla: "A4" | "A3", field: string, value: number | boolean) {
