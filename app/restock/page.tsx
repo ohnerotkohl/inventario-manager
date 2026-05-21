@@ -597,10 +597,35 @@ export default function RestockPage() {
                 </div>
               </div>
             );
+            function openPrint(talla: "A4" | "A3") {
+              const items = posters
+                .filter((p) => (printQty[`${p.id}-${talla}`] ?? 0) > 0 && (talla === "A4" ? p.tiene_a4 : p.tiene_a3))
+                .map((p) => ({ nombre: p.nombre, talla, qty: printQty[`${p.id}-${talla}`] }));
+              localStorage.setItem("or_print_job", JSON.stringify(items));
+              window.open("/imprimir", "_blank");
+            }
             return (
               <>
                 {a4Items.length > 0 && <PrintSection items={a4Items} talla="A4" label={`A4 — ${a4Items.length} diseños`} />}
                 {a3Items.length > 0 && <PrintSection items={a3Items} talla="A3" label={`A3 — ${a3Items.length} diseños`} />}
+                <div className="flex gap-2">
+                  {a4Items.length > 0 && (
+                    <button
+                      onClick={() => openPrint("A4")}
+                      className="flex-1 py-3 bg-gray-900 text-white rounded-2xl font-semibold hover:bg-black transition-colors flex items-center justify-center gap-2"
+                    >
+                      🖨️ A4
+                    </button>
+                  )}
+                  {a3Items.length > 0 && (
+                    <button
+                      onClick={() => openPrint("A3")}
+                      className="flex-1 py-3 bg-gray-900 text-white rounded-2xl font-semibold hover:bg-black transition-colors flex items-center justify-center gap-2"
+                    >
+                      🖨️ A3
+                    </button>
+                  )}
+                </div>
                 <button
                   onClick={() => {
                     setCantidades({ ...printQty });
