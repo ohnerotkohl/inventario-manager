@@ -68,10 +68,6 @@ export default function LoginPage() {
     router.replace("/");
   }
 
-  useEffect(() => {
-    if (pin.length === 4 && selected) tryLogin();
-  }, [pin]);
-
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -114,12 +110,12 @@ export default function LoginPage() {
             <p className="text-gray-500 text-xs">Introduce tu PIN</p>
           </div>
 
-          {/* PIN dots */}
-          <div className="flex gap-4">
-            {[0, 1, 2, 3].map((i) => (
+          {/* PIN dots — hasta 6 */}
+          <div className="flex gap-3">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
               <div
                 key={i}
-                className={`w-4 h-4 rounded-full transition-colors ${
+                className={`w-3 h-3 rounded-full transition-colors ${
                   i < pin.length ? "bg-white" : "bg-white/20"
                 }`}
               />
@@ -143,6 +139,15 @@ export default function LoginPage() {
               );
             })}
           </div>
+
+          {/* Botón confirmar */}
+          <button
+            onClick={tryLogin}
+            disabled={pin.length < 4}
+            className="w-full bg-white text-black rounded-2xl py-4 text-base font-semibold disabled:opacity-30 transition-opacity"
+          >
+            Entrar →
+          </button>
         </div>
       )}
     </div>
