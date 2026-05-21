@@ -99,6 +99,7 @@ export default function SesionPage() {
   const [sesionId, setSesionId] = useState("");
   const [ventasOriginales, setVentasOriginales] = useState<{ [key: string]: number }>({});
   const [modoEdicion, setModoEdicion] = useState(false);
+  const [sesionMercadoIdOriginal, setSesionMercadoIdOriginal] = useState("");
   const [reporteImpresion, setReporteImpresion] = useState<{ a4: { linea: string; stockRestante: number }[]; a3: { linea: string; stockRestante: number }[] }>({ a4: [], a3: [] });
   const [tabPrincipal, setTabPrincipal] = useState<TabPrincipal>("nueva");
   const [historial, setHistorial] = useState<SesionHistorial[]>([]);
@@ -149,35 +150,33 @@ export default function SesionPage() {
     setLoadingHistorial(false);
   }
 
-  async function editarSesionDesdeHistorial(sesion: SesionHistorial) {
+  function editarSesionDesdeHistorial(sesion: SesionHistorial) {
     setMercadoId(sesion.mercadoId);
     setFecha(sesion.fecha);
     setTrabajador(sesion.trabajador);
     setSesionId(sesion.id);
-    setLoading(true);
-    setTabPrincipal("nueva");
-
-    const [postersRes, invRes, seriesRes, ventasRes] = await Promise.all([
-      supabase.from("posters").select("*, series(*)").eq("activo", true).order("nombre"),
-      supabase.from("inventario").select("*").eq("caja_id", sesion.cajaId),
-      supabase.from("series").select("*"),
-      supabase.from("ventas").select("poster_id, talla, cantidad").eq("sesion_id", sesion.id),
-    ]);
-
-    const ventasMap: { [key: string]: number } = {};
-    for (const v of (ventasRes.data || [])) {
-      const key = `${v.poster_id}-${v.talla}`;
-      ventasMap[key] = (ventasMap[key] || 0) + v.cantidad;
-    }
-
-    setPosters(postersRes.data || []);
-    setInventario(invRes.data || []);
-    setSeries(seriesRes.data || []);
-    setVentas({ ...ventasMap });
-    setVentasOriginales({ ...ventasMap });
+    setSesionMercadoIdOriginal(sesion.mercadoId);
     setModoEdicion(true);
-    setLoading(false);
-    setStep("ventas");
+    setTabPrincipal("nueva");
+    setStep("info");
+  }
+
+  async function eliminarSesion(sesion: SesionHistorial) {
+    if (!confirm(`¿Eliminar la sesión de ${sesion.mercadoNombre} del ${new Date(sesion.fecha + "T12:00:00").toLocaleDateString("es-DE", { day: "numeric", month: "long" })}?\n\nEsto revertirá el inventario sumando de vuelta las unidades vendidas.`)) return;
+
+    // Revertir inventario: sumar de vuelta las ventas
+    const { data: ventasRes } = await supabase.from("ventas").select("poster_id, talla, cantidad").eq("sesion_id", sesion.id);
+    const { data: invRes } = await supabase.from("inventario").select("*").eq("caja_id", sesion.cajaId);
+
+    const updates = (ventasRes || []).map((v: { poster_id: string; talla: string; cantidad: number }) => {
+      const invItem = (invRes || []).find((i: { poster_id: string; talla: string; id: string; cantidad: number }) => i.poster_id === v.poster_id && i.talla === v.talla);
+      if (!invItem) return Promise.resolve();
+      return supabase.from("inventario").update({ cantidad: invItem.cantidad + v.cantidad, out: false }).eq("id", invItem.id);
+    });
+
+    await Promise.all(updates);
+    await supabase.from("sesiones").delete().eq("id", sesion.id);
+    await fetchHistorial();
   }
 
   async function handleCrearMercado() {
@@ -213,6 +212,19 @@ export default function SesionPage() {
     setPosters(postersRes.data || []);
     setInventario(invRes.data || []);
     setSeries(seriesRes.data || []);
+
+    if (modoEdicion && sesionId) {
+      const { data: ventasRes } = await supabase
+        .from("ventas").select("poster_id, talla, cantidad").eq("sesion_id", sesionId);
+      const ventasMap: { [key: string]: number } = {};
+      for (const v of (ventasRes || [])) {
+        const key = `${v.poster_id}-${v.talla}`;
+        ventasMap[key] = (ventasMap[key] || 0) + v.cantidad;
+      }
+      setVentas({ ...ventasMap });
+      setVentasOriginales({ ...ventasMap });
+    }
+
     setLoading(false);
   }
 
@@ -259,57 +271,84 @@ export default function SesionPage() {
     const inventarioUpdates: PromiseLike<void>[] = [];
 
     if (modoEdicion) {
-      // MODO EDICIÓN: calcular diferencias respecto a lo original y actualizar
-      const { data: ventasExistentes } = await supabase
-        .from("ventas")
-        .select("id, poster_id, talla, cantidad")
-        .eq("sesion_id", sesionId);
+      // Actualizar mercado, fecha y trabajador de la sesión
+      await supabase.from("sesiones")
+        .update({ mercado_id: mercadoId, fecha, trabajador: trabajador.trim() })
+        .eq("id", sesionId);
 
-      const ventasExistMap: { [key: string]: { id: string; cantidad: number } } = {};
-      for (const v of (ventasExistentes || [])) {
-        ventasExistMap[`${v.poster_id}-${v.talla}`] = { id: v.id, cantidad: v.cantidad };
-      }
+      const marketChanged = mercadoId !== sesionMercadoIdOriginal;
 
-      const allKeys = new Set([...Object.keys(ventasOriginales), ...Object.keys(ventas)]);
-      const ventasUpsert: { sesion_id: string; poster_id: string; talla: string; cantidad: number }[] = [];
-      const ventasDelete: string[] = [];
+      if (marketChanged) {
+        // Revertir inventario del mercado original
+        const oldMercado = mercados.find((m) => m.id === sesionMercadoIdOriginal);
+        if (oldMercado) {
+          const { data: oldInv } = await supabase.from("inventario").select("*").eq("caja_id", oldMercado.caja_id);
+          for (const [key, cantidad] of Object.entries(ventasOriginales)) {
+            const talla = key.slice(-2) as "A4" | "A3";
+            const posterId = key.slice(0, -3);
+            const invItem = (oldInv || []).find((i: { poster_id: string; talla: string; id: string; cantidad: number }) => i.poster_id === posterId && i.talla === talla);
+            if (invItem) {
+              inventarioUpdates.push(
+                supabase.from("inventario").update({ cantidad: invItem.cantidad + cantidad, out: false }).eq("id", invItem.id).then(() => { return; })
+              );
+            }
+          }
+        }
+        // Aplicar ventas al mercado nuevo (inventario ya cargado para el nuevo mercado)
+        for (const [key, cantidad] of Object.entries(ventas)) {
+          if (cantidad <= 0) continue;
+          const talla = key.slice(-2) as "A4" | "A3";
+          const posterId = key.slice(0, -3);
+          const invItem = inventario.find((i) => i.poster_id === posterId && i.talla === talla);
+          if (invItem) {
+            const nuevaCantidad = Math.max(0, invItem.cantidad - cantidad);
+            inventarioUpdates.push(
+              supabase.from("inventario").update({ cantidad: nuevaCantidad, out: nuevaCantidad === 0 }).eq("id", invItem.id).then(() => { return; })
+            );
+          }
+        }
+        await Promise.all([
+          supabase.from("ventas").delete().eq("sesion_id", sesionId),
+          ...inventarioUpdates,
+        ]);
+        const ventasInsert = Object.entries(ventas)
+          .filter(([, c]) => c > 0)
+          .map(([key, cantidad]) => ({ sesion_id: sesionId, poster_id: key.slice(0, -3), talla: key.slice(-2), cantidad }));
+        if (ventasInsert.length > 0) await supabase.from("ventas").insert(ventasInsert);
 
-      for (const key of allKeys) {
-        const talla = key.slice(-2) as "A4" | "A3";
-        const posterId = key.slice(0, -3);
-        const oldCantidad = ventasOriginales[key] || 0;
-        const newCantidad = ventas[key] || 0;
-        const diff = newCantidad - oldCantidad;
+      } else {
+        // Mismo mercado: calcular diferencias
+        const allKeys = new Set([...Object.keys(ventasOriginales), ...Object.keys(ventas)]);
+        const ventasUpsert: { sesion_id: string; poster_id: string; talla: string; cantidad: number }[] = [];
 
-        if (diff === 0) continue;
+        for (const key of allKeys) {
+          const talla = key.slice(-2) as "A4" | "A3";
+          const posterId = key.slice(0, -3);
+          const oldCantidad = ventasOriginales[key] || 0;
+          const newCantidad = ventas[key] || 0;
+          const diff = newCantidad - oldCantidad;
 
-        const invItem = inventario.find((i) => i.poster_id === posterId && i.talla === talla);
-        if (invItem) {
-          const nuevaCantidad = Math.max(0, invItem.cantidad - diff);
-          inventarioUpdates.push(
-            supabase.from("inventario")
-              .update({ cantidad: nuevaCantidad, out: nuevaCantidad === 0 })
-              .eq("id", invItem.id)
-              .then(() => { return; })
-          );
+          if (diff === 0) continue;
+
+          const invItem = inventario.find((i) => i.poster_id === posterId && i.talla === talla);
+          if (invItem) {
+            const nuevaCantidad = Math.max(0, invItem.cantidad - diff);
+            inventarioUpdates.push(
+              supabase.from("inventario").update({ cantidad: nuevaCantidad, out: nuevaCantidad === 0 }).eq("id", invItem.id).then(() => { return; })
+            );
+          }
+          if (newCantidad > 0) ventasUpsert.push({ sesion_id: sesionId, poster_id: posterId, talla, cantidad: newCantidad });
         }
 
-        if (newCantidad > 0) {
-          ventasUpsert.push({ sesion_id: sesionId, poster_id: posterId, talla, cantidad: newCantidad });
-        } else {
-          const existing = ventasExistMap[key];
-          if (existing) ventasDelete.push(existing.id);
-        }
+        await Promise.all([
+          supabase.from("ventas").delete().eq("sesion_id", sesionId),
+          ...inventarioUpdates,
+        ]);
+        if (ventasUpsert.length > 0) await supabase.from("ventas").insert(ventasUpsert);
       }
 
-      await Promise.all([
-        supabase.from("ventas").delete().eq("sesion_id", sesionId),
-        ...inventarioUpdates,
-      ]);
-      if (ventasUpsert.length > 0) {
-        await supabase.from("ventas").insert(ventasUpsert);
-      }
       setModoEdicion(false);
+      setSesionMercadoIdOriginal("");
 
     } else {
       // MODO NORMAL: fusionar con sesión existente si la hay
@@ -679,15 +718,26 @@ export default function SesionPage() {
                         </>
                       ))}
                     </div>
-                    <button
-                      onClick={() => editarSesionDesdeHistorial(s)}
-                      className="w-full border-2 border-black text-black py-2 rounded-xl font-semibold text-sm hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                      </svg>
-                      Editar esta sesión
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => editarSesionDesdeHistorial(s)}
+                        className="flex-1 border-2 border-black text-black py-2 rounded-xl font-semibold text-sm hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => eliminarSesion(s)}
+                        className="border-2 border-red-200 text-red-500 py-2 px-4 rounded-xl font-semibold text-sm hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                        </svg>
+                        Eliminar
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
