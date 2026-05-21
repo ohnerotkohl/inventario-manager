@@ -279,7 +279,19 @@ export default function RestockPage() {
                 </div>
                 <p>No hay historial de restock aún</p>
               </div>
-            ) : historial.map((r) => (
+            ) : (() => {
+              const porMes = historial.reduce((acc, r) => {
+                const key = r.fecha.slice(0, 7);
+                (acc[key] = acc[key] || []).push(r);
+                return acc;
+              }, {} as { [k: string]: typeof historial });
+              const meses = Object.keys(porMes).sort((a, b) => b.localeCompare(a));
+              return meses.map((mes) => (
+                <div key={mes} className="space-y-2">
+                  <p className="text-xs font-bold uppercase tracking-widest text-gray-400 px-1">
+                    {new Date(mes + "-01T12:00:00").toLocaleDateString("es-DE", { month: "long", year: "numeric" }).replace(/^\w/, c => c.toUpperCase())}
+                  </p>
+                  {porMes[mes].map((r) => (
               <div key={r.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
                 <button
                   className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
@@ -325,6 +337,9 @@ export default function RestockPage() {
                 )}
               </div>
             ))}
+                </div>
+              ));
+            })()}
           </div>
         )}
 

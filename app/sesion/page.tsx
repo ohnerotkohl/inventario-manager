@@ -685,7 +685,19 @@ export default function SesionPage() {
               <div className="text-center py-16 text-gray-400">
                 <p>No hay sesiones registradas aún</p>
               </div>
-            ) : historial.map((s) => (
+            ) : (() => {
+              const porMes = historial.reduce((acc, s) => {
+                const key = s.fecha.slice(0, 7);
+                (acc[key] = acc[key] || []).push(s);
+                return acc;
+              }, {} as { [k: string]: typeof historial });
+              const meses = Object.keys(porMes).sort((a, b) => b.localeCompare(a));
+              return meses.map((mes) => (
+                <div key={mes} className="space-y-2">
+                  <p className="text-xs font-bold uppercase tracking-widest text-gray-400 px-1">
+                    {new Date(mes + "-01T12:00:00").toLocaleDateString("es-DE", { month: "long", year: "numeric" }).replace(/^\w/, c => c.toUpperCase())}
+                  </p>
+                  {porMes[mes].map((s) => (
               <div key={s.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
                 <button
                   className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
@@ -750,6 +762,9 @@ export default function SesionPage() {
                 )}
               </div>
             ))}
+                </div>
+              ));
+            })()}
           </div>
         )}
 
