@@ -155,8 +155,12 @@ function InventarioInner() {
     const cantidad = editando[key];
     if (cantidad === undefined) return;
     await upsertInventario(posterId, talla, "cantidad", cantidad);
+    const tallaKey = talla === "A4" ? "a4" : "a3";
+    const current = posters.find((p) => p.id === posterId)?.[tallaKey];
     if (cantidad === 0) {
       await upsertInventario(posterId, talla, "out", true);
+    } else if (current?.out) {
+      await upsertInventario(posterId, talla, "out", false);
     }
     setEditando((prev) => {
       const next = { ...prev };
