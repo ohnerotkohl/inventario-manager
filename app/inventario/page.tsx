@@ -213,10 +213,6 @@ function InventarioInner() {
         ))}
       </div>
 
-      {caja && (
-        <p className="text-xs text-gray-500 -mt-2">{caja.descripcion}</p>
-      )}
-
       {loading ? (
         <SkeletonPage />
       ) : (
