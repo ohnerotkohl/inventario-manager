@@ -111,7 +111,7 @@ export default function ImprimirPage() {
   return (
     <>
       <style>{`
-        @page { margin: 0; size: auto; }
+        @page { margin: 8mm; size: auto; }
         @media print {
           html, body { margin: 0; padding: 0; }
           .no-print { display: none !important; }
