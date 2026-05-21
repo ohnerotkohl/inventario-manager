@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/app/components/AuthProvider";
 import { SkeletonCard, SkeletonList } from "@/app/components/Skeleton";
 
 interface TopPoster {
@@ -38,6 +39,7 @@ type Tab = "resumen" | "historial";
 
 export default function EstadisticasPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [tab, setTab] = useState<Tab>("resumen");
   const [topPosters, setTopPosters] = useState<TopPoster[]>([]);
   const [porMercado, setPorMercado] = useState<VentasPorMercado[]>([]);
@@ -50,8 +52,9 @@ export default function EstadisticasPage() {
   const [periodo, setPeriodo] = useState<"30" | "90" | "365" | "todo">("todo");
 
   useEffect(() => {
+    if (user?.rol === "empleado") { router.replace("/sesion"); return; }
     fetchStats();
-  }, [periodo]);
+  }, [periodo, user]);
 
   async function fetchStats() {
     setLoading(true);

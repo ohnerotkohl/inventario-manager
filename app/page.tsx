@@ -1,8 +1,10 @@
 "use client";
 export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/app/components/AuthProvider";
 import { SkeletonCard, SkeletonList } from "@/app/components/Skeleton";
 import { AlertTriangle, Check, CheckCircle, Settings, Dot } from "@/app/components/Icons";
 
@@ -35,6 +37,8 @@ interface ItemCompra {
 }
 
 export default function Dashboard() {
+  const router = useRouter();
+  const { user } = useAuth();
   const [alertas, setAlertas] = useState<AlertCounts>({ out: 0, stockBajo: 0, sampleFalta: 0, materiales: 0, insumos: 0 });
   const [cajas, setCajas] = useState<CajaResumen[]>([]);
   const [ultimasSesiones, setUltimasSesiones] = useState<UltimaSesion[]>([]);
@@ -44,6 +48,7 @@ export default function Dashboard() {
   const [configured, setConfigured] = useState(true);
 
   useEffect(() => {
+    if (user?.rol === "empleado") { router.replace("/sesion"); return; }
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     if (!url || url === "your_supabase_url_here") {
       setConfigured(false);
@@ -51,7 +56,7 @@ export default function Dashboard() {
       return;
     }
     fetchData();
-  }, []);
+  }, [user]);
 
   async function fetchData() {
     try {

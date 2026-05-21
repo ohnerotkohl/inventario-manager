@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "./AuthProvider";
 
 const HomeIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -50,17 +51,46 @@ const ComprasIcon = () => (
   </svg>
 );
 
-const links = [
+const AdminIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+    <circle cx="9" cy="7" r="4"/>
+    <path d="M23 21v-2a4 4 0 00-3-3.87"/>
+    <path d="M16 3.13a4 4 0 010 7.75"/>
+  </svg>
+);
+
+const LogoutIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+    <polyline points="16 17 21 12 16 7"/>
+    <line x1="21" y1="12" x2="9" y2="12"/>
+  </svg>
+);
+
+const adminLinks = [
   { href: "/", label: "Inicio", Icon: HomeIcon },
   { href: "/inventario", label: "Stock", Icon: StockIcon },
   { href: "/restock", label: "Restock", Icon: RestockIcon },
   { href: "/sesion", label: "Sesión", Icon: SesionIcon },
   { href: "/estadisticas", label: "Stats", Icon: StatsIcon },
   { href: "/compras", label: "Compras", Icon: ComprasIcon },
+  { href: "/admin", label: "Equipo", Icon: AdminIcon },
+];
+
+const empleadoLinks = [
+  { href: "/sesion", label: "Sesión", Icon: SesionIcon },
+  { href: "/inventario", label: "Stock", Icon: StockIcon },
 ];
 
 export default function Nav() {
   const pathname = usePathname();
+  const { user, logout } = useAuth();
+
+  if (!user || pathname === "/login") return null;
+
+  const links = user.rol === "admin" ? adminLinks : empleadoLinks;
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-10">
       <div className="flex justify-around items-center max-w-2xl mx-auto">
@@ -79,6 +109,13 @@ export default function Nav() {
             </Link>
           );
         })}
+        <button
+          onClick={logout}
+          className="flex flex-col items-center py-2 px-3 gap-0.5 text-xs text-gray-400 hover:text-black transition-colors"
+        >
+          <LogoutIcon />
+          Salir
+        </button>
       </div>
     </nav>
   );

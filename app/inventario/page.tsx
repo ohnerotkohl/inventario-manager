@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Caja, Serie, Poster, Inventario } from "@/lib/types";
 import { SkeletonPage } from "@/app/components/Skeleton";
+import { useAuth } from "@/app/components/AuthProvider";
 
 const SERIES_ORDER = [
   "Life is Food - Kitchen",
@@ -69,6 +70,8 @@ export default function InventarioPage() {
 
 function InventarioInner() {
   const params = useSearchParams();
+  const { user } = useAuth();
+  const readOnly = user?.rol === "empleado" && !user?.puede_inventario;
   const [cajas, setCajas] = useState<Caja[]>([]);
   const [cajaId, setCajaId] = useState<string>("");
   const [series, setSeries] = useState<Serie[]>([]);
@@ -197,6 +200,11 @@ function InventarioInner() {
         <h1 className="text-2xl font-bold text-gray-900">Inventario</h1>
         <p className="text-gray-500 text-sm">Stock por caja y póster</p>
       </div>
+      {readOnly && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-2xl px-4 py-3 text-sm text-yellow-700">
+          Modo lectura — pide autorización a un admin para editar el stock.
+        </div>
+      )}
 
       {/* Selector de caja */}
       <div className="flex gap-2 overflow-x-auto pb-1">
@@ -259,6 +267,7 @@ function InventarioInner() {
                         setEditando={setEditando}
                         guardarCantidad={guardarCantidad}
                         upsertInventario={upsertInventario}
+                        readOnly={readOnly}
                       />
                     ) : <div className="w-24" />}
                     {/* A3 */}
@@ -272,6 +281,7 @@ function InventarioInner() {
                         setEditando={setEditando}
                         guardarCantidad={guardarCantidad}
                         upsertInventario={upsertInventario}
+                        readOnly={readOnly}
                       />
                     ) : <div className="w-24" />}
                   </div>
@@ -295,9 +305,10 @@ interface TallaCellProps {
   setEditando: React.Dispatch<React.SetStateAction<{ [key: string]: number }>>;
   guardarCantidad: (posterId: string, talla: "A4" | "A3") => Promise<void>;
   upsertInventario: (posterId: string, talla: "A4" | "A3", field: string, value: number | boolean) => Promise<void>;
+  readOnly?: boolean;
 }
 
-function TallaCell({ posterId, talla, stock, saving, editando, setEditando, guardarCantidad, upsertInventario }: TallaCellProps) {
+function TallaCell({ posterId, talla, stock, saving, editando, setEditando, guardarCantidad, upsertInventario, readOnly }: TallaCellProps) {
   const key = `${posterId}-${talla}`;
   const isSaving = saving?.startsWith(key);
   const cantidad = editando[key] !== undefined ? editando[key] : (stock?.cantidad ?? 0);
@@ -306,33 +317,39 @@ function TallaCell({ posterId, talla, stock, saving, editando, setEditando, guar
     <div className="w-24 flex flex-col items-center gap-1">
       {/* Cantidad */}
       <div className="flex items-center gap-1">
-        <input
-          type="number"
-          min={0}
-          value={cantidad}
-          onChange={(e) => setEditando((prev) => ({ ...prev, [key]: parseInt(e.target.value) || 0 }))}
-          onFocus={(e) => e.target.select()}
-          onBlur={() => guardarCantidad(posterId, talla)}
-          className="w-12 text-center text-sm font-semibold text-gray-900 border border-gray-200 rounded-lg py-1 focus:outline-none focus:border-gray-400"
-        />
+        {readOnly ? (
+          <span className="w-12 text-center text-sm font-semibold text-gray-900">{cantidad}</span>
+        ) : (
+          <input
+            type="number"
+            min={0}
+            value={cantidad}
+            onChange={(e) => setEditando((prev) => ({ ...prev, [key]: parseInt(e.target.value) || 0 }))}
+            onFocus={(e) => e.target.select()}
+            onBlur={() => guardarCantidad(posterId, talla)}
+            className="w-12 text-center text-sm font-semibold text-gray-900 border border-gray-200 rounded-lg py-1 focus:outline-none focus:border-gray-400"
+          />
+        )}
         {isSaving && <span className="w-3 h-3 rounded-full bg-gray-300 animate-pulse inline-block" />}
       </div>
       {/* Toggles OUT y SAMPLE */}
       <div className="flex gap-1">
         <button
-          onClick={() => upsertInventario(posterId, talla, "out", !stock?.out)}
+          onClick={() => !readOnly && upsertInventario(posterId, talla, "out", !stock?.out)}
+          disabled={readOnly}
           className={`text-xs px-1.5 py-0.5 rounded font-medium transition-colors ${
             stock?.out ? "bg-red-500 text-white" : "bg-gray-100 text-gray-400"
-          }`}
+          } ${readOnly ? "cursor-default" : ""}`}
           title="Sold Out"
         >
           OUT
         </button>
         <button
-          onClick={() => upsertInventario(posterId, talla, "sample_falta", !stock?.sample_falta)}
+          onClick={() => !readOnly && upsertInventario(posterId, talla, "sample_falta", !stock?.sample_falta)}
+          disabled={readOnly}
           className={`text-xs px-1.5 py-0.5 rounded font-medium transition-colors ${
             stock?.sample_falta ? "bg-orange-400 text-white" : "bg-gray-100 text-gray-400"
-          }`}
+          } ${readOnly ? "cursor-default" : ""}`}
           title="Falta sample"
         >
           SMP

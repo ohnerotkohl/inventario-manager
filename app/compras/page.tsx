@@ -1,7 +1,9 @@
 "use client";
 export const dynamic = "force-dynamic";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/app/components/AuthProvider";
 import type { Caja, MaterialCaja, InsumoEstudio } from "@/lib/types";
 import { SkeletonPage } from "@/app/components/Skeleton";
 import { AlertTriangle, Check, Mail } from "@/app/components/Icons";
@@ -9,6 +11,8 @@ import { AlertTriangle, Check, Mail } from "@/app/components/Icons";
 type Tab = "cajas" | "estudio";
 
 export default function ComprasPage() {
+  const router = useRouter();
+  const { user } = useAuth();
   const [tab, setTab] = useState<Tab>("estudio");
   const [cajas, setCajas] = useState<Caja[]>([]);
   const [materiales, setMateriales] = useState<MaterialCaja[]>([]);
@@ -22,8 +26,9 @@ export default function ComprasPage() {
   const [dirtyCount, setDirtyCount] = useState(0);
 
   useEffect(() => {
+    if (user?.rol === "empleado") { router.replace("/sesion"); return; }
     fetchData();
-  }, []);
+  }, [user]);
 
   async function fetchData() {
     setLoading(true);

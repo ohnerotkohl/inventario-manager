@@ -1,7 +1,9 @@
 "use client";
 export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/app/components/AuthProvider";
 import type { Caja, Serie, Poster, Inventario } from "@/lib/types";
 
 const SERIES_ORDER = [
@@ -43,6 +45,8 @@ interface RestockHistorial {
 }
 
 export default function RestockPage() {
+  const router = useRouter();
+  const { user } = useAuth();
   const [tabPrincipal, setTabPrincipal] = useState<TabPrincipal>("restock");
   const [step, setStep] = useState<Step>("seleccion");
   const [cajas, setCajas] = useState<Caja[]>([]);
@@ -60,10 +64,11 @@ export default function RestockPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   useEffect(() => {
+    if (user?.rol === "empleado") { router.replace("/sesion"); return; }
     supabase.from("cajas").select("*").then(({ data }) => {
       setCajas(data || []);
     });
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (tabPrincipal === "historial") fetchHistorial();
