@@ -25,6 +25,7 @@ export default function AdminPage() {
   const [rol, setRol] = useState<"admin" | "empleado">("empleado");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [savedId, setSavedId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user && user.rol !== "admin") {
@@ -49,8 +50,12 @@ export default function AdminPage() {
   }
 
   async function toggleInventario(u: UsuarioRow) {
-    await supabase.from("usuarios").update({ puede_inventario: !u.puede_inventario }).eq("id", u.id);
-    setUsuarios((prev) => prev.map((x) => x.id === u.id ? { ...x, puede_inventario: !u.puede_inventario } : x));
+    const nuevoValor = !u.puede_inventario;
+    const { error: err } = await supabase.from("usuarios").update({ puede_inventario: nuevoValor }).eq("id", u.id);
+    if (err) return;
+    setUsuarios((prev) => prev.map((x) => x.id === u.id ? { ...x, puede_inventario: nuevoValor } : x));
+    setSavedId(u.id);
+    setTimeout(() => setSavedId(null), 2000);
   }
 
   async function crearUsuario() {
@@ -147,15 +152,25 @@ export default function AdminPage() {
             </div>
 
             {u.rol === "empleado" && (
-              <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={u.puede_inventario}
-                  onChange={() => toggleInventario(u)}
-                  className="w-4 h-4 rounded"
-                />
-                Puede hacer conteo de stock
-              </label>
+              <div className="flex flex-col gap-1">
+                <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={u.puede_inventario}
+                    onChange={() => toggleInventario(u)}
+                    className="w-4 h-4 rounded"
+                  />
+                  Puede hacer conteo de stock
+                  {savedId === u.id && (
+                    <span className="text-green-600 text-xs font-medium">✓ Guardado</span>
+                  )}
+                </label>
+                {u.puede_inventario && (
+                  <p className="text-xs text-gray-400 pl-6">
+                    El empleado debe cerrar sesión y volver a entrar para que aplique.
+                  </p>
+                )}
+              </div>
             )}
           </div>
         ))}
