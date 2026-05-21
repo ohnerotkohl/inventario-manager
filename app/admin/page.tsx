@@ -165,11 +165,6 @@ export default function AdminPage() {
                     <span className="text-green-600 text-xs font-medium">✓ Guardado</span>
                   )}
                 </label>
-                {u.puede_inventario && (
-                  <p className="text-xs text-gray-400 pl-6">
-                    El empleado debe cerrar sesión y volver a entrar para que aplique.
-                  </p>
-                )}
               </div>
             )}
           </div>

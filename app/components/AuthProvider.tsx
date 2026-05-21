@@ -1,8 +1,9 @@
 "use client";
 import { createContext, useContext, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { getSession, clearSession } from "@/lib/auth";
+import { getSession, setSession, clearSession } from "@/lib/auth";
 import type { Usuario } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
 
 interface AuthCtx {
   user: Usuario | null;
@@ -26,11 +27,35 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     const session = getSession();
-    setUser(session);
-    setLoading(false);
-    if (!session && !PUBLIC_PATHS.includes(pathname)) {
-      router.replace("/login");
+    if (!session) {
+      setLoading(false);
+      if (!PUBLIC_PATHS.includes(pathname)) router.replace("/login");
+      return;
     }
+
+    // Refresca permisos desde Supabase en cada carga
+    supabase
+      .from("usuarios")
+      .select("id, nombre, rol, puede_inventario, activo")
+      .eq("id", session.id)
+      .single()
+      .then(({ data }) => {
+        if (!data || !data.activo) {
+          clearSession();
+          setUser(null);
+          router.replace("/login");
+        } else {
+          const fresh: Usuario = {
+            id: data.id,
+            nombre: data.nombre,
+            rol: data.rol,
+            puede_inventario: data.puede_inventario,
+          };
+          setSession(fresh);
+          setUser(fresh);
+        }
+        setLoading(false);
+      });
   }, [pathname]);
 
   function logout() {
