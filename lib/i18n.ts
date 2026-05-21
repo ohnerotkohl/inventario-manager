@@ -91,6 +91,11 @@ const es = {
   sendToTeam: "Envía la lista al equipo", sendList: "Enviar lista",
   purchasesSaveError: "Error guardando. Intenta de nuevo.",
   emailError: "Error enviando el email. Revisa la configuración.",
+  // Print tab
+  printTab: "Imprimir", printTabDesc: "Qué toca imprimir hoy para esta caja",
+  nothingToPrint: "¡Todo en orden! El stock de esta caja está completo.",
+  bestseller: "Top venta", printSectionA4: "A4 — {n} diseños", printSectionA3: "A3 — {n} diseños",
+  printCopies: "{n} cop.", loadingBestsellers: "Calculando prioridades...",
   // Setup steps
   step1: "1. Crea proyecto en supabase.com", step2: "2. Copia la URL y Anon Key",
   step3: "3. Pégalos en el archivo .env.local", step4: "4. Ejecuta supabase-schema.sql en Supabase",
@@ -174,6 +179,10 @@ const en: typeof es = {
   sendToTeam: "Send list to the team", sendList: "Send list",
   purchasesSaveError: "Error saving. Please try again.",
   emailError: "Error sending email. Check your settings.",
+  printTab: "Print", printTabDesc: "What needs printing today for this box",
+  nothingToPrint: "All good! Stock for this box is complete.",
+  bestseller: "Top seller", printSectionA4: "A4 — {n} designs", printSectionA3: "A3 — {n} designs",
+  printCopies: "{n} cop.", loadingBestsellers: "Calculating priorities...",
   step1: "1. Create a project at supabase.com", step2: "2. Copy the URL and Anon Key",
   step3: "3. Paste them in the .env.local file", step4: "4. Run supabase-schema.sql in Supabase",
 };

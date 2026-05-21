@@ -82,6 +82,50 @@ function InventarioInner() {
   const [saving, setSaving] = useState<string | null>(null);
   const [editando, setEditando] = useState<{ [key: string]: number }>({});
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [tab, setTab] = useState<"stock" | "imprimir">("stock");
+  const [bestsellers, setBestsellers] = useState<Set<string>>(new Set());
+  const [printQty, setPrintQty] = useState<{ [key: string]: number }>({});
+  const [printLoading, setPrintLoading] = useState(false);
+
+  function computePrintQty(bests: Set<string>, ps: typeof posters) {
+    const qty: { [key: string]: number } = {};
+    ps.forEach((p) => {
+      const isBest = bests.has(p.id);
+      const target = isBest ? 5 : 3;
+      if (p.tiene_a4) {
+        const stock = p.a4?.out ? 0 : (p.a4?.cantidad ?? 0);
+        if (stock < 3) qty[`${p.id}-A4`] = Math.max(1, target - stock);
+      }
+      if (p.tiene_a3) {
+        const stock = p.a3?.out ? 0 : (p.a3?.cantidad ?? 0);
+        if (stock < 3) qty[`${p.id}-A3`] = Math.max(1, target - stock);
+      }
+    });
+    return qty;
+  }
+
+  async function loadBestsellers(ps: typeof posters) {
+    if (bestsellers.size > 0) {
+      setPrintQty(computePrintQty(bestsellers, ps));
+      return;
+    }
+    setPrintLoading(true);
+    const { data } = await supabase
+      .from("ventas")
+      .select("poster_id, cantidad, sesiones!inner(fecha)");
+    const hace30 = new Date();
+    hace30.setDate(hace30.getDate() - 30);
+    const totales: { [id: string]: number } = {};
+    ((data || []) as unknown as { poster_id: string; cantidad: number; sesiones: { fecha: string } }[])
+      .filter((v) => v.sesiones?.fecha && new Date(v.sesiones.fecha) >= hace30)
+      .forEach((v) => { totales[v.poster_id] = (totales[v.poster_id] || 0) + v.cantidad; });
+    const top = new Set(
+      Object.entries(totales).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([id]) => id)
+    );
+    setBestsellers(top);
+    setPrintQty(computePrintQty(top, ps));
+    setPrintLoading(false);
+  }
 
   function toggleSerie(id: string) {
     setCollapsed((prev) => {
@@ -232,7 +276,89 @@ function InventarioInner() {
         ))}
       </div>
 
-      {loading ? (
+      {/* Tab switcher */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setTab("stock")}
+          className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-colors ${tab === "stock" ? "bg-black text-white" : "bg-gray-100 text-gray-600"}`}
+        >
+          {t.stock}
+        </button>
+        <button
+          onClick={() => { setTab("imprimir"); loadBestsellers(posters); }}
+          className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center justify-center gap-1.5 ${tab === "imprimir" ? "bg-black text-white" : "bg-gray-100 text-gray-600"}`}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+          </svg>
+          {t.printTab}
+        </button>
+      </div>
+
+      {tab === "imprimir" && (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500">{t.printTabDesc}</p>
+          {printLoading ? (
+            <div className="text-sm text-gray-400 text-center py-8">{t.loadingBestsellers}</div>
+          ) : (() => {
+            const a4Items = posters.filter((p) => p.tiene_a4 && printQty[`${p.id}-A4`] > 0);
+            const a3Items = posters.filter((p) => p.tiene_a3 && printQty[`${p.id}-A3`] > 0);
+            if (a4Items.length === 0 && a3Items.length === 0) {
+              return (
+                <div className="text-center py-12 text-gray-400">
+                  <svg className="mx-auto mb-3 text-green-400" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                  </svg>
+                  <p className="font-medium text-gray-500">{t.nothingToPrint}</p>
+                </div>
+              );
+            }
+            const PrintSection = ({ items, talla, label }: { items: typeof posters; talla: "A4" | "A3"; label: string }) => (
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">{label}</p>
+                <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                  {items.map((p, idx) => {
+                    const key = `${p.id}-${talla}`;
+                    const qty = printQty[key] ?? 0;
+                    const stock = talla === "A4" ? (p.a4?.out ? 0 : (p.a4?.cantidad ?? 0)) : (p.a3?.out ? 0 : (p.a3?.cantidad ?? 0));
+                    const isBest = bestsellers.has(p.id);
+                    return (
+                      <div key={p.id} className={`flex items-center gap-3 px-4 py-3 ${idx < items.length - 1 ? "border-b border-gray-100" : ""}`}>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            {isBest && <span className="text-xs bg-amber-100 text-amber-700 font-semibold px-1.5 py-0.5 rounded-md">⭐ {t.bestseller}</span>}
+                          </div>
+                          <p className="text-sm font-medium text-gray-900 mt-0.5">{p.nombre}</p>
+                          <p className="text-xs text-gray-400">stock: {stock}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setPrintQty((prev) => ({ ...prev, [key]: Math.max(1, qty - 1) }))}
+                            className="w-7 h-7 rounded-lg bg-gray-100 text-gray-700 font-bold flex items-center justify-center hover:bg-gray-200 transition-colors"
+                          >−</button>
+                          <span className="w-6 text-center font-bold text-gray-900">{qty}</span>
+                          <button
+                            onClick={() => setPrintQty((prev) => ({ ...prev, [key]: qty + 1 }))}
+                            className="w-7 h-7 rounded-lg bg-gray-100 text-gray-700 font-bold flex items-center justify-center hover:bg-gray-200 transition-colors"
+                          >+</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+            return (
+              <>
+                {a4Items.length > 0 && <PrintSection items={a4Items} talla="A4" label={`A4 — ${a4Items.length} diseños`} />}
+                {a3Items.length > 0 && <PrintSection items={a3Items} talla="A3" label={`A3 — ${a3Items.length} diseños`} />}
+              </>
+            );
+          })()}
+        </div>
+      )}
+
+      {tab === "stock" && (loading ? (
         <SkeletonPage />
       ) : (
         <div className="space-y-6">
@@ -313,7 +439,7 @@ function InventarioInner() {
             );
           })}
         </div>
-      )}
+      ))}
     </div>
   );
 }
