@@ -105,6 +105,7 @@ export default function ImprimirPage() {
   return (
     <>
       <style>{`
+        @page { margin: 0; size: auto; }
         @media print {
           html, body { margin: 0; padding: 0; }
           .no-print { display: none !important; }
@@ -112,14 +113,19 @@ export default function ImprimirPage() {
             page-break-after: always;
             break-after: page;
             margin: 0; padding: 0;
-            width: 100vw; height: 100vh;
+            width: 100%; height: 100vh;
             display: flex; align-items: center; justify-content: center;
           }
           .print-page:last-child {
             page-break-after: avoid;
             break-after: avoid;
           }
-          .print-page img { max-width: 100%; max-height: 100%; object-fit: contain; }
+          .print-page img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+          }
           .missing-page { display: none; }
         }
         @media screen {
@@ -129,7 +135,6 @@ export default function ImprimirPage() {
             margin: 24px auto;
             display: flex; align-items: center; justify-content: center;
             box-shadow: 0 2px 12px rgba(0,0,0,0.12);
-            position: relative;
           }
           .print-page img { max-width: 100%; max-height: 297mm; object-fit: contain; display: block; }
         }
