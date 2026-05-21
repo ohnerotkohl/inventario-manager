@@ -16,22 +16,54 @@ export async function POST(req: NextRequest) {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
 
-  function renderItems(items: { linea: string; stockRestante: number }[]) {
-    return items.map((item) => {
-      const necesita = item.stockRestante < 5;
-      return `
-        <tr>
-          <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;">
-            <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:${necesita ? "#ef4444" : "#22c55e"}; margin-right:8px; vertical-align:middle;"></span>
-            ${item.linea}
-          </td>
-          <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0; text-align:right; font-weight:bold; color:${necesita ? "#ef4444" : "#22c55e"};">
-            ${necesita ? `Imprimir (quedan ${item.stockRestante})` : `Stock ok (${item.stockRestante})`}
-          </td>
-        </tr>
-      `;
-    }).join("");
+  // Combinar A4 y A3 en una sola tabla por póster
+  type PosterData = { a4qty?: number; a4stock?: number; a3qty?: number; a3stock?: number };
+  const posterMap: { [name: string]: PosterData } = {};
+
+  for (const item of (a4 as { linea: string; stockRestante: number }[])) {
+    const match = item.linea.match(/^(\d+)x (.+)$/);
+    if (!match) continue;
+    const name = match[2];
+    posterMap[name] = posterMap[name] || {};
+    posterMap[name].a4qty = parseInt(match[1]);
+    posterMap[name].a4stock = item.stockRestante;
   }
+  for (const item of (a3 as { linea: string; stockRestante: number }[])) {
+    const match = item.linea.match(/^(\d+)x (.+)$/);
+    if (!match) continue;
+    const name = match[2];
+    posterMap[name] = posterMap[name] || {};
+    posterMap[name].a3qty = parseInt(match[1]);
+    posterMap[name].a3stock = item.stockRestante;
+  }
+
+  function stockCell(qty: number | undefined, stock: number | undefined) {
+    if (qty === undefined || stock === undefined) return `<td style="padding:8px 10px; border-bottom:1px solid #f0f0f0; color:#ccc; text-align:center;">—</td>`;
+    const ok = stock >= 5;
+    return `
+      <td style="padding:8px 10px; border-bottom:1px solid #f0f0f0; text-align:center;">
+        <span style="font-weight:bold; color:#111;">${qty}x</span>
+        <br/>
+        <span style="font-size:11px; color:${ok ? "#22c55e" : "#ef4444"}; font-weight:bold;">
+          ${ok ? `✓ ${stock}` : `⚠ ${stock}`}
+        </span>
+      </td>
+    `;
+  }
+
+  const filas = Object.entries(posterMap).map(([nombre, d]) => {
+    const alerta = (d.a4stock !== undefined && d.a4stock < 5) || (d.a3stock !== undefined && d.a3stock < 5);
+    return `
+      <tr style="background:${alerta ? "#fff9f9" : "white"}">
+        <td style="padding:8px 12px; border-bottom:1px solid #f0f0f0; font-size:13px; font-weight:${alerta ? "bold" : "normal"}; color:${alerta ? "#111" : "#444"};">
+          ${alerta ? `<span style="color:#ef4444; margin-right:4px;">●</span>` : `<span style="color:#22c55e; margin-right:4px;">●</span>`}
+          ${nombre}
+        </td>
+        ${stockCell(d.a4qty, d.a4stock)}
+        ${stockCell(d.a3qty, d.a3stock)}
+      </tr>
+    `;
+  }).join("");
 
   let html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -43,25 +75,20 @@ export async function POST(req: NextRequest) {
         <h2 style="color:#111; margin-top:0;">Reporte de impresión — ${mercado}</h2>
         <p style="color:#666; font-size:14px; margin-top:-8px;">${fechaFormateada} · ${trabajador}</p>
         <p style="color:#aaa; font-size:12px; margin-top:4px;">Enviado a las ${hora}</p>
+
+        <table style="width:100%; border-collapse:collapse; margin-top:16px;">
+          <thead>
+            <tr style="background:#f5f5f5;">
+              <th style="padding:8px 12px; text-align:left; font-size:12px; color:#666; font-weight:600; border-bottom:2px solid #e5e5e5;">Póster</th>
+              <th style="padding:8px 10px; text-align:center; font-size:12px; color:#b45309; font-weight:600; border-bottom:2px solid #fbbf24; width:90px;">A4</th>
+              <th style="padding:8px 10px; text-align:center; font-size:12px; color:#1d4ed8; font-weight:600; border-bottom:2px solid #3b82f6; width:90px;">A3</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filas}
+          </tbody>
+        </table>
   `;
-
-  if (a4.length > 0) {
-    html += `
-      <h3 style="color:#b45309; border-bottom: 2px solid #fbbf24; padding-bottom:8px;">Tamaño A4</h3>
-      <table style="width:100%; border-collapse:collapse;">
-        ${renderItems(a4)}
-      </table>
-    `;
-  }
-
-  if (a3.length > 0) {
-    html += `
-      <h3 style="color:#1d4ed8; border-bottom: 2px solid #3b82f6; padding-bottom:8px; margin-top:24px;">Tamaño A3</h3>
-      <table style="width:100%; border-collapse:collapse;">
-        ${renderItems(a3)}
-      </table>
-    `;
-  }
 
   const totalImprimir = [...a4, ...a3].filter((i: { stockRestante: number }) => i.stockRestante < 5).length;
   const totalOk = [...a4, ...a3].filter((i: { stockRestante: number }) => i.stockRestante >= 5).length;
