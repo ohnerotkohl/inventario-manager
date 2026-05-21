@@ -38,6 +38,11 @@ export default function ImprimirPage() {
         if (items.length === 0) { setLoading(false); return; }
 
         const uniqueNames = [...new Set(items.map((i) => i.nombre))];
+        // Map normalized storage filename → original DB name for reverse lookup
+        const pathToName: Record<string, string> = {};
+        uniqueNames.forEach((n) => {
+          pathToName[toStorageFilename(n)] = n;
+        });
         const paths = uniqueNames.map((n) => toStorageFilename(n));
 
         const { data, error: storageError } = await supabase.storage
@@ -47,9 +52,10 @@ export default function ImprimirPage() {
         if (storageError) throw storageError;
 
         const urlMap: Record<string, string> = {};
-        (data || []).forEach((entry, i) => {
-          if (!entry.signedUrl) return;
-          urlMap[uniqueNames[i]] = entry.signedUrl;
+        (data || []).forEach((entry) => {
+          if (!entry.path || !entry.signedUrl) return;
+          const originalName = pathToName[entry.path];
+          if (originalName) urlMap[originalName] = entry.signedUrl;
         });
 
         const expanded: Slot[] = items.flatMap((item) =>
