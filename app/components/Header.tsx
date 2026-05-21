@@ -20,7 +20,7 @@ export default function Header() {
         {/* Language toggle */}
         <button
           onClick={() => setLang(lang === "es" ? "en" : "es")}
-          className="text-xs text-gray-500 hover:text-white transition-colors font-medium tracking-wide"
+          className="flex items-center gap-1 bg-white/10 hover:bg-white/20 active:scale-95 text-white text-xs font-bold tracking-widest px-2.5 py-1 rounded-lg transition-all"
         >
           {lang === "es" ? "EN" : "ES"}
         </button>
