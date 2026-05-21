@@ -40,7 +40,7 @@ export default function LoginPage() {
   }, []);
 
   function pressDigit(d: string) {
-    if (pin.length >= 6) return;
+    if (pin.length >= 4) return;
     setError("");
     setPin((p) => p + d);
   }
@@ -110,12 +110,12 @@ export default function LoginPage() {
             <p className="text-gray-500 text-xs">Introduce tu PIN</p>
           </div>
 
-          {/* PIN dots — hasta 6 */}
-          <div className="flex gap-3">
-            {[0, 1, 2, 3, 4, 5].map((i) => (
+          {/* PIN dots — 4 dígitos */}
+          <div className="flex gap-4">
+            {[0, 1, 2, 3].map((i) => (
               <div
                 key={i}
-                className={`w-3 h-3 rounded-full transition-colors ${
+                className={`w-4 h-4 rounded-full transition-colors ${
                   i < pin.length ? "bg-white" : "bg-white/20"
                 }`}
               />

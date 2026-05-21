@@ -54,8 +54,8 @@ export default function AdminPage() {
   }
 
   async function crearUsuario() {
-    if (!nombre.trim() || pin.length < 4) {
-      setError("Nombre y PIN de al menos 4 dígitos son requeridos.");
+    if (!nombre.trim() || pin.length !== 4) {
+      setError("Nombre y PIN de exactamente 4 dígitos son requeridos.");
       return;
     }
     setSaving(true);
@@ -98,11 +98,11 @@ export default function AdminPage() {
           />
           <input
             className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-black"
-            placeholder="PIN (mínimo 4 dígitos)"
+            placeholder="PIN (4 dígitos)"
             type="password"
             inputMode="numeric"
             value={pin}
-            onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
           />
           <select
             className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-black"

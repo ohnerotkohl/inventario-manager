@@ -15,7 +15,7 @@ export default function SetupPage() {
   async function crear() {
     setError("");
     if (!nombre.trim()) { setError("Escribe un nombre."); return; }
-    if (pin.length < 4) { setError("El PIN debe tener al menos 4 dígitos."); return; }
+    if (pin.length !== 4) { setError("El PIN debe tener exactamente 4 dígitos."); return; }
     if (!/^\d+$/.test(pin)) { setError("El PIN solo puede tener números."); return; }
     if (pin !== confirmar) { setError("Los PINs no coinciden."); return; }
 
@@ -80,11 +80,11 @@ export default function SetupPage() {
         />
         <input
           className="bg-white/10 text-white placeholder-gray-500 border border-white/20 rounded-xl px-4 py-3 text-sm outline-none focus:border-white"
-          placeholder="PIN (mínimo 4 dígitos)"
+          placeholder="PIN (4 dígitos)"
           type="password"
           inputMode="numeric"
           value={pin}
-          onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+          onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
         />
         <input
           className="bg-white/10 text-white placeholder-gray-500 border border-white/20 rounded-xl px-4 py-3 text-sm outline-none focus:border-white"
@@ -92,7 +92,7 @@ export default function SetupPage() {
           type="password"
           inputMode="numeric"
           value={confirmar}
-          onChange={(e) => setConfirmar(e.target.value.replace(/\D/g, "").slice(0, 6))}
+          onChange={(e) => setConfirmar(e.target.value.replace(/\D/g, "").slice(0, 4))}
         />
 
         {error && <p className="text-red-400 text-sm text-center">{error}</p>}
