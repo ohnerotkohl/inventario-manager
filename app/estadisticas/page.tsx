@@ -355,15 +355,23 @@ export default function EstadisticasPage() {
               </button>
               {sesionAbierta === s.id && (
                 <div className="border-t border-gray-100 px-4 py-3">
-                  <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-1.5">
+                  <div className="grid grid-cols-[1fr_40px_40px] gap-x-3 gap-y-1.5">
                     <span className="text-xs font-semibold text-gray-400">Póster</span>
-                    <span className="text-xs font-semibold text-gray-400">Talla</span>
-                    <span className="text-xs font-semibold text-gray-400 text-right">Uds.</span>
-                    {s.posters.sort((a, b) => b.cantidad - a.cantidad).map((p, i) => (
+                    <span className="text-xs font-semibold text-gray-400 text-center">A4</span>
+                    <span className="text-xs font-semibold text-gray-400 text-center">A3</span>
+                    {Object.entries(
+                      s.posters.reduce((acc, p) => {
+                        acc[p.nombre] = acc[p.nombre] || {};
+                        if (p.talla === "A4") acc[p.nombre].a4 = p.cantidad;
+                        if (p.talla === "A3") acc[p.nombre].a3 = p.cantidad;
+                        return acc;
+                      }, {} as { [n: string]: { a4?: number; a3?: number } })
+                    ).sort((a, b) => Math.max(b[1].a4||0, b[1].a3||0) - Math.max(a[1].a4||0, a[1].a3||0))
+                      .map(([nombre, vals], i) => (
                       <>
-                        <span key={`n-${i}`} className="text-sm text-gray-800 truncate">{p.nombre}</span>
-                        <span key={`t-${i}`} className="text-sm text-gray-500">{p.talla}</span>
-                        <span key={`c-${i}`} className="text-sm font-semibold text-gray-900 text-right">{p.cantidad}</span>
+                        <span key={`n-${i}`} className="text-sm text-gray-800">{nombre}</span>
+                        <span key={`a4-${i}`} className="text-sm font-semibold text-gray-900 text-center">{vals.a4 ?? "—"}</span>
+                        <span key={`a3-${i}`} className="text-sm font-semibold text-gray-900 text-center">{vals.a3 ?? "—"}</span>
                       </>
                     ))}
                   </div>
