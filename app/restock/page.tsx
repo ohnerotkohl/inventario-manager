@@ -552,7 +552,15 @@ export default function RestockPage() {
       {/* Tab Imprimir */}
       {tabRestock === "imprimir" && (
         <div className="space-y-4">
-          <p className="text-xs text-gray-500">{t.printTabDesc}</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-gray-500">{t.printTabDesc}</p>
+            <button
+              onClick={() => setPrintQty({})}
+              className="text-xs text-gray-400 hover:text-red-500 transition-colors underline"
+            >
+              Limpiar todo
+            </button>
+          </div>
           {printLoading ? (
             <div className="text-sm text-gray-400 text-center py-8">{t.loadingBestsellers}</div>
           ) : (() => {
