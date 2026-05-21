@@ -56,6 +56,8 @@ export default function RestockPage() {
   const [historial, setHistorial] = useState<RestockHistorial[]>([]);
   const [historialAbierto, setHistorialAbierto] = useState<string | null>(null);
   const [loadingHistorial, setLoadingHistorial] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.from("cajas").select("*").then(({ data }) => {
@@ -280,17 +282,88 @@ export default function RestockPage() {
                 <p>No hay historial de restock aún</p>
               </div>
             ) : (() => {
-              const porMes = historial.reduce((acc, r) => {
+              const [cy, cm] = calendarMonth.split("-").map(Number);
+              const firstDow = new Date(cy, cm - 1, 1).getDay();
+              const startOffset = firstDow === 0 ? 6 : firstDow - 1;
+              const daysInMonth = new Date(cy, cm, 0).getDate();
+              const restockDates = new Set(historial.map(r => r.fecha));
+
+              const prevMonth = () => {
+                if (cm === 1) setCalendarMonth(`${cy - 1}-12`);
+                else setCalendarMonth(`${cy}-${String(cm - 1).padStart(2, "0")}`);
+                setSelectedDate(null);
+              };
+              const nextMonth = () => {
+                if (cm === 12) setCalendarMonth(`${cy + 1}-01`);
+                else setCalendarMonth(`${cy}-${String(cm + 1).padStart(2, "0")}`);
+                setSelectedDate(null);
+              };
+
+              const filtered = selectedDate
+                ? historial.filter(r => r.fecha === selectedDate)
+                : historial;
+
+              const porMes = filtered.reduce((acc, r) => {
                 const key = r.fecha.slice(0, 7);
                 (acc[key] = acc[key] || []).push(r);
                 return acc;
               }, {} as { [k: string]: typeof historial });
               const meses = Object.keys(porMes).sort((a, b) => b.localeCompare(a));
-              return meses.map((mes) => (
+
+              return (<>
+                {/* Calendario */}
+                <div className="bg-white border border-gray-200 rounded-2xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <button onClick={prevMonth} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-600 font-bold text-lg">‹</button>
+                    <span className="font-semibold text-sm text-gray-900">
+                      {new Date(calendarMonth + "-01T12:00:00").toLocaleDateString("es-DE", { month: "long", year: "numeric" }).replace(/^\w/, c => c.toUpperCase())}
+                    </span>
+                    <button onClick={nextMonth} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-600 font-bold text-lg">›</button>
+                  </div>
+                  <div className="grid grid-cols-7 mb-1">
+                    {["L","M","X","J","V","S","D"].map(d => (
+                      <span key={d} className="text-center text-xs text-gray-400 font-medium py-1">{d}</span>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-y-1">
+                    {Array.from({ length: startOffset }).map((_, i) => <div key={`e-${i}`} />)}
+                    {Array.from({ length: daysInMonth }).map((_, i) => {
+                      const day = i + 1;
+                      const dateStr = `${calendarMonth}-${String(day).padStart(2, "0")}`;
+                      const hasRestock = restockDates.has(dateStr);
+                      const isSelected = selectedDate === dateStr;
+                      return (
+                        <button
+                          key={day}
+                          onClick={() => hasRestock && setSelectedDate(isSelected ? null : dateStr)}
+                          className={`mx-auto w-8 h-8 flex items-center justify-center rounded-full text-sm transition-colors
+                            ${isSelected ? "bg-black text-white font-bold" :
+                              hasRestock ? "bg-gray-900 text-white font-semibold hover:bg-gray-700" :
+                              "text-gray-400 cursor-default"}`}
+                        >
+                          {day}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {selectedDate && (
+                  <div className="flex items-center justify-between px-1">
+                    <p className="text-xs text-gray-500">
+                      {new Date(selectedDate + "T12:00:00").toLocaleDateString("es-DE", { weekday: "long", day: "numeric", month: "long" })}
+                    </p>
+                    <button onClick={() => setSelectedDate(null)} className="text-xs text-gray-400 hover:text-gray-700 underline">Ver todo</button>
+                  </div>
+                )}
+
+                {filtered.length === 0 ? (
+                  <div className="text-center py-10 text-gray-400 text-sm">No hay restocks este día</div>
+                ) : meses.map((mes) => (
                 <div key={mes} className="space-y-2">
-                  <p className="text-xs font-bold uppercase tracking-widest text-gray-400 px-1">
+                  {!selectedDate && <p className="text-xs font-bold uppercase tracking-widest text-gray-400 px-1">
                     {new Date(mes + "-01T12:00:00").toLocaleDateString("es-DE", { month: "long", year: "numeric" }).replace(/^\w/, c => c.toUpperCase())}
-                  </p>
+                  </p>}
                   {porMes[mes].map((r) => (
               <div key={r.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
                 <button
@@ -338,7 +411,8 @@ export default function RestockPage() {
               </div>
             ))}
                 </div>
-              ));
+              ))}
+              </>);
             })()}
           </div>
         )}
