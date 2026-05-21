@@ -91,10 +91,10 @@ CREATE TABLE insumos_estudio (
 
 -- Cajas
 INSERT INTO cajas (id, nombre, descripcion) VALUES
-  ('11111111-1111-1111-1111-111111111111', 'Caja A', 'Boxhagener Platz (sáb) + RAW (dom)'),
-  ('22222222-2222-2222-2222-222222222222', 'Caja B', 'Kollwitzplatz (sáb)'),
-  ('33333333-3333-3333-3333-333333333333', 'Caja C', 'Hackescher Markt (sáb)'),
-  ('44444444-4444-4444-4444-444444444444', 'Caja D', 'Mauerpark (dom)');
+  ('11111111-1111-1111-1111-111111111111', 'Boxie RAW',        'Boxhagener Platz (sáb) + RAW (dom)'),
+  ('22222222-2222-2222-2222-222222222222', 'Kollwitzplatz',    'Kollwitzplatz (sáb)'),
+  ('33333333-3333-3333-3333-333333333333', 'Hackescher Markt', 'Hackescher Markt (sáb)'),
+  ('44444444-4444-4444-4444-444444444444', 'Mauerpark',        'Mauerpark (dom)');
 
 -- Mercados
 INSERT INTO mercados (nombre, dia_semana, caja_id) VALUES
