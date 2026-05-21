@@ -602,7 +602,10 @@ export default function RestockPage() {
                 {a4Items.length > 0 && <PrintSection items={a4Items} talla="A4" label={`A4 — ${a4Items.length} diseños`} />}
                 {a3Items.length > 0 && <PrintSection items={a3Items} talla="A3" label={`A3 — ${a3Items.length} diseños`} />}
                 <button
-                  onClick={() => setTabRestock("restock")}
+                  onClick={() => {
+                    setCantidades({ ...printQty });
+                    setTabRestock("restock");
+                  }}
                   className="w-full py-3 bg-black text-white rounded-2xl font-semibold hover:bg-gray-900 transition-colors"
                 >
                   {t.continueBtn}
