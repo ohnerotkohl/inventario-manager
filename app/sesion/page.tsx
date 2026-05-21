@@ -243,34 +243,9 @@ export default function SesionPage() {
   async function handleSubmit() {
     setSubmitting(true);
 
-    // Buscar si ya existe sesión para este mercado+fecha
-    const { data: sesionExistente } = await supabase
-      .from("sesiones")
-      .select("id")
-      .eq("mercado_id", mercadoId)
-      .eq("fecha", fecha)
-      .maybeSingle();
-
-    let sesionId: string;
-
-    if (sesionExistente) {
-      sesionId = sesionExistente.id;
-    } else {
-      const { data: nuevaSesion, error } = await supabase
-        .from("sesiones")
-        .insert({ mercado_id: mercadoId, fecha, trabajador: trabajador.trim() })
-        .select()
-        .single();
-      if (error || !nuevaSesion) {
-        alert("Error guardando la sesión. Intenta de nuevo.");
-        setSubmitting(false);
-        return;
-      }
-      sesionId = nuevaSesion.id;
-    }
-
     const mercado = mercados.find((m) => m.id === mercadoId);
     const inventarioUpdates: PromiseLike<void>[] = [];
+    let reportSesionId = sesionId;
 
     if (modoEdicion) {
       // Actualizar mercado, fecha y trabajador de la sesión
@@ -353,12 +328,33 @@ export default function SesionPage() {
       setSesionMercadoIdOriginal("");
 
     } else {
-      // MODO NORMAL: fusionar con sesión existente si la hay
-      const { data: ventasExistentes } = await supabase
-        .from("ventas")
-        .select("id, poster_id, talla, cantidad")
-        .eq("sesion_id", sesionId);
+      // MODO NORMAL: buscar o crear sesión
+      const { data: sesionExistente } = await supabase
+        .from("sesiones")
+        .select("id")
+        .eq("mercado_id", mercadoId)
+        .eq("fecha", fecha)
+        .maybeSingle();
 
+      let nuevaSesionId: string;
+      if (sesionExistente) {
+        nuevaSesionId = sesionExistente.id;
+      } else {
+        const { data: nuevaSesion, error } = await supabase
+          .from("sesiones")
+          .insert({ mercado_id: mercadoId, fecha, trabajador: trabajador.trim() })
+          .select()
+          .single();
+        if (error || !nuevaSesion) {
+          alert("Error guardando la sesión. Intenta de nuevo.");
+          setSubmitting(false);
+          return;
+        }
+        nuevaSesionId = nuevaSesion.id;
+      }
+
+      const { data: ventasExistentes } = await supabase
+        .from("ventas").select("id, poster_id, talla, cantidad").eq("sesion_id", nuevaSesionId);
       const ventasExistMap: { [key: string]: { id: string; cantidad: number } } = {};
       for (const v of (ventasExistentes || [])) {
         ventasExistMap[`${v.poster_id}-${v.talla}`] = { id: v.id, cantidad: v.cantidad };
@@ -371,23 +367,18 @@ export default function SesionPage() {
         if (cantidad <= 0) continue;
         const talla = key.slice(-2) as "A4" | "A3";
         const posterId = key.slice(0, -3);
-
         const existing = ventasExistMap[`${posterId}-${talla}`];
         if (existing) {
           ventasUpdate.push({ id: existing.id, cantidad: existing.cantidad + cantidad });
         } else {
-          ventasInsert.push({ sesion_id: sesionId, poster_id: posterId, talla, cantidad });
+          ventasInsert.push({ sesion_id: nuevaSesionId, poster_id: posterId, talla, cantidad });
         }
-
         if (mercado) {
           const invItem = inventario.find((i) => i.poster_id === posterId && i.talla === talla);
           if (invItem) {
             const nuevaCantidad = Math.max(0, invItem.cantidad - cantidad);
             inventarioUpdates.push(
-              supabase.from("inventario")
-                .update({ cantidad: nuevaCantidad, out: nuevaCantidad === 0 })
-                .eq("id", invItem.id)
-                .then(() => { return; })
+              supabase.from("inventario").update({ cantidad: nuevaCantidad, out: nuevaCantidad === 0 }).eq("id", invItem.id).then(() => { return; })
             );
           }
         }
@@ -398,11 +389,11 @@ export default function SesionPage() {
         ...ventasUpdate.map((v) => supabase.from("ventas").update({ cantidad: v.cantidad }).eq("id", v.id)),
         ...inventarioUpdates,
       ]);
+      setSesionId(nuevaSesionId);
+      reportSesionId = nuevaSesionId;
     }
 
-    // Generar reporte completo desde la sesión (todas las ventas, no solo las nuevas)
-    setSesionId(sesionId);
-    await generarReporte(sesionId);
+    await generarReporte(reportSesionId);
 
     setStep("confirmado");
     setSubmitting(false);
