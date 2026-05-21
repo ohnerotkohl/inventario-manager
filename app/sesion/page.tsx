@@ -54,9 +54,21 @@ const POSTERS_ORDER: { [serie: string]: string[] } = {
 };
 
 type Step = "info" | "ventas" | "confirmado";
+type TabPrincipal = "nueva" | "historial";
 
 interface PosterConSeries extends Poster {
   series?: Serie;
+}
+
+interface SesionHistorial {
+  id: string;
+  fecha: string;
+  mercadoId: string;
+  mercadoNombre: string;
+  cajaId: string;
+  trabajador: string;
+  totalVentas: number;
+  lineas: { nombre: string; talla: string; cantidad: number }[];
 }
 
 interface VentaEntry {
@@ -88,6 +100,10 @@ export default function SesionPage() {
   const [ventasOriginales, setVentasOriginales] = useState<{ [key: string]: number }>({});
   const [modoEdicion, setModoEdicion] = useState(false);
   const [reporteImpresion, setReporteImpresion] = useState<{ a4: { linea: string; stockRestante: number }[]; a3: { linea: string; stockRestante: number }[] }>({ a4: [], a3: [] });
+  const [tabPrincipal, setTabPrincipal] = useState<TabPrincipal>("nueva");
+  const [historial, setHistorial] = useState<SesionHistorial[]>([]);
+  const [historialAbierto, setHistorialAbierto] = useState<string | null>(null);
+  const [loadingHistorial, setLoadingHistorial] = useState(false);
 
   useEffect(() => {
     supabase.from("mercados").select("*, cajas(*)").then(({ data }) => {
@@ -98,6 +114,71 @@ export default function SesionPage() {
       setCajas(data || []);
     });
   }, []);
+
+  useEffect(() => {
+    if (tabPrincipal === "historial") fetchHistorial();
+  }, [tabPrincipal]);
+
+  async function fetchHistorial() {
+    setLoadingHistorial(true);
+    type SesionRow = {
+      id: string;
+      fecha: string;
+      trabajador: string;
+      mercados: { id: string; nombre: string; caja_id: string } | null;
+      ventas: { cantidad: number; talla: string; posters: { nombre: string } | null }[];
+    };
+    const { data } = await supabase
+      .from("sesiones")
+      .select("id, fecha, trabajador, mercados(id, nombre, caja_id), ventas(cantidad, talla, posters(nombre))")
+      .order("fecha", { ascending: false })
+      .limit(50);
+    const rows = (data || []) as unknown as SesionRow[];
+    setHistorial(rows.map((r) => ({
+      id: r.id,
+      fecha: r.fecha,
+      mercadoId: r.mercados?.id || "",
+      mercadoNombre: r.mercados?.nombre || "—",
+      cajaId: r.mercados?.caja_id || "",
+      trabajador: r.trabajador || "—",
+      totalVentas: r.ventas.reduce((a, v) => a + v.cantidad, 0),
+      lineas: r.ventas
+        .map((v) => ({ nombre: v.posters?.nombre || "—", talla: v.talla, cantidad: v.cantidad }))
+        .sort((a, b) => b.cantidad - a.cantidad),
+    })));
+    setLoadingHistorial(false);
+  }
+
+  async function editarSesionDesdeHistorial(sesion: SesionHistorial) {
+    setMercadoId(sesion.mercadoId);
+    setFecha(sesion.fecha);
+    setTrabajador(sesion.trabajador);
+    setSesionId(sesion.id);
+    setLoading(true);
+    setTabPrincipal("nueva");
+
+    const [postersRes, invRes, seriesRes, ventasRes] = await Promise.all([
+      supabase.from("posters").select("*, series(*)").eq("activo", true).order("nombre"),
+      supabase.from("inventario").select("*").eq("caja_id", sesion.cajaId),
+      supabase.from("series").select("*"),
+      supabase.from("ventas").select("poster_id, talla, cantidad").eq("sesion_id", sesion.id),
+    ]);
+
+    const ventasMap: { [key: string]: number } = {};
+    for (const v of (ventasRes.data || [])) {
+      const key = `${v.poster_id}-${v.talla}`;
+      ventasMap[key] = (ventasMap[key] || 0) + v.cantidad;
+    }
+
+    setPosters(postersRes.data || []);
+    setInventario(invRes.data || []);
+    setSeries(seriesRes.data || []);
+    setVentas({ ...ventasMap });
+    setVentasOriginales({ ...ventasMap });
+    setModoEdicion(true);
+    setLoading(false);
+    setStep("ventas");
+  }
 
   async function handleCrearMercado() {
     if (!nuevoNombre.trim() || !nuevaCajaId) return;
@@ -528,11 +609,93 @@ export default function SesionPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Nueva sesión</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Sesiones</h1>
           <p className="text-gray-500 text-sm">Registra las ventas del mercado</p>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
+        {/* Tabs principales */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setTabPrincipal("nueva")}
+            className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center justify-center gap-2 ${tabPrincipal === "nueva" ? "bg-black text-white" : "bg-gray-100 text-gray-600"}`}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Nueva sesión
+          </button>
+          <button
+            onClick={() => setTabPrincipal("historial")}
+            className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center justify-center gap-2 ${tabPrincipal === "historial" ? "bg-black text-white" : "bg-gray-100 text-gray-600"}`}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            Historial
+          </button>
+        </div>
+
+        {/* Historial */}
+        {tabPrincipal === "historial" && (
+          <div className="space-y-3">
+            {loadingHistorial ? (
+              <div className="space-y-3">
+                {[1,2,3].map(i => <div key={i} className="h-16 bg-gray-200 rounded-2xl animate-pulse" />)}
+              </div>
+            ) : historial.length === 0 ? (
+              <div className="text-center py-16 text-gray-400">
+                <p>No hay sesiones registradas aún</p>
+              </div>
+            ) : historial.map((s) => (
+              <div key={s.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                <button
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+                  onClick={() => setHistorialAbierto(historialAbierto === s.id ? null : s.id)}
+                >
+                  <div className="text-left">
+                    <p className="font-bold text-gray-900">{s.mercadoNombre}</p>
+                    <p className="text-xs text-gray-500">
+                      {new Date(s.fecha + "T12:00:00").toLocaleDateString("es-DE", { weekday: "long", day: "numeric", month: "long" })} · {s.trabajador}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-right">
+                      <p className="font-bold text-gray-900">{s.totalVentas} vendidos</p>
+                    </div>
+                    <span className="text-gray-400">{historialAbierto === s.id ? "▲" : "▼"}</span>
+                  </div>
+                </button>
+                {historialAbierto === s.id && (
+                  <div className="border-t border-gray-100 px-4 py-3 space-y-3">
+                    <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-1.5">
+                      <span className="text-xs font-semibold text-gray-400">Póster</span>
+                      <span className="text-xs font-semibold text-gray-400">Talla</span>
+                      <span className="text-xs font-semibold text-gray-400 text-right">Uds.</span>
+                      {s.lineas.map((l, i) => (
+                        <>
+                          <span key={`n-${i}`} className="text-sm text-gray-800 truncate">{l.nombre}</span>
+                          <span key={`t-${i}`} className="text-sm text-gray-500">{l.talla}</span>
+                          <span key={`c-${i}`} className="text-sm font-semibold text-gray-900 text-right">{l.cantidad}</span>
+                        </>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => editarSesionDesdeHistorial(s)}
+                      className="w-full border-2 border-black text-black py-2 rounded-xl font-semibold text-sm hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                      Editar esta sesión
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {tabPrincipal === "nueva" && <><div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Mercado</label>
             <div className="grid grid-cols-1 gap-2">
@@ -628,6 +791,7 @@ export default function SesionPage() {
         >
           Registrar ventas →
         </button>
+        </>}
       </div>
     );
   }
