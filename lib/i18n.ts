@@ -64,6 +64,8 @@ const es = {
   confirmUpdate: "Confirma para actualizar el stock", marketName: "Nombre del mercado",
   specialMarket: "mercado especial", saveError: "Error guardando la sesión. Intenta de nuevo.",
   deleteSessionConfirm: "¿Eliminar la sesión de {market} del {date}? Esto revertirá el inventario sumando de vuelta las unidades vendidas.",
+  commissionsTitle: "Comisiones / notas",
+  commissionsPlaceholder: "Ej: comisión cuadro personalizado, encargo especial, comentario...",
   calDays: ["L","M","X","J","V","S","D"],
   // Restock
   restockTitle: "Restock", restockSubtitle: "Añade nuevas unidades impresas al stock",
@@ -156,6 +158,8 @@ const en: typeof es = {
   confirmUpdate: "Confirm to update stock", marketName: "Market name",
   specialMarket: "special market", saveError: "Error saving session. Please try again.",
   deleteSessionConfirm: "Delete session for {market} on {date}? This will revert the inventory by adding back the units sold.",
+  commissionsTitle: "Commissions / notes",
+  commissionsPlaceholder: "E.g: custom commission, special order, comment...",
   calDays: ["M","T","W","T","F","S","S"],
   restockTitle: "Restock", restockSubtitle: "Add new printed units to stock",
   newRestock: "New restock", restockDone: "Restock complete!",

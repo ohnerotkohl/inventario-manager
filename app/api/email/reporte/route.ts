@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 
 export async function POST(req: NextRequest) {
-  const { mercado, fecha, trabajador, hora, a4, a3 } = await req.json();
+  const { mercado, fecha, trabajador, hora, a4, a3, notas } = await req.json();
 
   const transporter = nodemailer.createTransport({
     service: "gmail",
@@ -108,6 +108,11 @@ export async function POST(req: NextRequest) {
           </tr>
         </table>
       </div>
+      ${notas ? `
+      <div style="margin-top:24px; background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:16px;">
+        <p style="font-size:11px; font-weight:bold; text-transform:uppercase; letter-spacing:0.08em; color:#92400e; margin:0 0 8px;">Comisiones / notas</p>
+        <p style="font-size:14px; color:#1c1917; margin:0; white-space:pre-wrap;">${notas}</p>
+      </div>` : ""}
       <p style="margin-top:32px; color:#999; font-size:12px;">
         Generado automáticamente por la app de Ohne Rotkohl
       </p>

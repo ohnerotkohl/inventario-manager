@@ -109,6 +109,7 @@ export default function SesionPage() {
   const [loadingHistorial, setLoadingHistorial] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [notas, setNotas] = useState("");
 
   useEffect(() => {
     supabase.from("mercados").select("*, cajas(*)").then(({ data }) => {
@@ -218,15 +219,18 @@ export default function SesionPage() {
     setSeries(seriesRes.data || []);
 
     if (modoEdicion && sesionId) {
-      const { data: ventasRes } = await supabase
-        .from("ventas").select("poster_id, talla, cantidad").eq("sesion_id", sesionId);
+      const [ventasRes, sesionRes] = await Promise.all([
+        supabase.from("ventas").select("poster_id, talla, cantidad").eq("sesion_id", sesionId),
+        supabase.from("sesiones").select("notas").eq("id", sesionId).single(),
+      ]);
       const ventasMap: { [key: string]: number } = {};
-      for (const v of (ventasRes || [])) {
+      for (const v of (ventasRes.data || [])) {
         const key = `${v.poster_id}-${v.talla}`;
         ventasMap[key] = (ventasMap[key] || 0) + v.cantidad;
       }
       setVentas({ ...ventasMap });
       setVentasOriginales({ ...ventasMap });
+      setNotas(sesionRes.data?.notas || "");
     }
 
     setLoading(false);
@@ -250,9 +254,9 @@ export default function SesionPage() {
     let reportSesionId = sesionId;
 
     if (modoEdicion) {
-      // Actualizar mercado, fecha y trabajador de la sesión
+      // Actualizar mercado, fecha, trabajador y notas de la sesión
       await supabase.from("sesiones")
-        .update({ mercado_id: mercadoId, fecha, trabajador: trabajador.trim() })
+        .update({ mercado_id: mercadoId, fecha, trabajador: trabajador.trim(), notas: notas.trim() || null })
         .eq("id", sesionId);
 
       const marketChanged = mercadoId !== sesionMercadoIdOriginal;
@@ -341,10 +345,11 @@ export default function SesionPage() {
       let nuevaSesionId: string;
       if (sesionExistente) {
         nuevaSesionId = sesionExistente.id;
+        await supabase.from("sesiones").update({ notas: notas.trim() || null }).eq("id", nuevaSesionId);
       } else {
         const { data: nuevaSesion, error } = await supabase
           .from("sesiones")
-          .insert({ mercado_id: mercadoId, fecha, trabajador: trabajador.trim() })
+          .insert({ mercado_id: mercadoId, fecha, trabajador: trabajador.trim(), notas: notas.trim() || null })
           .select()
           .single();
         if (error || !nuevaSesion) {
@@ -453,6 +458,7 @@ export default function SesionPage() {
           hora: ahora,
           a4: reporteImpresion.a4,
           a3: reporteImpresion.a3,
+          notas: notas.trim(),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -536,6 +542,14 @@ export default function SesionPage() {
           </div>
         )}
 
+        {/* Comisiones / notas */}
+        {notas.trim() && (
+          <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-1">
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-400">{t.commissionsTitle}</p>
+            <p className="text-sm text-gray-800 whitespace-pre-wrap">{notas.trim()}</p>
+          </div>
+        )}
+
         {/* Botón seguir editando */}
         <button
           onClick={async () => {
@@ -574,7 +588,8 @@ export default function SesionPage() {
                 const linesA3 = reporteImpresion.a3.map(i =>
                   `[${i.stockRestante < 5 ? "!" : "OK"}] ${i.linea} — ${i.stockRestante < 5 ? `imprimir (quedan ${i.stockRestante})` : `stock ok (${i.stockRestante})`}`
                 ).join("\n");
-                const texto = `REPORTE DE IMPRESIÓN\n${mercado?.nombre || ""}\n${fechaFmt}\n${trabajador}\n\n${linesA4 ? `— A4 —\n${linesA4}\n\n` : ""}${linesA3 ? `— A3 —\n${linesA3}` : ""}`.trim();
+                const notasBlock = notas.trim() ? `\n\n— NOTAS —\n${notas.trim()}` : "";
+                const texto = `REPORTE DE IMPRESIÓN\n${mercado?.nombre || ""}\n${fechaFmt}\n${trabajador}\n\n${linesA4 ? `— A4 —\n${linesA4}\n\n` : ""}${linesA3 ? `— A3 —\n${linesA3}` : ""}${notasBlock}`.trim();
 
                 if (navigator.share) {
                   try {
@@ -627,6 +642,7 @@ export default function SesionPage() {
             setStep("info");
             setVentas({});
             setTrabajador("");
+            setNotas("");
             setReporteImpresion({ a4: [], a3: [] });
             setSesionId("");
             setEmailEnviado(false);
@@ -1021,6 +1037,18 @@ export default function SesionPage() {
                 </div>
               );
             })}
+          </div>
+
+          {/* Comisiones / notas */}
+          <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-2">
+            <label className="text-sm font-semibold text-gray-700">{t.commissionsTitle}</label>
+            <textarea
+              value={notas}
+              onChange={(e) => setNotas(e.target.value)}
+              placeholder={t.commissionsPlaceholder}
+              rows={3}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-black resize-none"
+            />
           </div>
 
           <div className="sticky bottom-20 bg-white border border-gray-200 rounded-2xl p-4 flex items-center justify-between">
