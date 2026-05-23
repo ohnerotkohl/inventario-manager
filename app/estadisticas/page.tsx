@@ -51,6 +51,9 @@ export default function EstadisticasPage() {
   const [totalVentas, setTotalVentas] = useState(0);
   const [porMes, setPorMes] = useState<number[]>(Array(12).fill(0));
   const [sinVentas, setSinVentas] = useState<{ nombre: string; serie: string; serieColor: string }[]>([]);
+  const [porMercadoDetalle, setPorMercadoDetalle] = useState<{ mercado: string; total: number; topPosters: { nombre: string; total: number; a4: number; a3: number }[] }[]>([]);
+  const [comparativa, setComparativa] = useState<{ actual: number; anterior: number } | null>(null);
+  const [mercadoAbierto, setMercadoAbierto] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [periodo, setPeriodo] = useState<"30" | "90" | "365" | "todo">("todo");
   const [showAllPosters, setShowAllPosters] = useState(false);
@@ -136,6 +139,45 @@ export default function EstadisticasPage() {
     }
     setPorSerie(Object.entries(serieMap).map(([serie, { total, color }]) => ({ serie, total, color })).sort((a, b) => b.total - a.total));
 
+    // Comparativa vs período anterior
+    if (periodo !== "todo") {
+      const dias = parseInt(periodo);
+      const desde = new Date(); desde.setDate(desde.getDate() - dias);
+      const desdeAnterior = new Date(); desdeAnterior.setDate(desdeAnterior.getDate() - dias * 2);
+      const totalActual = ventasFiltradas.reduce((a, v) => a + v.cantidad, 0);
+      const totalAnterior = ventas
+        .filter((v) => {
+          if (!v.sesiones?.fecha) return false;
+          const f = new Date(v.sesiones.fecha);
+          return f >= desdeAnterior && f < desde;
+        })
+        .reduce((a, v) => a + v.cantidad, 0);
+      setComparativa({ actual: totalActual, anterior: totalAnterior });
+    } else {
+      setComparativa(null);
+    }
+
+    // Detalle por mercado
+    const mercadoDetalleMap: { [m: string]: { [nombre: string]: { total: number; a4: number; a3: number } } } = {};
+    for (const v of ventasFiltradas) {
+      const m = v.sesiones?.mercados?.nombre || "—";
+      const nombre = v.posters?.nombre || "—";
+      if (!mercadoDetalleMap[m]) mercadoDetalleMap[m] = {};
+      if (!mercadoDetalleMap[m][nombre]) mercadoDetalleMap[m][nombre] = { total: 0, a4: 0, a3: 0 };
+      mercadoDetalleMap[m][nombre].total += v.cantidad;
+      if (v.talla === "A4") mercadoDetalleMap[m][nombre].a4 += v.cantidad;
+      if (v.talla === "A3") mercadoDetalleMap[m][nombre].a3 += v.cantidad;
+    }
+    setPorMercadoDetalle(
+      Object.entries(mercadoDetalleMap).map(([mercado, postersMap]) => ({
+        mercado,
+        total: Object.values(postersMap).reduce((a, b) => a + b.total, 0),
+        topPosters: Object.entries(postersMap)
+          .sort((a, b) => b[1].total - a[1].total)
+          .map(([nombre, d]) => ({ nombre, total: d.total, a4: d.a4, a3: d.a3 })),
+      })).sort((a, b) => b.total - a.total)
+    );
+
     // Por mes (siempre sobre todos los datos, sin filtro de periodo)
     const meses = Array(12).fill(0);
     for (const v of ventas) {
@@ -178,6 +220,7 @@ export default function EstadisticasPage() {
   }
 
   const maxPoster = topPosters[0]?.total || 1;
+  const semanas = periodo !== "todo" ? parseInt(periodo) / 7 : null;
   const maxMercado = porMercado[0]?.total || 1;
   const maxSerie = porSerie[0]?.total || 1;
 
@@ -248,6 +291,37 @@ export default function EstadisticasPage() {
             <p className="text-gray-400 mt-1">{t.postersSold}</p>
           </div>
 
+          {/* Comparativa vs período anterior */}
+          {comparativa && (
+            <div className="bg-white border border-gray-200 rounded-2xl p-4">
+              <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">vs período anterior</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-gray-900">{comparativa.actual}</p>
+                  <p className="text-xs text-gray-500 mt-1">Este período</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-gray-400">{comparativa.anterior}</p>
+                  <p className="text-xs text-gray-500 mt-1">Período anterior</p>
+                </div>
+              </div>
+              {comparativa.anterior > 0 && (() => {
+                const cambio = ((comparativa.actual - comparativa.anterior) / comparativa.anterior) * 100;
+                const sube = cambio >= 0;
+                return (
+                  <div className={`mt-3 text-center py-2 rounded-xl text-sm font-semibold ${sube ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
+                    {sube ? "▲" : "▼"} {Math.abs(cambio).toFixed(1)}% {sube ? "más que antes" : "menos que antes"}
+                  </div>
+                );
+              })()}
+              {comparativa.anterior === 0 && comparativa.actual > 0 && (
+                <div className="mt-3 text-center py-2 rounded-xl text-sm font-semibold bg-green-50 text-green-700">
+                  Primer período con ventas
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Gráfica por mes */}
           {porMes.some((m) => m > 0) && (() => {
             const maxMes = Math.max(...porMes, 1);
@@ -305,6 +379,43 @@ export default function EstadisticasPage() {
             </div>
           </div>
 
+          {/* Detalle por mercado */}
+          {porMercadoDetalle.length > 0 && (
+            <div>
+              <h2 className="font-bold text-gray-700 mb-3">Top por mercado</h2>
+              <div className="space-y-2">
+                {porMercadoDetalle.map((m) => (
+                  <div key={m.mercado} className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                    <button
+                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+                      onClick={() => setMercadoAbierto(mercadoAbierto === m.mercado ? null : m.mercado)}
+                    >
+                      <span className="font-semibold text-gray-900">{m.mercado}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500">{m.total} vendidos</span>
+                        <span className="text-gray-400 text-xs">{mercadoAbierto === m.mercado ? "▲" : "▼"}</span>
+                      </div>
+                    </button>
+                    {mercadoAbierto === m.mercado && (
+                      <div className="border-t border-gray-100 divide-y divide-gray-50">
+                        {m.topPosters.map((p, idx) => (
+                          <div key={p.nombre} className="flex items-center gap-3 px-4 py-2.5">
+                            <span className="text-xs font-bold text-gray-300 w-5 text-right">{idx + 1}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-gray-800 truncate">{p.nombre}</p>
+                              <p className="text-xs text-gray-400">A4: {p.a4} · A3: {p.a3}</p>
+                            </div>
+                            <span className="font-bold text-sm text-gray-900">{p.total}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Top pósters / Ranking completo */}
           <div>
             <div className="flex items-center justify-between mb-3">
@@ -326,9 +437,10 @@ export default function EstadisticasPage() {
                   <span className={`text-sm font-bold w-7 text-right ${idx < 3 ? "text-gray-900" : "text-gray-300"}`}>{idx + 1}</span>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm text-gray-900 truncate">{p.nombre}</p>
-                    <div className="flex items-center gap-1 mt-0.5">
+                    <div className="flex items-center gap-1 mt-0.5 flex-wrap">
                       <span className="text-xs px-1.5 py-0.5 rounded" style={{ backgroundColor: p.serieColor + "22", color: p.serieColor }}>{p.serie}</span>
                       <span className="text-xs text-gray-400">A4: {p.totalA4} · A3: {p.totalA3}</span>
+                      {semanas && <span className="text-xs text-blue-500 font-medium">{(p.total / semanas).toFixed(1)}/sem</span>}
                     </div>
                   </div>
                   <div className="text-right">
