@@ -111,6 +111,8 @@ export default function SesionPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [notas, setNotas] = useState("");
   const [ideas, setIdeas] = useState("");
+  const [faltanTarjetas, setFaltanTarjetas] = useState(false);
+  const [faltanStickers, setFaltanStickers] = useState(false);
 
   useEffect(() => {
     supabase.from("mercados").select("*, cajas(*)").then(({ data }) => {
@@ -222,7 +224,7 @@ export default function SesionPage() {
     if (modoEdicion && sesionId) {
       const [ventasRes, sesionRes] = await Promise.all([
         supabase.from("ventas").select("poster_id, talla, cantidad").eq("sesion_id", sesionId),
-        supabase.from("sesiones").select("notas").eq("id", sesionId).single(),
+        supabase.from("sesiones").select("notas, faltan_tarjetas, faltan_stickers").eq("id", sesionId).single(),
       ]);
       const ventasMap: { [key: string]: number } = {};
       for (const v of (ventasRes.data || [])) {
@@ -232,6 +234,8 @@ export default function SesionPage() {
       setVentas({ ...ventasMap });
       setVentasOriginales({ ...ventasMap });
       setNotas(sesionRes.data?.notas || "");
+      setFaltanTarjetas(sesionRes.data?.faltan_tarjetas || false);
+      setFaltanStickers(sesionRes.data?.faltan_stickers || false);
     }
 
     setLoading(false);
@@ -255,9 +259,9 @@ export default function SesionPage() {
     let reportSesionId = sesionId;
 
     if (modoEdicion) {
-      // Actualizar mercado, fecha, trabajador y notas de la sesión
+      // Actualizar mercado, fecha, trabajador, notas y materiales de la sesión
       await supabase.from("sesiones")
-        .update({ mercado_id: mercadoId, fecha, trabajador: trabajador.trim(), notas: notas.trim() || null })
+        .update({ mercado_id: mercadoId, fecha, trabajador: trabajador.trim(), notas: notas.trim() || null, faltan_tarjetas: faltanTarjetas, faltan_stickers: faltanStickers })
         .eq("id", sesionId);
 
       const marketChanged = mercadoId !== sesionMercadoIdOriginal;
@@ -346,11 +350,11 @@ export default function SesionPage() {
       let nuevaSesionId: string;
       if (sesionExistente) {
         nuevaSesionId = sesionExistente.id;
-        await supabase.from("sesiones").update({ notas: notas.trim() || null }).eq("id", nuevaSesionId);
+        await supabase.from("sesiones").update({ notas: notas.trim() || null, faltan_tarjetas: faltanTarjetas, faltan_stickers: faltanStickers }).eq("id", nuevaSesionId);
       } else {
         const { data: nuevaSesion, error } = await supabase
           .from("sesiones")
-          .insert({ mercado_id: mercadoId, fecha, trabajador: trabajador.trim(), notas: notas.trim() || null })
+          .insert({ mercado_id: mercadoId, fecha, trabajador: trabajador.trim(), notas: notas.trim() || null, faltan_tarjetas: faltanTarjetas, faltan_stickers: faltanStickers })
           .select()
           .single();
         if (error || !nuevaSesion) {
@@ -470,6 +474,9 @@ export default function SesionPage() {
           a4: reporteImpresion.a4,
           a3: reporteImpresion.a3,
           notas: notas.trim(),
+          ideas: ideas.trim(),
+          faltanTarjetas,
+          faltanStickers,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -553,6 +560,15 @@ export default function SesionPage() {
           </div>
         )}
 
+        {/* Materiales */}
+        {(faltanTarjetas || faltanStickers) && (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-4 space-y-1">
+            <p className="text-xs font-bold uppercase tracking-widest text-red-500">Materiales faltantes</p>
+            {faltanTarjetas && <p className="text-sm text-red-800">⚠ Faltan tarjetas</p>}
+            {faltanStickers && <p className="text-sm text-red-800">⚠ Faltan stickers</p>}
+          </div>
+        )}
+
         {/* Comisiones */}
         {notas.trim() && (
           <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-1">
@@ -607,8 +623,10 @@ export default function SesionPage() {
                 const linesA3 = reporteImpresion.a3.map(i =>
                   `[${i.stockRestante < 5 ? "!" : "OK"}] ${i.linea} — ${i.stockRestante < 5 ? `imprimir (quedan ${i.stockRestante})` : `stock ok (${i.stockRestante})`}`
                 ).join("\n");
-                const notasBlock = notas.trim() ? `\n\n— NOTAS —\n${notas.trim()}` : "";
-                const texto = `REPORTE DE IMPRESIÓN\n${mercado?.nombre || ""}\n${fechaFmt}\n${trabajador}\n\n${linesA4 ? `— A4 —\n${linesA4}\n\n` : ""}${linesA3 ? `— A3 —\n${linesA3}` : ""}${notasBlock}`.trim();
+                const materialesBlock = (faltanTarjetas || faltanStickers) ? `\n\n— MATERIALES —\n${[faltanTarjetas && "⚠ Faltan tarjetas", faltanStickers && "⚠ Faltan stickers"].filter(Boolean).join("\n")}` : "";
+                const notasBlock = notas.trim() ? `\n\n— COMISIONES —\n${notas.trim()}` : "";
+                const ideasBlock = ideas.trim() ? `\n\n— IDEAS —\n${ideas.trim()}` : "";
+                const texto = `REPORTE DE SESIÓN\n${mercado?.nombre || ""}\n${fechaFmt}\n${trabajador}\n\n${linesA4 ? `— A4 —\n${linesA4}\n\n` : ""}${linesA3 ? `— A3 —\n${linesA3}` : ""}${materialesBlock}${notasBlock}${ideasBlock}`.trim();
 
                 if (navigator.share) {
                   try {
@@ -663,6 +681,8 @@ export default function SesionPage() {
             setTrabajador("");
             setNotas("");
             setIdeas("");
+            setFaltanTarjetas(false);
+            setFaltanStickers(false);
             setReporteImpresion({ a4: [], a3: [] });
             setSesionId("");
             setEmailEnviado(false);
@@ -1057,6 +1077,28 @@ export default function SesionPage() {
                 </div>
               );
             })}
+          </div>
+
+          {/* Materiales faltantes */}
+          <div className="bg-white border border-gray-200 rounded-2xl p-4">
+            <p className="text-sm font-semibold text-gray-700 mb-3">Materiales del stand</p>
+            <div className="space-y-2">
+              {[
+                { key: "tarjetas", label: "Faltan tarjetas", value: faltanTarjetas, set: setFaltanTarjetas },
+                { key: "stickers", label: "Faltan stickers", value: faltanStickers, set: setFaltanStickers },
+              ].map(({ key, label, value, set }) => (
+                <button
+                  key={key}
+                  onClick={() => set(!value)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-colors text-left ${value ? "border-red-400 bg-red-50" : "border-gray-200 hover:border-gray-300"}`}
+                >
+                  <div className={`w-5 h-5 rounded-md border-2 flex-shrink-0 flex items-center justify-center transition-colors ${value ? "bg-red-500 border-red-500" : "border-gray-300"}`}>
+                    {value && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                  </div>
+                  <span className={`text-sm font-medium ${value ? "text-red-700" : "text-gray-600"}`}>{label}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Comisiones */}

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 
 export async function POST(req: NextRequest) {
-  const { mercado, fecha, trabajador, hora, a4, a3, notas } = await req.json();
+  const { mercado, fecha, trabajador, hora, a4, a3, notas, ideas, faltanTarjetas, faltanStickers } = await req.json();
 
   const transporter = nodemailer.createTransport({
     service: "gmail",
@@ -108,11 +108,25 @@ export async function POST(req: NextRequest) {
           </tr>
         </table>
       </div>
+      ${(faltanTarjetas || faltanStickers) ? `
+      <div style="margin-top:24px; background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:16px;">
+        <p style="font-size:11px; font-weight:bold; text-transform:uppercase; letter-spacing:0.08em; color:#dc2626; margin:0 0 10px;">⚠ Materiales faltantes</p>
+        ${faltanTarjetas ? `<p style="font-size:14px; color:#7f1d1d; margin:0 0 4px;">• Faltan tarjetas</p>` : ""}
+        ${faltanStickers ? `<p style="font-size:14px; color:#7f1d1d; margin:0 0 4px;">• Faltan stickers</p>` : ""}
+      </div>` : ""}
+
       ${notas ? `
-      <div style="margin-top:24px; background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:16px;">
-        <p style="font-size:11px; font-weight:bold; text-transform:uppercase; letter-spacing:0.08em; color:#92400e; margin:0 0 8px;">Comisiones / notas</p>
+      <div style="margin-top:24px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:12px; padding:16px;">
+        <p style="font-size:11px; font-weight:bold; text-transform:uppercase; letter-spacing:0.08em; color:#6b7280; margin:0 0 8px;">Comisiones / encargos</p>
         <p style="font-size:14px; color:#1c1917; margin:0; white-space:pre-wrap;">${notas}</p>
       </div>` : ""}
+
+      ${ideas ? `
+      <div style="margin-top:16px; background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:16px;">
+        <p style="font-size:11px; font-weight:bold; text-transform:uppercase; letter-spacing:0.08em; color:#92400e; margin:0 0 8px;">💡 Ideas del mercado</p>
+        <p style="font-size:14px; color:#1c1917; margin:0; white-space:pre-wrap;">${ideas}</p>
+      </div>` : ""}
+
       <p style="margin-top:32px; color:#999; font-size:12px;">
         Generado automáticamente por la app de Ohne Rotkohl
       </p>
@@ -124,7 +138,7 @@ export async function POST(req: NextRequest) {
     await transporter.sendMail({
       from: `"Ohne Rotkohl App" <${process.env.EMAIL_USER}>`,
       to: process.env.EMAIL_TO,
-      subject: `Reporte de impresión — ${mercado} — ${fechaFormateada}`,
+      subject: `Reporte de sesión — ${mercado} — ${fechaFormateada}`,
       html,
     });
     return NextResponse.json({ ok: true });
