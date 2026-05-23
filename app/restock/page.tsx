@@ -715,10 +715,14 @@ export default function RestockPage() {
                       <div className="flex flex-col items-center gap-0.5">
                         <input
                           type="number"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           min={0}
                           placeholder="0"
                           value={cantidades[`${p.id}-A4`] || ""}
                           onChange={(e) => setCantidades((prev) => ({ ...prev, [`${p.id}-A4`]: parseInt(e.target.value) || 0 }))}
+                          onBlur={(e) => setCantidades((prev) => ({ ...prev, [`${p.id}-A4`]: parseInt(e.target.value) || 0 }))}
+                          onFocus={(e) => e.target.select()}
                           className="w-16 text-center text-sm border border-gray-200 rounded-lg py-1.5 focus:outline-none focus:border-black"
                         />
                         <span className="text-xs text-gray-400">{tr("currentStock", { n: p.a4Stock })}</span>
@@ -728,10 +732,14 @@ export default function RestockPage() {
                       <div className="flex flex-col items-center gap-0.5">
                         <input
                           type="number"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           min={0}
                           placeholder="0"
                           value={cantidades[`${p.id}-A3`] || ""}
                           onChange={(e) => setCantidades((prev) => ({ ...prev, [`${p.id}-A3`]: parseInt(e.target.value) || 0 }))}
+                          onBlur={(e) => setCantidades((prev) => ({ ...prev, [`${p.id}-A3`]: parseInt(e.target.value) || 0 }))}
+                          onFocus={(e) => e.target.select()}
                           className="w-16 text-center text-sm border border-gray-200 rounded-lg py-1.5 focus:outline-none focus:border-black"
                         />
                         <span className="text-xs text-gray-400">{tr("currentStock", { n: p.a3Stock })}</span>

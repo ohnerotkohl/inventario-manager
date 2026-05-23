@@ -119,6 +119,7 @@ export default function SesionPage() {
   const [notas, setNotas] = useState("");
   const [ideas, setIdeas] = useState("");
   const [materiales, setMateriales] = useState<string[]>([]);
+  const [showReview, setShowReview] = useState(false);
 
   useEffect(() => {
     supabase.from("mercados").select("*, cajas(*)").then(({ data }) => {
@@ -1050,10 +1051,14 @@ export default function SesionPage() {
                             <div className="flex flex-col items-center">
                               <input
                                 type="number"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
                                 min={0}
                                 max={invA4?.cantidad || 99}
-                                value={ventas[`${p.id}-A4`] || 0}
+                                value={ventas[`${p.id}-A4`] || ""}
+                                placeholder="0"
                                 onChange={(e) => setVenta(p.id, "A4", parseInt(e.target.value) || 0)}
+                                onBlur={(e) => setVenta(p.id, "A4", parseInt(e.target.value) || 0)}
                                 onFocus={(e) => e.target.select()}
                                 className="w-16 text-center text-sm text-gray-900 border border-gray-300 rounded-lg py-1 focus:outline-none focus:border-black"
                               />
@@ -1064,10 +1069,14 @@ export default function SesionPage() {
                             <div className="flex flex-col items-center">
                               <input
                                 type="number"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
                                 min={0}
                                 max={invA3?.cantidad || 99}
-                                value={ventas[`${p.id}-A3`] || 0}
+                                value={ventas[`${p.id}-A3`] || ""}
+                                placeholder="0"
                                 onChange={(e) => setVenta(p.id, "A3", parseInt(e.target.value) || 0)}
+                                onBlur={(e) => setVenta(p.id, "A3", parseInt(e.target.value) || 0)}
                                 onFocus={(e) => e.target.select()}
                                 className="w-16 text-center text-sm text-gray-900 border border-gray-300 rounded-lg py-1 focus:outline-none focus:border-black"
                               />
@@ -1141,7 +1150,7 @@ export default function SesionPage() {
               <p className="text-xs text-gray-500">{t.confirmUpdate}</p>
             </div>
             <button
-              onClick={handleSubmit}
+              onClick={() => setShowReview(true)}
               disabled={submitting || (totalVentas === 0 && !notas.trim() && !ideas.trim())}
               className="bg-black text-white px-5 py-2.5 rounded-xl font-semibold disabled:opacity-40 hover:bg-gray-900 transition-colors"
             >
@@ -1149,6 +1158,100 @@ export default function SesionPage() {
             </button>
           </div>
         </>
+      )}
+
+      {/* Review overlay — employee verifies numbers before saving */}
+      {showReview && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end">
+          <div className="bg-white rounded-t-3xl w-full max-h-[88vh] flex flex-col">
+            <div className="p-5 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+              <div>
+                <h3 className="font-bold text-gray-900 text-lg">{t.reviewTitle}</h3>
+                <p className="text-xs text-gray-400">{t.confirmUpdate}</p>
+              </div>
+              <button
+                onClick={() => setShowReview(false)}
+                className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 text-xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-4 space-y-4">
+              {/* Ventas table */}
+              {(() => {
+                const byPoster: { [name: string]: { a4?: number; a3?: number } } = {};
+                for (const [key, cantidad] of Object.entries(ventas)) {
+                  if (cantidad <= 0) continue;
+                  const talla = key.slice(-2) as "A4" | "A3";
+                  const posterId = key.slice(0, -3);
+                  const nombre = posters.find(p => p.id === posterId)?.nombre || "—";
+                  byPoster[nombre] = byPoster[nombre] || {};
+                  if (talla === "A4") byPoster[nombre].a4 = cantidad;
+                  else byPoster[nombre].a3 = cantidad;
+                }
+                const entries = Object.entries(byPoster).sort((a, b) => a[0].localeCompare(b[0]));
+                if (entries.length === 0) return null;
+                return (
+                  <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                    <div className="grid grid-cols-[1fr_48px_48px] gap-2 px-4 py-2 bg-gray-50 border-b border-gray-100">
+                      <span className="text-xs font-semibold text-gray-500">{t.poster}</span>
+                      <span className="text-xs font-semibold text-gray-500 text-center">A4</span>
+                      <span className="text-xs font-semibold text-gray-500 text-center">A3</span>
+                    </div>
+                    {entries.map(([nombre, vals], i) => (
+                      <div key={nombre} className={`grid grid-cols-[1fr_48px_48px] gap-2 px-4 py-2.5 items-center ${i < entries.length - 1 ? "border-b border-gray-100" : ""}`}>
+                        <span className="text-sm text-gray-900">{nombre}</span>
+                        <span className="text-sm font-bold text-gray-900 text-center">{vals.a4 ?? "—"}</span>
+                        <span className="text-sm font-bold text-gray-900 text-center">{vals.a3 ?? "—"}</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+
+              {/* Materiales */}
+              {materiales.length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+                  <p className="text-xs font-bold uppercase tracking-widest text-red-500 mb-2">{t.standMaterials}</p>
+                  {materiales.map(k => (
+                    <p key={k} className="text-sm text-red-800">⚠ {t[k as MaterialKey]}</p>
+                  ))}
+                </div>
+              )}
+
+              {/* Comisiones */}
+              {notas.trim() && (
+                <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
+                  <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1">{t.commissionsSection}</p>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{notas.trim()}</p>
+                </div>
+              )}
+
+              {/* Ideas */}
+              {ideas.trim() && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                  <p className="text-xs font-bold uppercase tracking-widest text-amber-700 mb-1">{t.ideasSection}</p>
+                  <p className="text-sm text-amber-900 whitespace-pre-wrap">{ideas.trim()}</p>
+                </div>
+              )}
+            </div>
+            <div className="p-4 flex gap-3 border-t border-gray-100 flex-shrink-0">
+              <button
+                onClick={() => setShowReview(false)}
+                className="flex-1 border-2 border-gray-200 text-gray-700 py-3 rounded-2xl font-semibold hover:bg-gray-50 transition-colors"
+              >
+                {t.edit}
+              </button>
+              <button
+                onClick={() => { setShowReview(false); handleSubmit(); }}
+                disabled={submitting}
+                className="flex-1 bg-black text-white py-3 rounded-2xl font-semibold disabled:opacity-40 hover:bg-gray-900 transition-colors"
+              >
+                {submitting ? t.saving : t.confirm}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
