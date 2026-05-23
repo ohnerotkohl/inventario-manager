@@ -402,7 +402,7 @@ export default function SesionPage() {
     }
 
     const mercadoNombreGuardar = mercados.find((m) => m.id === mercadoId)?.nombre || "";
-    const insertExtras: Promise<unknown>[] = [];
+    const insertExtras: PromiseLike<unknown>[] = [];
     if (notas.trim()) {
       insertExtras.push(supabase.from("comisiones").insert({ texto: notas.trim(), fecha, mercado: mercadoNombreGuardar }));
     }
