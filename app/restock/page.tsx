@@ -598,6 +598,7 @@ export default function RestockPage() {
                           <button onClick={() => setPrintQty((prev) => ({ ...prev, [key]: Math.max(1, qty - 1) }))} className="w-7 h-7 rounded-lg bg-gray-100 text-gray-700 font-bold flex items-center justify-center hover:bg-gray-200">−</button>
                           <span className="w-6 text-center font-bold text-gray-900">{qty}</span>
                           <button onClick={() => setPrintQty((prev) => ({ ...prev, [key]: qty + 1 }))} className="w-7 h-7 rounded-lg bg-gray-100 text-gray-700 font-bold flex items-center justify-center hover:bg-gray-200">+</button>
+                          <button onClick={() => setPrintQty((prev) => ({ ...prev, [key]: 0 }))} className="w-7 h-7 rounded-lg bg-gray-50 text-gray-300 hover:bg-red-50 hover:text-red-400 font-bold flex items-center justify-center transition-colors text-base">×</button>
                         </div>
                       </div>
                     );
