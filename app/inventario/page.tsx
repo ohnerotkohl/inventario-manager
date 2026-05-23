@@ -287,23 +287,25 @@ function InventarioInner() {
         ))}
       </div>
 
-      {/* Sticky save bar — appears when there are pending changes */}
+      {/* Floating save bar — fixed above nav, doesn't affect page layout */}
       {!readOnly && Object.keys(editando).length > 0 && (
-        <div className="sticky top-0 z-10 bg-amber-50 border border-amber-300 rounded-2xl p-3 flex items-center justify-between shadow-sm">
-          <div>
-            <p className="font-semibold text-amber-900 text-sm">{tr("unsavedChanges", { n: Object.keys(editando).length })}</p>
-            {saveErrInv
-              ? <p className="text-xs text-red-600">{saveErrInv}</p>
-              : <p className="text-xs text-amber-600">{t.tapToSave}</p>
-            }
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-20 pointer-events-none">
+          <div className="bg-amber-50 border border-amber-300 rounded-2xl p-3 flex items-center justify-between shadow-lg pointer-events-auto">
+            <div>
+              <p className="font-semibold text-amber-900 text-sm">{tr("unsavedChanges", { n: Object.keys(editando).length })}</p>
+              {saveErrInv
+                ? <p className="text-xs text-red-600">{saveErrInv}</p>
+                : <p className="text-xs text-amber-600">{t.tapToSave}</p>
+              }
+            </div>
+            <button
+              onClick={guardarTodo}
+              disabled={guardandoTodo}
+              className="bg-black text-white px-5 py-2 rounded-xl font-semibold text-sm disabled:opacity-40 hover:bg-gray-900 transition-colors"
+            >
+              {guardandoTodo ? t.saving : t.save}
+            </button>
           </div>
-          <button
-            onClick={guardarTodo}
-            disabled={guardandoTodo}
-            className="bg-black text-white px-5 py-2 rounded-xl font-semibold text-sm disabled:opacity-40 hover:bg-gray-900 transition-colors"
-          >
-            {guardandoTodo ? t.saving : t.save}
-          </button>
         </div>
       )}
 
