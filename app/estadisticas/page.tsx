@@ -292,35 +292,45 @@ export default function EstadisticasPage() {
           </div>
 
           {/* Comparativa vs período anterior */}
-          {comparativa && (
-            <div className="bg-white border border-gray-200 rounded-2xl p-4">
-              <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">vs período anterior</p>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center">
-                  <p className="text-3xl font-bold text-gray-900">{comparativa.actual}</p>
-                  <p className="text-xs text-gray-500 mt-1">Este período</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-3xl font-bold text-gray-400">{comparativa.anterior}</p>
-                  <p className="text-xs text-gray-500 mt-1">Período anterior</p>
-                </div>
-              </div>
-              {comparativa.anterior > 0 && (() => {
-                const cambio = ((comparativa.actual - comparativa.anterior) / comparativa.anterior) * 100;
-                const sube = cambio >= 0;
-                return (
-                  <div className={`mt-3 text-center py-2 rounded-xl text-sm font-semibold ${sube ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
-                    {sube ? "▲" : "▼"} {Math.abs(cambio).toFixed(1)}% {sube ? "más que antes" : "menos que antes"}
+          {comparativa && (() => {
+            const dias = parseInt(periodo);
+            const fmt = (d: Date) => d.toLocaleDateString("es-DE", { day: "numeric", month: "short" });
+            const hoy = new Date();
+            const desdeActual = new Date(); desdeActual.setDate(hoy.getDate() - dias);
+            const desdeAnterior = new Date(); desdeAnterior.setDate(hoy.getDate() - dias * 2);
+            const hastaAnterior = new Date(); hastaAnterior.setDate(hoy.getDate() - dias - 1);
+            return (
+              <div className="bg-white border border-gray-200 rounded-2xl p-4">
+                <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Comparativa de períodos</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="text-center bg-gray-50 rounded-xl p-3">
+                    <p className="text-2xl font-bold text-gray-900">{comparativa.actual}</p>
+                    <p className="text-xs text-gray-500 mt-1 font-medium">Últimos {dias} días</p>
+                    <p className="text-xs text-gray-400">{fmt(desdeActual)} – {fmt(hoy)}</p>
                   </div>
-                );
-              })()}
-              {comparativa.anterior === 0 && comparativa.actual > 0 && (
-                <div className="mt-3 text-center py-2 rounded-xl text-sm font-semibold bg-green-50 text-green-700">
-                  Primer período con ventas
+                  <div className="text-center bg-gray-50 rounded-xl p-3">
+                    <p className="text-2xl font-bold text-gray-400">{comparativa.anterior}</p>
+                    <p className="text-xs text-gray-500 mt-1 font-medium">{dias} días anteriores</p>
+                    <p className="text-xs text-gray-400">{fmt(desdeAnterior)} – {fmt(hastaAnterior)}</p>
+                  </div>
                 </div>
-              )}
-            </div>
-          )}
+                {comparativa.anterior > 0 && (() => {
+                  const cambio = ((comparativa.actual - comparativa.anterior) / comparativa.anterior) * 100;
+                  const sube = cambio >= 0;
+                  return (
+                    <div className={`mt-3 text-center py-2 rounded-xl text-sm font-semibold ${sube ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
+                      {sube ? "▲" : "▼"} {Math.abs(cambio).toFixed(1)}% {sube ? "más que el período anterior" : "menos que el período anterior"}
+                    </div>
+                  );
+                })()}
+                {comparativa.anterior === 0 && comparativa.actual > 0 && (
+                  <div className="mt-3 text-center py-2 rounded-xl text-sm text-gray-400">
+                    Sin datos en el período anterior
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Gráfica por mes */}
           {porMes.some((m) => m > 0) && (() => {
