@@ -1090,7 +1090,7 @@ export default function SesionPage() {
             </div>
             <button
               onClick={handleSubmit}
-              disabled={submitting || totalVentas === 0}
+              disabled={submitting || (totalVentas === 0 && !notas.trim() && !ideas.trim())}
               className="bg-black text-white px-5 py-2.5 rounded-xl font-semibold disabled:opacity-40 hover:bg-gray-900 transition-colors"
             >
               {submitting ? t.saving : t.confirm}
