@@ -37,6 +37,21 @@ interface ItemCompra {
   detalle?: string;
 }
 
+interface Comision {
+  id: string;
+  texto: string;
+  fecha: string;
+  mercado: string;
+  completada: boolean;
+}
+
+interface Idea {
+  id: string;
+  texto: string;
+  fecha: string;
+  mercado: string;
+}
+
 export default function Dashboard() {
   const router = useRouter();
   const { user } = useAuth();
@@ -46,6 +61,9 @@ export default function Dashboard() {
   const [ultimasSesiones, setUltimasSesiones] = useState<UltimaSesion[]>([]);
   const [materialesPendientes, setMaterialesPendientes] = useState<ItemCompra[]>([]);
   const [insumosPendientes, setInsumosPendientes] = useState<ItemCompra[]>([]);
+  const [comisiones, setComisiones] = useState<Comision[]>([]);
+  const [ideas, setIdeas] = useState<Idea[]>([]);
+  const [verTodasComisiones, setVerTodasComisiones] = useState(false);
   const [loading, setLoading] = useState(true);
   const [configured, setConfigured] = useState(true);
 
@@ -62,12 +80,14 @@ export default function Dashboard() {
 
   async function fetchData() {
     try {
-      const [invRes, matRes, insRes, cajasRes, sesRes] = await Promise.all([
+      const [invRes, matRes, insRes, cajasRes, sesRes, comRes, ideasRes] = await Promise.all([
         supabase.from("inventario").select("out, sample_falta, caja_id, cantidad"),
         supabase.from("materiales_caja").select("nombre, cajas(nombre)").eq("necesita_restock", true),
         supabase.from("insumos_estudio").select("nombre, cantidad, unidad").eq("necesita_compra", true),
         supabase.from("cajas").select("id, nombre, descripcion"),
         supabase.from("sesiones").select("fecha, trabajador, mercados(nombre)").order("created_at", { ascending: false }).limit(5),
+        supabase.from("comisiones").select("id, texto, fecha, mercado, completada").order("created_at", { ascending: false }),
+        supabase.from("ideas").select("id, texto, fecha, mercado").order("created_at", { ascending: false }),
       ]);
 
       const inv = invRes.data || [];
@@ -114,11 +134,19 @@ export default function Dashboard() {
           trabajador: s.trabajador,
         }))
       );
+
+      setComisiones((comRes.data || []) as Comision[]);
+      setIdeas((ideasRes.data || []) as Idea[]);
     } catch {
       setConfigured(false);
     } finally {
       setLoading(false);
     }
+  }
+
+  async function toggleComision(id: string, completada: boolean) {
+    setComisiones((prev) => prev.map((c) => c.id === id ? { ...c, completada } : c));
+    await supabase.from("comisiones").update({ completada }).eq("id", id);
   }
 
   if (!configured) {
@@ -330,6 +358,69 @@ export default function Dashboard() {
                 </div>
                 <p className="text-xs text-gray-400">
                   {new Date(s.fecha).toLocaleDateString("es-DE", { day: "2-digit", month: "2-digit" })}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Comisiones */}
+      {comisiones.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-bold text-gray-700">{t.commissionsSection}</h2>
+            {comisiones.some((c) => c.completada) && (
+              <button
+                onClick={() => setVerTodasComisiones((v) => !v)}
+                className="text-xs text-gray-400 hover:text-gray-700 underline"
+              >
+                {verTodasComisiones ? "Solo pendientes" : t.allCommissions}
+              </button>
+            )}
+          </div>
+          <div className="bg-white border border-gray-200 rounded-2xl divide-y divide-gray-100 overflow-hidden">
+            {comisiones
+              .filter((c) => verTodasComisiones || !c.completada)
+              .map((c) => (
+                <div key={c.id} className={`flex items-start gap-3 px-4 py-3 ${c.completada ? "opacity-50" : ""}`}>
+                  <button
+                    onClick={() => toggleComision(c.id, !c.completada)}
+                    className={`mt-0.5 w-5 h-5 rounded-md border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
+                      c.completada ? "bg-green-500 border-green-500" : "border-gray-300 hover:border-gray-500"
+                    }`}
+                  >
+                    {c.completada && (
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm text-gray-900 ${c.completada ? "line-through" : ""}`}>{c.texto}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {c.mercado} · {new Date(c.fecha + "T12:00:00").toLocaleDateString("es-DE", { day: "numeric", month: "short" })}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            {comisiones.filter((c) => verTodasComisiones || !c.completada).length === 0 && (
+              <p className="px-4 py-4 text-sm text-gray-400 text-center">{t.noCommissions}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Ideas */}
+      {ideas.length > 0 && (
+        <div className="pb-6">
+          <h2 className="font-bold text-gray-700 mb-3">{t.ideasSection}</h2>
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl divide-y divide-amber-100 overflow-hidden">
+            {ideas.map((idea) => (
+              <div key={idea.id} className="px-4 py-3">
+                <p className="text-sm text-amber-900">{idea.texto}</p>
+                <p className="text-xs text-amber-600 mt-0.5">
+                  {idea.mercado} · {new Date(idea.fecha + "T12:00:00").toLocaleDateString("es-DE", { day: "numeric", month: "short" })}
                 </p>
               </div>
             ))}

@@ -110,6 +110,7 @@ export default function SesionPage() {
   const [calendarMonth, setCalendarMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [notas, setNotas] = useState("");
+  const [ideas, setIdeas] = useState("");
 
   useEffect(() => {
     supabase.from("mercados").select("*, cajas(*)").then(({ data }) => {
@@ -400,6 +401,16 @@ export default function SesionPage() {
       reportSesionId = nuevaSesionId;
     }
 
+    const mercadoNombreGuardar = mercados.find((m) => m.id === mercadoId)?.nombre || "";
+    const insertExtras: Promise<unknown>[] = [];
+    if (notas.trim()) {
+      insertExtras.push(supabase.from("comisiones").insert({ texto: notas.trim(), fecha, mercado: mercadoNombreGuardar }));
+    }
+    if (ideas.trim()) {
+      insertExtras.push(supabase.from("ideas").insert({ texto: ideas.trim(), fecha, mercado: mercadoNombreGuardar }));
+    }
+    if (insertExtras.length > 0) await Promise.all(insertExtras);
+
     await generarReporte(reportSesionId);
 
     setStep("confirmado");
@@ -542,11 +553,19 @@ export default function SesionPage() {
           </div>
         )}
 
-        {/* Comisiones / notas */}
+        {/* Comisiones */}
         {notas.trim() && (
           <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-1">
-            <p className="text-xs font-bold uppercase tracking-widest text-gray-400">{t.commissionsTitle}</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-400">{t.commissionsSection}</p>
             <p className="text-sm text-gray-800 whitespace-pre-wrap">{notas.trim()}</p>
+          </div>
+        )}
+
+        {/* Ideas */}
+        {ideas.trim() && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-1">
+            <p className="text-xs font-bold uppercase tracking-widest text-amber-700">{t.ideasSection}</p>
+            <p className="text-sm text-amber-900 whitespace-pre-wrap">{ideas.trim()}</p>
           </div>
         )}
 
@@ -643,6 +662,7 @@ export default function SesionPage() {
             setVentas({});
             setTrabajador("");
             setNotas("");
+            setIdeas("");
             setReporteImpresion({ a4: [], a3: [] });
             setSesionId("");
             setEmailEnviado(false);
@@ -1039,7 +1059,7 @@ export default function SesionPage() {
             })}
           </div>
 
-          {/* Comisiones / notas */}
+          {/* Comisiones */}
           <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-2">
             <label className="text-sm font-semibold text-gray-700">{t.commissionsTitle}</label>
             <textarea
@@ -1048,6 +1068,18 @@ export default function SesionPage() {
               placeholder={t.commissionsPlaceholder}
               rows={3}
               className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-black resize-none"
+            />
+          </div>
+
+          {/* Ideas */}
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2">
+            <label className="text-sm font-semibold text-amber-800">{t.ideasTitle}</label>
+            <textarea
+              value={ideas}
+              onChange={(e) => setIdeas(e.target.value)}
+              placeholder={t.ideasPlaceholder}
+              rows={3}
+              className="w-full border border-amber-200 bg-white rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500 resize-none"
             />
           </div>
 
