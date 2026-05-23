@@ -140,14 +140,22 @@ function InventarioInner() {
     const existing = posters.find((p) => p.id === posterId)?.[tallaKey];
 
     if (existing?.id) {
-      await supabase.from("inventario").update({ [field]: value }).eq("id", existing.id);
+      const { error } = await supabase.from("inventario").update({ [field]: value }).eq("id", existing.id);
+      if (error) {
+        setSaving(null);
+        throw new Error(`${posterId} ${talla}: ${error.message}`);
+      }
     } else {
-      const { data } = await supabase.from("inventario").upsert({
+      const { data, error } = await supabase.from("inventario").upsert({
         caja_id: cajaId,
         poster_id: posterId,
         talla,
         [field]: value,
       }, { onConflict: "caja_id,poster_id,talla" }).select().single();
+      if (error) {
+        setSaving(null);
+        throw new Error(`${posterId} ${talla}: ${error.message}`);
+      }
       if (data) {
         setPosters((prev) => prev.map((p) => {
           if (p.id !== posterId) return p;
@@ -170,19 +178,25 @@ function InventarioInner() {
     const key = `${posterId}-${talla}`;
     const cantidad = editando[key];
     if (cantidad === undefined) return;
-    await upsertInventario(posterId, talla, "cantidad", cantidad);
-    const tallaKey = talla === "A4" ? "a4" : "a3";
-    const current = posters.find((p) => p.id === posterId)?.[tallaKey];
-    if (cantidad === 0) {
-      await upsertInventario(posterId, talla, "out", true);
-    } else if (current?.out) {
-      await upsertInventario(posterId, talla, "out", false);
+    try {
+      setSaveErrInv("");
+      await upsertInventario(posterId, talla, "cantidad", cantidad);
+      const tallaKey = talla === "A4" ? "a4" : "a3";
+      const current = posters.find((p) => p.id === posterId)?.[tallaKey];
+      if (cantidad === 0) {
+        await upsertInventario(posterId, talla, "out", true);
+      } else if (current?.out) {
+        await upsertInventario(posterId, talla, "out", false);
+      }
+      setEditando((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    } catch (err) {
+      setSaveErrInv(err instanceof Error ? err.message : t.purchasesSaveError);
+      // Keep editando so the value stays amber and user can retry
     }
-    setEditando((prev) => {
-      const next = { ...prev };
-      delete next[key];
-      return next;
-    });
   }
 
   async function guardarTodo() {
