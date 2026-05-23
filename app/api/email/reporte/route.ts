@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 
 export async function POST(req: NextRequest) {
-  const { mercado, fecha, trabajador, hora, a4, a3, notas, ideas, faltanTarjetas, faltanStickers } = await req.json();
+  const { mercado, fecha, trabajador, hora, a4, a3, notas, ideas, materiales } = await req.json();
 
   const transporter = nodemailer.createTransport({
     service: "gmail",
@@ -108,11 +108,10 @@ export async function POST(req: NextRequest) {
           </tr>
         </table>
       </div>
-      ${(faltanTarjetas || faltanStickers) ? `
+      ${materiales && materiales.length > 0 ? `
       <div style="margin-top:24px; background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:16px;">
         <p style="font-size:11px; font-weight:bold; text-transform:uppercase; letter-spacing:0.08em; color:#dc2626; margin:0 0 10px;">⚠ Materiales faltantes</p>
-        ${faltanTarjetas ? `<p style="font-size:14px; color:#7f1d1d; margin:0 0 4px;">• Faltan tarjetas</p>` : ""}
-        ${faltanStickers ? `<p style="font-size:14px; color:#7f1d1d; margin:0 0 4px;">• Faltan stickers</p>` : ""}
+        ${(materiales as string[]).map(m => `<p style="font-size:14px; color:#7f1d1d; margin:0 0 4px;">• ${m}</p>`).join("")}
       </div>` : ""}
 
       ${notas ? `
