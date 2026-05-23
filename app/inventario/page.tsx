@@ -72,7 +72,7 @@ export default function InventarioPage() {
 function InventarioInner() {
   const params = useSearchParams();
   const { user } = useAuth();
-  const { t } = useLang();
+  const { t, tr } = useLang();
   const readOnly = user?.rol === "empleado" && !user?.puede_inventario;
   const [cajas, setCajas] = useState<Caja[]>([]);
   const [cajaId, setCajaId] = useState<string>("");
@@ -82,6 +82,8 @@ function InventarioInner() {
   const [saving, setSaving] = useState<string | null>(null);
   const [editando, setEditando] = useState<{ [key: string]: number }>({});
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [guardandoTodo, setGuardandoTodo] = useState(false);
+  const [saveErrInv, setSaveErrInv] = useState("");
 
   function toggleSerie(id: string) {
     setCollapsed((prev) => {
@@ -183,6 +185,22 @@ function InventarioInner() {
     });
   }
 
+  async function guardarTodo() {
+    setGuardandoTodo(true);
+    setSaveErrInv("");
+    const pendientes = Object.keys(editando);
+    try {
+      for (const key of pendientes) {
+        const talla = key.slice(-2) as "A4" | "A3";
+        const posterId = key.slice(0, -3);
+        await guardarCantidad(posterId, talla);
+      }
+    } catch (err) {
+      setSaveErrInv(err instanceof Error ? err.message : t.purchasesSaveError);
+    }
+    setGuardandoTodo(false);
+  }
+
   const seriesIds = [...new Set(posters.map((p) => p.serie_id))];
   const seriesConPosters = seriesIds
     .map((sid) => {
@@ -231,6 +249,26 @@ function InventarioInner() {
           </button>
         ))}
       </div>
+
+      {/* Sticky save bar — appears when there are pending changes */}
+      {!readOnly && Object.keys(editando).length > 0 && (
+        <div className="sticky top-0 z-10 bg-amber-50 border border-amber-300 rounded-2xl p-3 flex items-center justify-between shadow-sm">
+          <div>
+            <p className="font-semibold text-amber-900 text-sm">{tr("unsavedChanges", { n: Object.keys(editando).length })}</p>
+            {saveErrInv
+              ? <p className="text-xs text-red-600">{saveErrInv}</p>
+              : <p className="text-xs text-amber-600">{t.tapToSave}</p>
+            }
+          </div>
+          <button
+            onClick={guardarTodo}
+            disabled={guardandoTodo}
+            className="bg-black text-white px-5 py-2 rounded-xl font-semibold text-sm disabled:opacity-40 hover:bg-gray-900 transition-colors"
+          >
+            {guardandoTodo ? t.saving : t.save}
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <SkeletonPage />
@@ -345,12 +383,18 @@ function TallaCell({ posterId, talla, stock, saving, editando, setEditando, guar
         ) : (
           <input
             type="number"
+            inputMode="numeric"
+            pattern="[0-9]*"
             min={0}
-            value={cantidad}
+            value={editando[key] !== undefined ? editando[key] : (stock?.cantidad ?? 0)}
             onChange={(e) => setEditando((prev) => ({ ...prev, [key]: parseInt(e.target.value) || 0 }))}
             onFocus={(e) => e.target.select()}
             onBlur={() => guardarCantidad(posterId, talla)}
-            className="w-12 text-center text-sm font-semibold text-gray-900 border border-gray-200 rounded-lg py-1 focus:outline-none focus:border-gray-400"
+            className={`w-12 text-center text-sm font-semibold border rounded-lg py-1 focus:outline-none transition-colors ${
+              editando[key] !== undefined
+                ? "border-amber-400 bg-amber-50 text-amber-900 focus:border-amber-500"
+                : "border-gray-200 text-gray-900 focus:border-gray-400"
+            }`}
           />
         )}
         {isSaving && <span className="w-3 h-3 rounded-full bg-gray-300 animate-pulse inline-block" />}
