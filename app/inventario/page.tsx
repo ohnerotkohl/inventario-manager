@@ -307,6 +307,23 @@ function InventarioInner() {
         </div>
       )}
 
+      {!loading && seriesConPosters.length > 0 && (
+        <div className="flex justify-end">
+          {(() => {
+            const allIds = seriesConPosters.map(({ serie }) => serie?.id || "sin-serie");
+            const allCollapsed = allIds.every(id => collapsed.has(id));
+            return (
+              <button
+                onClick={() => setCollapsed(allCollapsed ? new Set() : new Set(allIds))}
+                className="text-xs text-gray-400 hover:text-gray-700 underline transition-colors"
+              >
+                {allCollapsed ? t.expandAll : t.collapseAll}
+              </button>
+            );
+          })()}
+        </div>
+      )}
+
       {loading ? (
         <SkeletonPage />
       ) : (
