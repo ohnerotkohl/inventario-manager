@@ -50,8 +50,10 @@ export default function EstadisticasPage() {
   const [sesionAbierta, setSesionAbierta] = useState<string | null>(null);
   const [totalVentas, setTotalVentas] = useState(0);
   const [porMes, setPorMes] = useState<number[]>(Array(12).fill(0));
+  const [sinVentas, setSinVentas] = useState<{ nombre: string; serie: string; serieColor: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [periodo, setPeriodo] = useState<"30" | "90" | "365" | "todo">("todo");
+  const [showAllPosters, setShowAllPosters] = useState(false);
 
   useEffect(() => {
     if (user?.rol === "empleado") { router.replace("/sesion"); return; }
@@ -102,7 +104,19 @@ export default function EstadisticasPage() {
       if (v.talla === "A3") porPoster[v.poster_id].totalA3 += v.cantidad;
       porPoster[v.poster_id].total += v.cantidad;
     }
-    setTopPosters(Object.values(porPoster).sort((a, b) => b.total - a.total).slice(0, 20));
+    const allPosters = Object.values(porPoster).sort((a, b) => b.total - a.total);
+    setTopPosters(allPosters);
+
+    // Posters con inventario pero sin ventas en el período
+    const { data: todosPosters } = await supabase
+      .from("posters").select("nombre, activo, series(nombre, color)").eq("activo", true);
+    type PosterRow = { nombre: string; series: { nombre: string; color: string } | null };
+    const vendidosSet = new Set(Object.keys(porPoster).map((id) => porPoster[id].nombre));
+    setSinVentas(
+      ((todosPosters || []) as unknown as PosterRow[])
+        .filter((p) => !vendidosSet.has(p.nombre))
+        .map((p) => ({ nombre: p.nombre, serie: p.series?.nombre || "—", serieColor: p.series?.color || "#6B7280" }))
+    );
 
     // Por mercado
     const mercadoMap: { [n: string]: number } = {};
@@ -291,13 +305,25 @@ export default function EstadisticasPage() {
             </div>
           </div>
 
-          {/* Top pósters */}
+          {/* Top pósters / Ranking completo */}
           <div>
-            <h2 className="font-bold text-gray-700 mb-3">{t.topPosters}</h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-bold text-gray-700">
+                {showAllPosters ? `Ranking completo (${topPosters.length})` : t.topPosters}
+              </h2>
+              {topPosters.length > 20 && (
+                <button
+                  onClick={() => setShowAllPosters((v) => !v)}
+                  className="text-xs text-gray-400 hover:text-gray-700 underline"
+                >
+                  {showAllPosters ? "Ver top 20" : `Ver todos (${topPosters.length})`}
+                </button>
+              )}
+            </div>
             <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-              {topPosters.map((p, idx) => (
-                <div key={p.nombre} className={`flex items-center gap-3 px-4 py-3 ${idx < topPosters.length - 1 ? "border-b border-gray-100" : ""}`}>
-                  <span className="text-lg font-bold text-gray-300 w-7 text-right">{idx + 1}</span>
+              {(showAllPosters ? topPosters : topPosters.slice(0, 20)).map((p, idx) => (
+                <div key={p.nombre} className={`flex items-center gap-3 px-4 py-3 ${idx < (showAllPosters ? topPosters.length : Math.min(topPosters.length, 20)) - 1 ? "border-b border-gray-100" : ""}`}>
+                  <span className={`text-sm font-bold w-7 text-right ${idx < 3 ? "text-gray-900" : "text-gray-300"}`}>{idx + 1}</span>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm text-gray-900 truncate">{p.nombre}</p>
                     <div className="flex items-center gap-1 mt-0.5">
@@ -315,6 +341,24 @@ export default function EstadisticasPage() {
               ))}
             </div>
           </div>
+
+          {/* Sin ventas en el período */}
+          {sinVentas.length > 0 && (
+            <div className="pb-6">
+              <h2 className="font-bold text-gray-700 mb-1">Sin ventas en este período</h2>
+              <p className="text-xs text-gray-400 mb-3">{sinVentas.length} diseños activos sin ninguna venta registrada</p>
+              <div className="bg-gray-50 border border-gray-200 rounded-2xl overflow-hidden">
+                {sinVentas.map((p, idx) => (
+                  <div key={p.nombre} className={`flex items-center gap-3 px-4 py-2.5 ${idx < sinVentas.length - 1 ? "border-b border-gray-100" : ""}`}>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-600 truncate">{p.nombre}</p>
+                    </div>
+                    <span className="text-xs px-1.5 py-0.5 rounded flex-shrink-0" style={{ backgroundColor: p.serieColor + "22", color: p.serieColor }}>{p.serie}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </>
       ) : (
         /* HISTORIAL */
