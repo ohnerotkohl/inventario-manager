@@ -141,15 +141,35 @@ export default function EstadisticasPage() {
 
     // Comparativa vs período anterior
     if (periodo !== "todo") {
-      const dias = parseInt(periodo);
-      const desde = new Date(); desde.setDate(desde.getDate() - dias);
-      const desdeAnterior = new Date(); desdeAnterior.setDate(desdeAnterior.getDate() - dias * 2);
-      const totalActual = ventasFiltradas.reduce((a, v) => a + v.cantidad, 0);
+      const hoy = new Date();
+      let desdeActual: Date, hastaActual: Date, desdeAnterior: Date, hastaAnterior: Date;
+
+      if (periodo === "30") {
+        // Mes natural actual vs mes natural anterior
+        desdeActual = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+        hastaActual = hoy;
+        desdeAnterior = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
+        hastaAnterior = new Date(hoy.getFullYear(), hoy.getMonth(), 0);
+      } else {
+        const dias = parseInt(periodo);
+        desdeActual = new Date(); desdeActual.setDate(hoy.getDate() - dias);
+        hastaActual = hoy;
+        desdeAnterior = new Date(); desdeAnterior.setDate(hoy.getDate() - dias * 2);
+        hastaAnterior = new Date(); hastaAnterior.setDate(hoy.getDate() - dias - 1);
+      }
+
+      const totalActual = ventas
+        .filter((v) => {
+          if (!v.sesiones?.fecha) return false;
+          const f = new Date(v.sesiones.fecha);
+          return f >= desdeActual && f <= hastaActual;
+        })
+        .reduce((a, v) => a + v.cantidad, 0);
       const totalAnterior = ventas
         .filter((v) => {
           if (!v.sesiones?.fecha) return false;
           const f = new Date(v.sesiones.fecha);
-          return f >= desdeAnterior && f < desde;
+          return f >= desdeAnterior && f <= hastaAnterior;
         })
         .reduce((a, v) => a + v.cantidad, 0);
       setComparativa({ actual: totalActual, anterior: totalAnterior });
@@ -293,24 +313,26 @@ export default function EstadisticasPage() {
 
           {/* Comparativa vs período anterior */}
           {comparativa && (() => {
-            const dias = parseInt(periodo);
             const fmt = (d: Date) => d.toLocaleDateString("es-DE", { day: "numeric", month: "short" });
             const hoy = new Date();
-            const desdeActual = new Date(); desdeActual.setDate(hoy.getDate() - dias);
-            const desdeAnterior = new Date(); desdeAnterior.setDate(hoy.getDate() - dias * 2);
-            const hastaAnterior = new Date(); hastaAnterior.setDate(hoy.getDate() - dias - 1);
+            const esMes = periodo === "30";
+            const labelActual = esMes ? "Este mes" : `Últimos ${periodo} días`;
+            const labelAnterior = esMes ? "Mes anterior" : `${periodo} días antes`;
+            const desdeActual = esMes ? new Date(hoy.getFullYear(), hoy.getMonth(), 1) : new Date(new Date().setDate(hoy.getDate() - parseInt(periodo)));
+            const desdeAnterior = esMes ? new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1) : new Date(new Date().setDate(hoy.getDate() - parseInt(periodo) * 2));
+            const hastaAnterior = esMes ? new Date(hoy.getFullYear(), hoy.getMonth(), 0) : new Date(new Date().setDate(hoy.getDate() - parseInt(periodo) - 1));
             return (
               <div className="bg-white border border-gray-200 rounded-2xl p-4">
                 <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Comparativa de períodos</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="text-center bg-gray-50 rounded-xl p-3">
                     <p className="text-2xl font-bold text-gray-900">{comparativa.actual}</p>
-                    <p className="text-xs text-gray-500 mt-1 font-medium">Últimos {dias} días</p>
+                    <p className="text-xs text-gray-500 mt-1 font-medium">{labelActual}</p>
                     <p className="text-xs text-gray-400">{fmt(desdeActual)} – {fmt(hoy)}</p>
                   </div>
                   <div className="text-center bg-gray-50 rounded-xl p-3">
                     <p className="text-2xl font-bold text-gray-400">{comparativa.anterior}</p>
-                    <p className="text-xs text-gray-500 mt-1 font-medium">{dias} días anteriores</p>
+                    <p className="text-xs text-gray-500 mt-1 font-medium">{labelAnterior}</p>
                     <p className="text-xs text-gray-400">{fmt(desdeAnterior)} – {fmt(hastaAnterior)}</p>
                   </div>
                 </div>
