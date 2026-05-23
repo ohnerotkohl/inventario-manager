@@ -79,17 +79,26 @@ export default function RestockPage() {
     });
   }
 
-  function computePrintQty(t8: Set<string>, hs: Set<string>, ps: PosterConStock[]) {
+  const isBoxieRAW = cajas.find((c) => c.id === cajaId)?.nombre === "Boxie RAW";
+
+  function getParams() {
+    return isBoxieRAW
+      ? { topN: 5, topTarget: 8, medTarget: 5, baseTarget: 4, threshold: 4 }
+      : { topN: 8, topTarget: 5, medTarget: 4, baseTarget: 3, threshold: 3 };
+  }
+
+  function computePrintQty(topSet: Set<string>, hs: Set<string>, ps: PosterConStock[]) {
+    const { topTarget, medTarget, baseTarget, threshold } = getParams();
     const qty: { [key: string]: number } = {};
     ps.forEach((p) => {
-      const target = t8.has(p.id) ? 5 : hs.has(p.id) ? 4 : 3;
+      const target = topSet.has(p.id) ? topTarget : hs.has(p.id) ? medTarget : baseTarget;
       if (p.tiene_a4) {
         const stock = p.a4Stock;
-        if (stock < 3) qty[`${p.id}-A4`] = Math.max(1, target - stock);
+        if (stock < threshold) qty[`${p.id}-A4`] = Math.max(1, target - stock);
       }
       if (p.tiene_a3) {
         const stock = p.a3Stock;
-        if (stock < 3) qty[`${p.id}-A3`] = Math.max(1, target - stock);
+        if (stock < threshold) qty[`${p.id}-A3`] = Math.max(1, target - stock);
       }
     });
     return qty;
@@ -111,11 +120,12 @@ export default function RestockPage() {
       .filter((v) => v.sesiones?.fecha && new Date(v.sesiones.fecha) >= hace30)
       .forEach((v) => { totales[v.poster_id] = (totales[v.poster_id] || 0) + v.cantidad; });
     const sorted = Object.entries(totales).sort((a, b) => b[1] - a[1]);
-    const newTop8 = new Set(sorted.slice(0, 8).map(([id]) => id));
+    const { topN } = getParams();
+    const newTop = new Set(sorted.slice(0, topN).map(([id]) => id));
     const newHasSales = new Set(sorted.map(([id]) => id));
-    setTop8(newTop8);
+    setTop8(newTop);
     setHasSales(newHasSales);
-    setPrintQty(computePrintQty(newTop8, newHasSales, ps));
+    setPrintQty(computePrintQty(newTop, newHasSales, ps));
     setPrintLoading(false);
   }
 
