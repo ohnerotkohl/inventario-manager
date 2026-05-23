@@ -403,7 +403,6 @@ function TallaCell({ posterId, talla, stock, saving, editando, setEditando, guar
             value={editando[key] !== undefined ? editando[key] : (stock?.cantidad ?? 0)}
             onChange={(e) => setEditando((prev) => ({ ...prev, [key]: parseInt(e.target.value) || 0 }))}
             onFocus={(e) => e.target.select()}
-            onBlur={() => guardarCantidad(posterId, talla)}
             className={`w-12 text-center text-sm font-semibold border rounded-lg py-1 focus:outline-none transition-colors ${
               editando[key] !== undefined
                 ? "border-amber-400 bg-amber-50 text-amber-900 focus:border-amber-500"
