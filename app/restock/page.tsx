@@ -651,7 +651,15 @@ export default function RestockPage() {
 
       {/* Tab Restock */}
       {tabRestock === "restock" && <div className="space-y-6">
-        <p className="text-xs text-gray-500">{t.writeUnitsToAdd}</p>
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-gray-500">{t.writeUnitsToAdd}</p>
+          <button
+            onClick={() => setCantidades({})}
+            className="text-xs text-gray-400 hover:text-red-500 transition-colors underline"
+          >
+            Limpiar todo
+          </button>
+        </div>
         {seriesIds.map((sid) => {
           const serie = series.find((s) => s.id === sid);
           const isCollapsed = collapsed.has(sid);
