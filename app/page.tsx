@@ -63,7 +63,8 @@ export default function Dashboard() {
   const [insumosPendientes, setInsumosPendientes] = useState<ItemCompra[]>([]);
   const [comisiones, setComisiones] = useState<Comision[]>([]);
   const [ideas, setIdeas] = useState<Idea[]>([]);
-  const [verTodasComisiones, setVerTodasComisiones] = useState(false);
+  const [editingIdeaId, setEditingIdeaId] = useState<string | null>(null);
+  const [editingIdeaText, setEditingIdeaText] = useState("");
   const [loading, setLoading] = useState(true);
   const [configured, setConfigured] = useState(true);
 
@@ -144,9 +145,22 @@ export default function Dashboard() {
     }
   }
 
-  async function toggleComision(id: string, completada: boolean) {
-    setComisiones((prev) => prev.map((c) => c.id === id ? { ...c, completada } : c));
-    await supabase.from("comisiones").update({ completada }).eq("id", id);
+  async function deleteComision(id: string) {
+    setComisiones((prev) => prev.filter((c) => c.id !== id));
+    await supabase.from("comisiones").delete().eq("id", id);
+  }
+
+  async function deleteIdea(id: string) {
+    setIdeas((prev) => prev.filter((i) => i.id !== id));
+    await supabase.from("ideas").delete().eq("id", id);
+  }
+
+  async function saveIdea(id: string) {
+    const texto = editingIdeaText.trim();
+    if (!texto) return;
+    setIdeas((prev) => prev.map((i) => i.id === id ? { ...i, texto } : i));
+    setEditingIdeaId(null);
+    await supabase.from("ideas").update({ texto }).eq("id", id);
   }
 
   if (!configured) {
@@ -366,67 +380,93 @@ export default function Dashboard() {
       )}
 
       {/* Comisiones */}
-      {comisiones.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-gray-700">{t.commissionsSection}</h2>
-            {comisiones.some((c) => c.completada) && (
+      <div>
+        <h2 className="font-bold text-gray-700 mb-3">{t.commissionsSection}</h2>
+        <div className="bg-white border border-gray-200 rounded-2xl divide-y divide-gray-100 overflow-hidden">
+          {comisiones.length === 0 ? (
+            <p className="px-4 py-4 text-sm text-gray-400 text-center">{t.noCommissions}</p>
+          ) : comisiones.map((c) => (
+            <div key={c.id} className="flex items-start gap-3 px-4 py-3">
               <button
-                onClick={() => setVerTodasComisiones((v) => !v)}
-                className="text-xs text-gray-400 hover:text-gray-700 underline"
-              >
-                {verTodasComisiones ? "Solo pendientes" : t.allCommissions}
-              </button>
-            )}
-          </div>
-          <div className="bg-white border border-gray-200 rounded-2xl divide-y divide-gray-100 overflow-hidden">
-            {comisiones
-              .filter((c) => verTodasComisiones || !c.completada)
-              .map((c) => (
-                <div key={c.id} className={`flex items-start gap-3 px-4 py-3 ${c.completada ? "opacity-50" : ""}`}>
-                  <button
-                    onClick={() => toggleComision(c.id, !c.completada)}
-                    className={`mt-0.5 w-5 h-5 rounded-md border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
-                      c.completada ? "bg-green-500 border-green-500" : "border-gray-300 hover:border-gray-500"
-                    }`}
-                  >
-                    {c.completada && (
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    )}
-                  </button>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm text-gray-900 ${c.completada ? "line-through" : ""}`}>{c.texto}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {c.mercado} · {new Date(c.fecha + "T12:00:00").toLocaleDateString("es-DE", { day: "numeric", month: "short" })}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            {comisiones.filter((c) => verTodasComisiones || !c.completada).length === 0 && (
-              <p className="px-4 py-4 text-sm text-gray-400 text-center">{t.noCommissions}</p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Ideas */}
-      {ideas.length > 0 && (
-        <div className="pb-6">
-          <h2 className="font-bold text-gray-700 mb-3">{t.ideasSection}</h2>
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl divide-y divide-amber-100 overflow-hidden">
-            {ideas.map((idea) => (
-              <div key={idea.id} className="px-4 py-3">
-                <p className="text-sm text-amber-900">{idea.texto}</p>
-                <p className="text-xs text-amber-600 mt-0.5">
-                  {idea.mercado} · {new Date(idea.fecha + "T12:00:00").toLocaleDateString("es-DE", { day: "numeric", month: "short" })}
+                onClick={() => deleteComision(c.id)}
+                className="mt-0.5 w-5 h-5 rounded-md border-2 border-gray-300 flex-shrink-0 flex items-center justify-center hover:border-green-500 hover:bg-green-50 transition-colors"
+                title={t.markDone}
+              />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-gray-900">{c.texto}</p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {c.mercado} · {new Date(c.fecha + "T12:00:00").toLocaleDateString("es-DE", { day: "numeric", month: "short" })}
                 </p>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
-      )}
+      </div>
+
+      {/* Ideas */}
+      <div className="pb-6">
+        <h2 className="font-bold text-gray-700 mb-3">{t.ideasSection}</h2>
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl divide-y divide-amber-100 overflow-hidden">
+          {ideas.length === 0 ? (
+            <p className="px-4 py-4 text-sm text-amber-600 text-center">{t.noIdeas}</p>
+          ) : ideas.map((idea) => (
+            <div key={idea.id} className="px-4 py-3">
+              {editingIdeaId === idea.id ? (
+                <div className="space-y-2">
+                  <textarea
+                    value={editingIdeaText}
+                    onChange={(e) => setEditingIdeaText(e.target.value)}
+                    rows={3}
+                    className="w-full border border-amber-300 bg-white rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500 resize-none"
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => saveIdea(idea.id)}
+                      className="flex-1 bg-amber-500 text-white py-1.5 rounded-lg text-xs font-semibold"
+                    >
+                      {t.save}
+                    </button>
+                    <button
+                      onClick={() => setEditingIdeaId(null)}
+                      className="px-3 py-1.5 rounded-lg text-xs text-gray-500 bg-gray-100"
+                    >
+                      {t.cancel}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-amber-900">{idea.texto}</p>
+                    <p className="text-xs text-amber-600 mt-0.5">
+                      {idea.mercado} · {new Date(idea.fecha + "T12:00:00").toLocaleDateString("es-DE", { day: "numeric", month: "short" })}
+                    </p>
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
+                    <button
+                      onClick={() => { setEditingIdeaId(idea.id); setEditingIdeaText(idea.texto); }}
+                      className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-amber-100 text-amber-500 transition-colors"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => deleteIdea(idea.id)}
+                      className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-100 text-gray-300 hover:text-red-400 transition-colors"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
