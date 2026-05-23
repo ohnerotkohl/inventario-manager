@@ -5,6 +5,7 @@ import Nav from "./components/Nav";
 import AuthProvider from "./components/AuthProvider";
 import Header from "./components/Header";
 import LangProvider from "./components/LangProvider";
+import LangSetter from "./components/LangSetter";
 
 const geist = Geist({ subsets: ["latin"] });
 
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="bg-gray-50 min-h-screen pb-20">
         <LangProvider>
         <AuthProvider>
+          <LangSetter />
           <Header />
           <main className="max-w-2xl mx-auto px-4 py-6">{children}</main>
           <Nav />
