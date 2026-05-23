@@ -1061,7 +1061,10 @@ export default function SesionPage() {
 
           {/* Comisiones */}
           <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-2">
-            <label className="text-sm font-semibold text-gray-700">{t.commissionsTitle}</label>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-semibold text-gray-700">{t.commissionsTitle}</label>
+              {mercado && <span className="text-xs text-gray-400">{mercado.nombre}</span>}
+            </div>
             <textarea
               value={notas}
               onChange={(e) => setNotas(e.target.value)}
@@ -1073,7 +1076,10 @@ export default function SesionPage() {
 
           {/* Ideas */}
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2">
-            <label className="text-sm font-semibold text-amber-800">{t.ideasTitle}</label>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-semibold text-amber-800">{t.ideasTitle}</label>
+              {mercado && <span className="text-xs text-amber-500">{mercado.nombre}</span>}
+            </div>
             <textarea
               value={ideas}
               onChange={(e) => setIdeas(e.target.value)}
