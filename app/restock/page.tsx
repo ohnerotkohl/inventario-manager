@@ -142,6 +142,30 @@ export default function RestockPage() {
     if (tabPrincipal === "historial") fetchHistorial();
   }, [tabPrincipal]);
 
+  // Guard: warn before navigating away with unsaved restock entries
+  useEffect(() => {
+    const isDirty = step === "restock" && Object.values(cantidades).some(v => v > 0);
+    if (!isDirty) return;
+
+    const msg = t.leaveConfirm;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = msg;
+    };
+
+    const originalPushState = window.history.pushState.bind(window.history);
+    window.history.pushState = function (...args: Parameters<typeof window.history.pushState>) {
+      if (window.confirm(msg)) originalPushState(...args);
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.history.pushState = originalPushState;
+    };
+  }, [step, cantidades, t.leaveConfirm]);
+
   async function fetchHistorial() {
     setLoadingHistorial(true);
     const { data } = await supabase

@@ -134,6 +134,29 @@ function InventarioInner() {
     fetchInventario();
   }, [fetchInventario]);
 
+  // Guard: warn before navigating away with unsaved stock edits
+  useEffect(() => {
+    if (Object.keys(editando).length === 0) return;
+
+    const msg = t.leaveConfirm;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = msg;
+    };
+
+    const originalPushState = window.history.pushState.bind(window.history);
+    window.history.pushState = function (...args: Parameters<typeof window.history.pushState>) {
+      if (window.confirm(msg)) originalPushState(...args);
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.history.pushState = originalPushState;
+    };
+  }, [editando, t.leaveConfirm]);
+
   async function upsertInventario(posterId: string, talla: "A4" | "A3", field: string, value: number | boolean) {
     setSaving(`${posterId}-${talla}-${field}`);
     const tallaKey = talla === "A4" ? "a4" : "a3";
