@@ -33,6 +33,8 @@ interface MercadoStats {
   sesiones: number;
   promedio: number;
   totalAnterior: number;
+  semanaActual: number;
+  semanaAnterior: number;
   topPosters: { nombre: string; total: number; a4: number; a3: number }[];
 }
 
@@ -226,18 +228,32 @@ export default function EstadisticasPage() {
         }
       }
 
+      // Semana actual (lunes → hoy) y semana anterior (lunes anterior → domingo)
+      const hoyW = new Date();
+      const diasDesdeElLunes = hoyW.getDay() === 0 ? 6 : hoyW.getDay() - 1;
+      const lunesActual = new Date(hoyW);
+      lunesActual.setDate(hoyW.getDate() - diasDesdeElLunes);
+      lunesActual.setHours(0, 0, 0, 0);
+      const lunesAnterior = new Date(lunesActual);
+      lunesAnterior.setDate(lunesActual.getDate() - 7);
+      const domingoAnterior = new Date(lunesActual);
+      domingoAnterior.setDate(lunesActual.getDate() - 1);
+      domingoAnterior.setHours(23, 59, 59, 999);
+
       type MercadoAcc = {
         total: number;
         sesiones: Set<string>;
         topPosters: { [n: string]: { total: number; a4: number; a3: number } };
         totalAnterior: number;
+        semanaActual: number;
+        semanaAnterior: number;
       };
       const acc: { [m: string]: MercadoAcc } = {};
 
       for (const v of ventasFiltradas) {
         const m = v.sesiones?.mercados?.nombre || "—";
         const sid = v.sesiones?.id || "";
-        if (!acc[m]) acc[m] = { total: 0, sesiones: new Set(), topPosters: {}, totalAnterior: 0 };
+        if (!acc[m]) acc[m] = { total: 0, sesiones: new Set(), topPosters: {}, totalAnterior: 0, semanaActual: 0, semanaAnterior: 0 };
         acc[m].total += v.cantidad;
         if (sid) acc[m].sesiones.add(sid);
         const nombre = v.posters?.nombre || "—";
@@ -253,10 +269,20 @@ export default function EstadisticasPage() {
           const f = new Date(v.sesiones.fecha);
           if (f >= desdeAnteriorMerc && f <= hastaAnteriorMerc) {
             const m = v.sesiones?.mercados?.nombre || "—";
-            if (!acc[m]) acc[m] = { total: 0, sesiones: new Set(), topPosters: {}, totalAnterior: 0 };
+            if (!acc[m]) acc[m] = { total: 0, sesiones: new Set(), topPosters: {}, totalAnterior: 0, semanaActual: 0, semanaAnterior: 0 };
             acc[m].totalAnterior += v.cantidad;
           }
         }
+      }
+
+      // Comparativa semanal: siempre desde todos los datos (no filtrado por periodo)
+      for (const v of ventas) {
+        if (!v.sesiones?.fecha) continue;
+        const f = new Date(v.sesiones.fecha + "T12:00:00");
+        const m = v.sesiones?.mercados?.nombre || "—";
+        if (!acc[m]) acc[m] = { total: 0, sesiones: new Set(), topPosters: {}, totalAnterior: 0, semanaActual: 0, semanaAnterior: 0 };
+        if (f >= lunesActual && f <= hoyW) acc[m].semanaActual += v.cantidad;
+        if (f >= lunesAnterior && f <= domingoAnterior) acc[m].semanaAnterior += v.cantidad;
       }
 
       setMercadoStats(
@@ -266,6 +292,8 @@ export default function EstadisticasPage() {
           sesiones: d.sesiones.size,
           promedio: d.sesiones.size > 0 ? Math.round((d.total / d.sesiones.size) * 10) / 10 : 0,
           totalAnterior: d.totalAnterior,
+          semanaActual: d.semanaActual,
+          semanaAnterior: d.semanaAnterior,
           topPosters: Object.entries(d.topPosters)
             .sort((a, b) => b[1].total - a[1].total)
             .map(([nombre, vals]) => ({ nombre, ...vals })),
@@ -670,6 +698,52 @@ export default function EstadisticasPage() {
                     <p className="text-xs text-gray-400 mt-1">⌀/sesión</p>
                   </div>
                 </div>
+
+                {/* Comparativa semanal — siempre visible */}
+                {(() => {
+                  const hoyWR = new Date();
+                  const diasWR = hoyWR.getDay() === 0 ? 6 : hoyWR.getDay() - 1;
+                  const lunesAR = new Date(hoyWR); lunesAR.setDate(hoyWR.getDate() - diasWR);
+                  const lunesAnR = new Date(lunesAR); lunesAnR.setDate(lunesAR.getDate() - 7);
+                  const domAnR = new Date(lunesAR); domAnR.setDate(lunesAR.getDate() - 1);
+                  const fmt = (d: Date) => d.toLocaleDateString("es-DE", { day: "numeric", month: "short" });
+                  const cambioSem = m.semanaAnterior > 0
+                    ? ((m.semanaActual - m.semanaAnterior) / m.semanaAnterior) * 100
+                    : null;
+                  const subeSem = cambioSem !== null && cambioSem >= 0;
+                  return (
+                    <div className="bg-white border border-gray-200 rounded-2xl p-4">
+                      <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Comparativa semanal</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="text-center bg-gray-50 rounded-xl p-3">
+                          <p className="text-2xl font-bold text-gray-900">{m.semanaActual}</p>
+                          <p className="text-xs text-gray-500 mt-1 font-medium">Esta semana</p>
+                          <p className="text-xs text-gray-400">{fmt(lunesAR)} – {fmt(hoyWR)}</p>
+                        </div>
+                        <div className="text-center bg-gray-50 rounded-xl p-3">
+                          <p className="text-2xl font-bold text-gray-400">{m.semanaAnterior}</p>
+                          <p className="text-xs text-gray-500 mt-1 font-medium">Semana anterior</p>
+                          <p className="text-xs text-gray-400">{fmt(lunesAnR)} – {fmt(domAnR)}</p>
+                        </div>
+                      </div>
+                      {cambioSem !== null && (
+                        <div className={`mt-3 text-center py-2 rounded-xl text-sm font-semibold ${subeSem ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
+                          {subeSem ? "▲" : "▼"} {Math.abs(cambioSem).toFixed(1)}% {subeSem ? "más que la semana anterior" : "menos que la semana anterior"}
+                        </div>
+                      )}
+                      {m.semanaAnterior === 0 && m.semanaActual === 0 && (
+                        <div className="mt-3 text-center py-2 rounded-xl text-sm text-gray-400">
+                          Sin ventas esta semana ni la anterior
+                        </div>
+                      )}
+                      {m.semanaAnterior === 0 && m.semanaActual > 0 && (
+                        <div className="mt-3 text-center py-2 rounded-xl text-sm text-gray-400">
+                          Sin ventas la semana anterior
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Comparativa vs período anterior */}
                 {periodo !== "todo" && (
