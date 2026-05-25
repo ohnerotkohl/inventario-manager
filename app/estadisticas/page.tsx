@@ -640,7 +640,7 @@ export default function EstadisticasPage() {
                   >
                     <div>
                       <p className="font-semibold text-gray-900">{m.mercado}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{m.sesiones} sesiones · ⌀ {m.promedio} por sesión</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{m.sesiones} sesiones · {m.promedio} vendidos/sesión en promedio</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="text-right">
@@ -695,7 +695,7 @@ export default function EstadisticasPage() {
                   </div>
                   <div className="bg-white border border-gray-200 rounded-2xl p-4 text-center">
                     <p className="text-2xl font-bold text-gray-900">{m.promedio}</p>
-                    <p className="text-xs text-gray-400 mt-1">⌀/sesión</p>
+                    <p className="text-xs text-gray-400 mt-1">promedio/sesión</p>
                   </div>
                 </div>
 
