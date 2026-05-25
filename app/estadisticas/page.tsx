@@ -228,17 +228,24 @@ export default function EstadisticasPage() {
         }
       }
 
-      // Semana actual (lunes → hoy) y semana anterior (lunes anterior → domingo)
+      // Semana pasada (lun–dom completa) y semana antepasada (la anterior a esa)
       const hoyW = new Date();
       const diasDesdeElLunes = hoyW.getDay() === 0 ? 6 : hoyW.getDay() - 1;
       const lunesActual = new Date(hoyW);
       lunesActual.setDate(hoyW.getDate() - diasDesdeElLunes);
       lunesActual.setHours(0, 0, 0, 0);
-      const lunesAnterior = new Date(lunesActual);
-      lunesAnterior.setDate(lunesActual.getDate() - 7);
-      const domingoAnterior = new Date(lunesActual);
-      domingoAnterior.setDate(lunesActual.getDate() - 1);
-      domingoAnterior.setHours(23, 59, 59, 999);
+      // Semana pasada: lunes hace 7 días → domingo (ayer si hoy es lunes)
+      const lunesPasado = new Date(lunesActual);
+      lunesPasado.setDate(lunesActual.getDate() - 7);
+      const domingoPasado = new Date(lunesActual);
+      domingoPasado.setDate(lunesActual.getDate() - 1);
+      domingoPasado.setHours(23, 59, 59, 999);
+      // Semana antepasada: lunes hace 14 días → domingo hace 8 días
+      const lunesAntepasado = new Date(lunesActual);
+      lunesAntepasado.setDate(lunesActual.getDate() - 14);
+      const domingoAntepasado = new Date(lunesActual);
+      domingoAntepasado.setDate(lunesActual.getDate() - 8);
+      domingoAntepasado.setHours(23, 59, 59, 999);
 
       type MercadoAcc = {
         total: number;
@@ -281,8 +288,8 @@ export default function EstadisticasPage() {
         const f = new Date(v.sesiones.fecha + "T12:00:00");
         const m = v.sesiones?.mercados?.nombre || "—";
         if (!acc[m]) acc[m] = { total: 0, sesiones: new Set(), topPosters: {}, totalAnterior: 0, semanaActual: 0, semanaAnterior: 0 };
-        if (f >= lunesActual && f <= hoyW) acc[m].semanaActual += v.cantidad;
-        if (f >= lunesAnterior && f <= domingoAnterior) acc[m].semanaAnterior += v.cantidad;
+        if (f >= lunesPasado && f <= domingoPasado) acc[m].semanaActual += v.cantidad;
+        if (f >= lunesAntepasado && f <= domingoAntepasado) acc[m].semanaAnterior += v.cantidad;
       }
 
       setMercadoStats(
@@ -703,9 +710,11 @@ export default function EstadisticasPage() {
                 {(() => {
                   const hoyWR = new Date();
                   const diasWR = hoyWR.getDay() === 0 ? 6 : hoyWR.getDay() - 1;
-                  const lunesAR = new Date(hoyWR); lunesAR.setDate(hoyWR.getDate() - diasWR);
-                  const lunesAnR = new Date(lunesAR); lunesAnR.setDate(lunesAR.getDate() - 7);
-                  const domAnR = new Date(lunesAR); domAnR.setDate(lunesAR.getDate() - 1);
+                  const lunesActualR = new Date(hoyWR); lunesActualR.setDate(hoyWR.getDate() - diasWR); lunesActualR.setHours(0,0,0,0);
+                  const lunesPasadoR = new Date(lunesActualR); lunesPasadoR.setDate(lunesActualR.getDate() - 7);
+                  const domPasadoR = new Date(lunesActualR); domPasadoR.setDate(lunesActualR.getDate() - 1);
+                  const lunesAntepasadoR = new Date(lunesActualR); lunesAntepasadoR.setDate(lunesActualR.getDate() - 14);
+                  const domAntepasadoR = new Date(lunesActualR); domAntepasadoR.setDate(lunesActualR.getDate() - 8);
                   const fmt = (d: Date) => d.toLocaleDateString("es-DE", { day: "numeric", month: "short" });
                   const cambioSem = m.semanaAnterior > 0
                     ? ((m.semanaActual - m.semanaAnterior) / m.semanaAnterior) * 100
@@ -717,28 +726,28 @@ export default function EstadisticasPage() {
                       <div className="grid grid-cols-2 gap-3">
                         <div className="text-center bg-gray-50 rounded-xl p-3">
                           <p className="text-2xl font-bold text-gray-900">{m.semanaActual}</p>
-                          <p className="text-xs text-gray-500 mt-1 font-medium">Esta semana</p>
-                          <p className="text-xs text-gray-400">{fmt(lunesAR)} – {fmt(hoyWR)}</p>
+                          <p className="text-xs text-gray-500 mt-1 font-medium">Semana pasada</p>
+                          <p className="text-xs text-gray-400">{fmt(lunesPasadoR)} – {fmt(domPasadoR)}</p>
                         </div>
                         <div className="text-center bg-gray-50 rounded-xl p-3">
                           <p className="text-2xl font-bold text-gray-400">{m.semanaAnterior}</p>
-                          <p className="text-xs text-gray-500 mt-1 font-medium">Semana anterior</p>
-                          <p className="text-xs text-gray-400">{fmt(lunesAnR)} – {fmt(domAnR)}</p>
+                          <p className="text-xs text-gray-500 mt-1 font-medium">Semana antepasada</p>
+                          <p className="text-xs text-gray-400">{fmt(lunesAntepasadoR)} – {fmt(domAntepasadoR)}</p>
                         </div>
                       </div>
                       {cambioSem !== null && (
                         <div className={`mt-3 text-center py-2 rounded-xl text-sm font-semibold ${subeSem ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
-                          {subeSem ? "▲" : "▼"} {Math.abs(cambioSem).toFixed(1)}% {subeSem ? "más que la semana anterior" : "menos que la semana anterior"}
+                          {subeSem ? "▲" : "▼"} {Math.abs(cambioSem).toFixed(1)}% {subeSem ? "más que la semana antepasada" : "menos que la semana antepasada"}
                         </div>
                       )}
                       {m.semanaAnterior === 0 && m.semanaActual === 0 && (
                         <div className="mt-3 text-center py-2 rounded-xl text-sm text-gray-400">
-                          Sin ventas esta semana ni la anterior
+                          Sin ventas en ninguna de las dos semanas
                         </div>
                       )}
                       {m.semanaAnterior === 0 && m.semanaActual > 0 && (
                         <div className="mt-3 text-center py-2 rounded-xl text-sm text-gray-400">
-                          Sin ventas la semana anterior
+                          Sin ventas la semana antepasada
                         </div>
                       )}
                     </div>
