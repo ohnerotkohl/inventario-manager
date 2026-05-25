@@ -1,6 +1,6 @@
 "use client";
 export const dynamic = "force-dynamic";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Mercado, Poster, Serie, Inventario } from "@/lib/types";
 import { SkeletonList } from "@/app/components/Skeleton";
@@ -120,6 +120,7 @@ export default function SesionPage() {
   const [ideas, setIdeas] = useState("");
   const [materiales, setMateriales] = useState<string[]>([]);
   const [showReview, setShowReview] = useState(false);
+  const reviewPosterIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     supabase.from("mercados").select("*, cajas(*)").then(({ data }) => {
@@ -251,6 +252,15 @@ export default function SesionPage() {
     if (!mercadoId || !trabajador.trim()) return;
     cargarPosters();
     setStep("ventas");
+  }
+
+  function openReview() {
+    reviewPosterIdsRef.current = new Set(
+      Object.entries(ventas)
+        .filter(([, c]) => c > 0)
+        .map(([key]) => key.slice(0, -3))
+    );
+    setShowReview(true);
   }
 
   function setVenta(posterId: string, talla: "A4" | "A3", cantidad: number) {
@@ -1150,7 +1160,7 @@ export default function SesionPage() {
               <p className="text-xs text-gray-500">{t.confirmUpdate}</p>
             </div>
             <button
-              onClick={() => setShowReview(true)}
+              onClick={openReview}
               disabled={submitting || (totalVentas === 0 && !notas.trim() && !ideas.trim())}
               className="bg-black text-white px-5 py-2.5 rounded-xl font-semibold disabled:opacity-40 hover:bg-gray-900 transition-colors"
             >
@@ -1167,7 +1177,7 @@ export default function SesionPage() {
             <div className="p-5 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
               <div>
                 <h3 className="font-bold text-gray-900 text-lg">{t.reviewTitle}</h3>
-                <p className="text-xs text-gray-400">{t.confirmUpdate}</p>
+                <p className="text-xs text-gray-400">{tr("totalSales", { n: Object.values(ventas).reduce((a, b) => a + b, 0) })}</p>
               </div>
               <button
                 onClick={() => setShowReview(false)}
@@ -1177,20 +1187,14 @@ export default function SesionPage() {
               </button>
             </div>
             <div className="overflow-y-auto flex-1 p-4 space-y-4">
-              {/* Ventas table — ordered by series/poster, same as the physical inventory sheet */}
+              {/* Ventas table — editable, ordered by series like the physical inventory */}
               {(() => {
-                const ventasMap: { [key: string]: number } = {};
-                for (const [key, cantidad] of Object.entries(ventas)) {
-                  if (cantidad > 0) ventasMap[key] = cantidad;
-                }
-                if (Object.keys(ventasMap).length === 0) return null;
-
+                if (reviewPosterIdsRef.current.size === 0) return null;
                 const sortedSeriesIds = [...new Set(posters.map(p => p.serie_id))].sort((a, b) => {
                   const ia = SERIES_ORDER.indexOf(series.find(s => s.id === a)?.nombre || "");
                   const ib = SERIES_ORDER.indexOf(series.find(s => s.id === b)?.nombre || "");
                   return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
                 });
-
                 return (
                   <div className="space-y-3">
                     {sortedSeriesIds.map(sid => {
@@ -1203,7 +1207,7 @@ export default function SesionPage() {
                           const ib = orden.indexOf(b.nombre);
                           return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
                         })
-                        .filter(p => ventasMap[`${p.id}-A4`] || ventasMap[`${p.id}-A3`]);
+                        .filter(p => reviewPosterIdsRef.current.has(p.id));
                       if (sp.length === 0) return null;
                       return (
                         <div key={sid}>
@@ -1214,18 +1218,54 @@ export default function SesionPage() {
                             {serie?.nombre}
                           </div>
                           <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-                            <div className="grid grid-cols-[1fr_48px_48px] gap-2 px-4 py-2 bg-gray-50 border-b border-gray-100">
+                            <div className="grid grid-cols-[1fr_56px_56px] gap-2 px-4 py-2 bg-gray-50 border-b border-gray-100">
                               <span className="text-xs font-semibold text-gray-500">{t.poster}</span>
-                              <span className="text-xs font-semibold text-gray-500 text-center">A4</span>
-                              <span className="text-xs font-semibold text-gray-500 text-center">A3</span>
+                              <span className="text-xs font-semibold text-yellow-600 text-center">A4</span>
+                              <span className="text-xs font-semibold text-blue-600 text-center">A3</span>
                             </div>
-                            {sp.map((p, i) => (
-                              <div key={p.id} className={`grid grid-cols-[1fr_48px_48px] gap-2 px-4 py-2.5 items-center ${i < sp.length - 1 ? "border-b border-gray-100" : ""}`}>
-                                <span className="text-sm text-gray-900">{p.nombre}</span>
-                                <span className="text-sm font-bold text-gray-900 text-center">{ventasMap[`${p.id}-A4`] ?? "—"}</span>
-                                <span className="text-sm font-bold text-gray-900 text-center">{ventasMap[`${p.id}-A3`] ?? "—"}</span>
-                              </div>
-                            ))}
+                            {sp.map((p, i) => {
+                              const invA4 = inventario.find(inv => inv.poster_id === p.id && inv.talla === "A4");
+                              const invA3 = inventario.find(inv => inv.poster_id === p.id && inv.talla === "A3");
+                              return (
+                                <div key={p.id} className={`grid grid-cols-[1fr_56px_56px] gap-2 px-4 py-2 items-center ${i < sp.length - 1 ? "border-b border-gray-100" : ""}`}>
+                                  <span className="text-sm text-gray-900 leading-tight">{p.nombre}</span>
+                                  {p.tiene_a4 ? (
+                                    <div className="flex flex-col items-center">
+                                      <input
+                                        type="number"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
+                                        min={0}
+                                        max={invA4?.cantidad ?? 99}
+                                        value={ventas[`${p.id}-A4`] || ""}
+                                        placeholder="0"
+                                        onChange={(e) => setVenta(p.id, "A4", parseInt(e.target.value) || 0)}
+                                        onFocus={(e) => e.target.select()}
+                                        className="w-12 text-center text-sm font-bold text-gray-900 border border-gray-300 rounded-lg py-1 focus:outline-none focus:border-black"
+                                      />
+                                      {invA4 && <span className="text-xs text-gray-400">/{invA4.cantidad}</span>}
+                                    </div>
+                                  ) : <div />}
+                                  {p.tiene_a3 ? (
+                                    <div className="flex flex-col items-center">
+                                      <input
+                                        type="number"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
+                                        min={0}
+                                        max={invA3?.cantidad ?? 99}
+                                        value={ventas[`${p.id}-A3`] || ""}
+                                        placeholder="0"
+                                        onChange={(e) => setVenta(p.id, "A3", parseInt(e.target.value) || 0)}
+                                        onFocus={(e) => e.target.select()}
+                                        className="w-12 text-center text-sm font-bold text-gray-900 border border-gray-300 rounded-lg py-1 focus:outline-none focus:border-black"
+                                      />
+                                      {invA3 && <span className="text-xs text-gray-400">/{invA3.cantidad}</span>}
+                                    </div>
+                                  ) : <div />}
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       );

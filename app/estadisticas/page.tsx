@@ -27,6 +27,15 @@ interface VentasPorSerie {
   total: number;
 }
 
+interface MercadoStats {
+  mercado: string;
+  total: number;
+  sesiones: number;
+  promedio: number;
+  totalAnterior: number;
+  topPosters: { nombre: string; total: number; a4: number; a3: number }[];
+}
+
 interface SesionHistorial {
   id: string;
   fecha: string;
@@ -36,7 +45,7 @@ interface SesionHistorial {
   posters: { nombre: string; talla: string; cantidad: number }[];
 }
 
-type Tab = "resumen" | "historial";
+type Tab = "resumen" | "mercados" | "historial";
 
 export default function EstadisticasPage() {
   const router = useRouter();
@@ -57,6 +66,8 @@ export default function EstadisticasPage() {
   const [loading, setLoading] = useState(true);
   const [periodo, setPeriodo] = useState<"30" | "90" | "365" | "todo">("todo");
   const [showAllPosters, setShowAllPosters] = useState(false);
+  const [mercadoStats, setMercadoStats] = useState<MercadoStats[]>([]);
+  const [mercadoSeleccionado, setMercadoSeleccionado] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.rol === "empleado") { router.replace("/sesion"); return; }
@@ -198,6 +209,70 @@ export default function EstadisticasPage() {
       })).sort((a, b) => b.total - a.total)
     );
 
+    // Estadísticas detalladas por mercado (con comparativa período anterior)
+    {
+      // Compute period boundaries for per-market comparison
+      let desdeAnteriorMerc: Date | null = null;
+      let hastaAnteriorMerc: Date | null = null;
+      if (periodo !== "todo") {
+        const hoy = new Date();
+        if (periodo === "30") {
+          desdeAnteriorMerc = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
+          hastaAnteriorMerc = new Date(hoy.getFullYear(), hoy.getMonth(), 0);
+        } else {
+          const dias = parseInt(periodo);
+          desdeAnteriorMerc = new Date(); desdeAnteriorMerc.setDate(hoy.getDate() - dias * 2);
+          hastaAnteriorMerc = new Date(); hastaAnteriorMerc.setDate(hoy.getDate() - dias - 1);
+        }
+      }
+
+      type MercadoAcc = {
+        total: number;
+        sesiones: Set<string>;
+        topPosters: { [n: string]: { total: number; a4: number; a3: number } };
+        totalAnterior: number;
+      };
+      const acc: { [m: string]: MercadoAcc } = {};
+
+      for (const v of ventasFiltradas) {
+        const m = v.sesiones?.mercados?.nombre || "—";
+        const sid = v.sesiones?.id || "";
+        if (!acc[m]) acc[m] = { total: 0, sesiones: new Set(), topPosters: {}, totalAnterior: 0 };
+        acc[m].total += v.cantidad;
+        if (sid) acc[m].sesiones.add(sid);
+        const nombre = v.posters?.nombre || "—";
+        if (!acc[m].topPosters[nombre]) acc[m].topPosters[nombre] = { total: 0, a4: 0, a3: 0 };
+        acc[m].topPosters[nombre].total += v.cantidad;
+        if (v.talla === "A4") acc[m].topPosters[nombre].a4 += v.cantidad;
+        if (v.talla === "A3") acc[m].topPosters[nombre].a3 += v.cantidad;
+      }
+
+      if (desdeAnteriorMerc && hastaAnteriorMerc) {
+        for (const v of ventas) {
+          if (!v.sesiones?.fecha) continue;
+          const f = new Date(v.sesiones.fecha);
+          if (f >= desdeAnteriorMerc && f <= hastaAnteriorMerc) {
+            const m = v.sesiones?.mercados?.nombre || "—";
+            if (!acc[m]) acc[m] = { total: 0, sesiones: new Set(), topPosters: {}, totalAnterior: 0 };
+            acc[m].totalAnterior += v.cantidad;
+          }
+        }
+      }
+
+      setMercadoStats(
+        Object.entries(acc).map(([mercado, d]) => ({
+          mercado,
+          total: d.total,
+          sesiones: d.sesiones.size,
+          promedio: d.sesiones.size > 0 ? Math.round((d.total / d.sesiones.size) * 10) / 10 : 0,
+          totalAnterior: d.totalAnterior,
+          topPosters: Object.entries(d.topPosters)
+            .sort((a, b) => b[1].total - a[1].total)
+            .map(([nombre, vals]) => ({ nombre, ...vals })),
+        })).sort((a, b) => b.total - a.total)
+      );
+    }
+
     // Por mes (siempre sobre todos los datos, sin filtro de periodo)
     const meses = Array(12).fill(0);
     for (const v of ventas) {
@@ -261,6 +336,15 @@ export default function EstadisticasPage() {
             <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
           </svg>
           {t.summary}
+        </button>
+        <button
+          onClick={() => { setTab("mercados"); setMercadoSeleccionado(null); }}
+          className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center justify-center gap-2 ${tab === "mercados" ? "bg-black text-white" : "bg-gray-100 text-gray-600"}`}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+          {t.byMarket}
         </button>
         <button
           onClick={() => setTab("historial")}
@@ -504,6 +588,147 @@ export default function EstadisticasPage() {
             </div>
           )}
         </>
+      ) : tab === "mercados" ? (
+        /* MERCADOS */
+        <div className="space-y-4">
+          {mercadoSeleccionado === null ? (
+            /* Lista de mercados */
+            mercadoStats.length === 0 ? (
+              <div className="text-center py-16 text-gray-400">
+                <div className="flex justify-center mb-2">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+                  </svg>
+                </div>
+                <p>{t.noSales}</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {mercadoStats.map((m) => (
+                  <button
+                    key={m.mercado}
+                    onClick={() => setMercadoSeleccionado(m.mercado)}
+                    className="w-full flex items-center justify-between bg-white border border-gray-200 rounded-2xl px-4 py-4 hover:bg-gray-50 transition-colors text-left"
+                  >
+                    <div>
+                      <p className="font-semibold text-gray-900">{m.mercado}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{m.sesiones} sesiones · ⌀ {m.promedio} por sesión</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-right">
+                        <p className="font-bold text-gray-900 text-lg">{m.total}</p>
+                        {periodo !== "todo" && m.totalAnterior > 0 && (() => {
+                          const cambio = ((m.total - m.totalAnterior) / m.totalAnterior) * 100;
+                          const sube = cambio >= 0;
+                          return (
+                            <p className={`text-xs font-semibold ${sube ? "text-green-600" : "text-red-500"}`}>
+                              {sube ? "▲" : "▼"} {Math.abs(cambio).toFixed(0)}%
+                            </p>
+                          );
+                        })()}
+                      </div>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-300 flex-shrink-0">
+                        <polyline points="9 18 15 12 9 6"/>
+                      </svg>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )
+          ) : (() => {
+            /* Detalle de mercado */
+            const m = mercadoStats.find((s) => s.mercado === mercadoSeleccionado);
+            if (!m) return null;
+            const maxTop = m.topPosters[0]?.total || 1;
+            return (
+              <div className="space-y-4">
+                {/* Back */}
+                <button
+                  onClick={() => setMercadoSeleccionado(null)}
+                  className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 18 9 12 15 6"/>
+                  </svg>
+                  {t.byMarket}
+                </button>
+
+                <h2 className="text-xl font-bold text-gray-900">{m.mercado}</h2>
+
+                {/* 3 tarjetas de métricas */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-black text-white rounded-2xl p-4 text-center">
+                    <p className="text-2xl font-bold">{m.total}</p>
+                    <p className="text-xs text-gray-400 mt-1">vendidos</p>
+                  </div>
+                  <div className="bg-white border border-gray-200 rounded-2xl p-4 text-center">
+                    <p className="text-2xl font-bold text-gray-900">{m.sesiones}</p>
+                    <p className="text-xs text-gray-400 mt-1">sesiones</p>
+                  </div>
+                  <div className="bg-white border border-gray-200 rounded-2xl p-4 text-center">
+                    <p className="text-2xl font-bold text-gray-900">{m.promedio}</p>
+                    <p className="text-xs text-gray-400 mt-1">⌀/sesión</p>
+                  </div>
+                </div>
+
+                {/* Comparativa vs período anterior */}
+                {periodo !== "todo" && (
+                  <div className="bg-white border border-gray-200 rounded-2xl p-4">
+                    <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Comparativa de períodos</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="text-center bg-gray-50 rounded-xl p-3">
+                        <p className="text-2xl font-bold text-gray-900">{m.total}</p>
+                        <p className="text-xs text-gray-500 mt-1 font-medium">{periodo === "30" ? "Este mes" : `Últimos ${periodo} días`}</p>
+                      </div>
+                      <div className="text-center bg-gray-50 rounded-xl p-3">
+                        <p className="text-2xl font-bold text-gray-400">{m.totalAnterior}</p>
+                        <p className="text-xs text-gray-500 mt-1 font-medium">{periodo === "30" ? "Mes anterior" : `${periodo} días antes`}</p>
+                      </div>
+                    </div>
+                    {m.totalAnterior > 0 && (() => {
+                      const cambio = ((m.total - m.totalAnterior) / m.totalAnterior) * 100;
+                      const sube = cambio >= 0;
+                      return (
+                        <div className={`mt-3 text-center py-2 rounded-xl text-sm font-semibold ${sube ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
+                          {sube ? "▲" : "▼"} {Math.abs(cambio).toFixed(1)}% {sube ? "más que el período anterior" : "menos que el período anterior"}
+                        </div>
+                      );
+                    })()}
+                    {m.totalAnterior === 0 && (
+                      <div className="mt-3 text-center py-2 rounded-xl text-sm text-gray-400">
+                        Sin datos en el período anterior
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Top pósters del mercado */}
+                {m.topPosters.length > 0 && (
+                  <div>
+                    <h3 className="font-bold text-gray-700 mb-3">{t.topPosters}</h3>
+                    <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                      {m.topPosters.map((p, idx) => (
+                        <div key={p.nombre} className={`flex items-center gap-3 px-4 py-3 ${idx < m.topPosters.length - 1 ? "border-b border-gray-100" : ""}`}>
+                          <span className={`text-sm font-bold w-7 text-right flex-shrink-0 ${idx < 3 ? "text-gray-900" : "text-gray-300"}`}>{idx + 1}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm text-gray-900 truncate">{p.nombre}</p>
+                            <p className="text-xs text-gray-400">A4: {p.a4} · A3: {p.a3}</p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="font-bold text-gray-900">{p.total}</p>
+                            <div className="h-1.5 w-16 bg-gray-100 rounded-full mt-1">
+                              <div className="h-full bg-black rounded-full" style={{ width: `${(p.total / maxTop) * 100}%` }} />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </div>
       ) : (
         /* HISTORIAL */
         <div className="space-y-3">
