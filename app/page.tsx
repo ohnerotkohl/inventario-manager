@@ -17,6 +17,13 @@ interface AlertCounts {
   insumos: number;
 }
 
+interface AlertDetail {
+  nombre: string;
+  talla: string;
+  caja: string;
+  cantidad?: number;
+}
+
 interface CajaResumen {
   id: string;
   nombre: string;
@@ -67,6 +74,8 @@ export default function Dashboard() {
   const [editingIdeaText, setEditingIdeaText] = useState("");
   const [loading, setLoading] = useState(true);
   const [configured, setConfigured] = useState(true);
+  const [alertaAbierta, setAlertaAbierta] = useState<"out" | "stockBajo" | "sampleFalta" | "materiales" | "insumos" | null>(null);
+  const [alertDetails, setAlertDetails] = useState<{ out: AlertDetail[]; stockBajo: AlertDetail[]; sampleFalta: AlertDetail[] }>({ out: [], stockBajo: [], sampleFalta: [] });
 
   useEffect(() => {
     if (user?.rol === "empleado") { router.replace("/sesion"); return; }
@@ -82,7 +91,7 @@ export default function Dashboard() {
   async function fetchData() {
     try {
       const [invRes, matRes, insRes, cajasRes, sesRes, comRes, ideasRes] = await Promise.all([
-        supabase.from("inventario").select("out, sample_falta, caja_id, cantidad"),
+        supabase.from("inventario").select("out, sample_falta, caja_id, cantidad, talla, posters(nombre)"),
         supabase.from("materiales_caja").select("nombre, cajas(nombre)").eq("necesita_restock", true),
         supabase.from("insumos_estudio").select("nombre, cantidad, unidad").eq("necesita_compra", true),
         supabase.from("cajas").select("id, nombre, descripcion"),
@@ -91,7 +100,8 @@ export default function Dashboard() {
         supabase.from("ideas").select("id, texto, fecha, mercado").order("created_at", { ascending: false }),
       ]);
 
-      const inv = invRes.data || [];
+      type InvRow = { out: boolean; sample_falta: boolean; caja_id: string; cantidad: number; talla: string; posters: { nombre: string } | null };
+      const inv = (invRes.data || []) as unknown as InvRow[];
       setAlertas({
         out: inv.filter((i) => i.out).length,
         stockBajo: inv.filter((i) => !i.out && i.cantidad > 0 && i.cantidad < 3).length,
@@ -126,6 +136,19 @@ export default function Dashboard() {
           sampleCount: cajaInv.filter((i) => i.sample_falta).length,
         };
       }));
+
+      const cajaNombre = (cajaId: string) => cajasData.find(c => c.id === cajaId)?.nombre || "—";
+      setAlertDetails({
+        out: inv.filter(i => i.out)
+          .map(i => ({ nombre: i.posters?.nombre || "—", talla: i.talla, caja: cajaNombre(i.caja_id) }))
+          .sort((a, b) => a.caja.localeCompare(b.caja) || a.nombre.localeCompare(b.nombre)),
+        stockBajo: inv.filter(i => !i.out && i.cantidad > 0 && i.cantidad < 3)
+          .map(i => ({ nombre: i.posters?.nombre || "—", talla: i.talla, caja: cajaNombre(i.caja_id), cantidad: i.cantidad }))
+          .sort((a, b) => (a.cantidad ?? 0) - (b.cantidad ?? 0) || a.caja.localeCompare(b.caja)),
+        sampleFalta: inv.filter(i => i.sample_falta)
+          .map(i => ({ nombre: i.posters?.nombre || "—", talla: i.talla, caja: cajaNombre(i.caja_id) }))
+          .sort((a, b) => a.caja.localeCompare(b.caja) || a.nombre.localeCompare(b.nombre)),
+      });
 
       type SesionRow = { fecha: string; trabajador: string; mercados: { nombre: string } | null };
       setUltimasSesiones(
@@ -219,34 +242,34 @@ export default function Dashboard() {
           </p>
           <div className="grid grid-cols-2 gap-2">
             {alertas.out > 0 && (
-              <div className="bg-red-100 rounded-xl p-3 text-center">
+              <button onClick={() => setAlertaAbierta("out")} className="bg-red-100 rounded-xl p-3 text-center hover:bg-red-200 transition-colors active:scale-95">
                 <p className="text-2xl font-bold text-red-600">{alertas.out}</p>
                 <p className="text-xs text-red-700">{t.soldOut}</p>
-              </div>
+              </button>
             )}
             {alertas.stockBajo > 0 && (
-              <div className="bg-yellow-100 rounded-xl p-3 text-center">
+              <button onClick={() => setAlertaAbierta("stockBajo")} className="bg-yellow-100 rounded-xl p-3 text-center hover:bg-yellow-200 transition-colors active:scale-95">
                 <p className="text-2xl font-bold text-yellow-600">{alertas.stockBajo}</p>
                 <p className="text-xs text-yellow-700">{t.lowStock}</p>
-              </div>
+              </button>
             )}
             {alertas.sampleFalta > 0 && (
-              <div className="bg-orange-100 rounded-xl p-3 text-center">
+              <button onClick={() => setAlertaAbierta("sampleFalta")} className="bg-orange-100 rounded-xl p-3 text-center hover:bg-orange-200 transition-colors active:scale-95">
                 <p className="text-2xl font-bold text-orange-600">{alertas.sampleFalta}</p>
                 <p className="text-xs text-orange-700">{t.missingSamples}</p>
-              </div>
+              </button>
             )}
             {alertas.materiales > 0 && (
-              <div className="bg-yellow-100 rounded-xl p-3 text-center">
+              <button onClick={() => setAlertaAbierta("materiales")} className="bg-yellow-100 rounded-xl p-3 text-center hover:bg-yellow-200 transition-colors active:scale-95">
                 <p className="text-2xl font-bold text-yellow-600">{alertas.materiales}</p>
                 <p className="text-xs text-yellow-700">{t.boxMaterials}</p>
-              </div>
+              </button>
             )}
             {alertas.insumos > 0 && (
-              <div className="bg-blue-100 rounded-xl p-3 text-center">
+              <button onClick={() => setAlertaAbierta("insumos")} className="bg-blue-100 rounded-xl p-3 text-center hover:bg-blue-200 transition-colors active:scale-95">
                 <p className="text-2xl font-bold text-blue-600">{alertas.insumos}</p>
                 <p className="text-xs text-blue-700">{t.studioSupplies}</p>
-              </div>
+              </button>
             )}
           </div>
         </div>
@@ -467,6 +490,127 @@ export default function Dashboard() {
           ))}
         </div>
       </div>
+
+      {/* Bottom sheet detalle de alerta */}
+      {alertaAbierta && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end" onClick={() => setAlertaAbierta(null)}>
+          <div className="bg-white rounded-t-3xl w-full max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="p-5 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+              <div>
+                <h3 className="font-bold text-gray-900 text-lg">
+                  {alertaAbierta === "out" && t.soldOut}
+                  {alertaAbierta === "stockBajo" && t.lowStock}
+                  {alertaAbierta === "sampleFalta" && t.missingSamples}
+                  {alertaAbierta === "materiales" && t.boxMaterials}
+                  {alertaAbierta === "insumos" && t.studioSupplies}
+                </h3>
+                <p className="text-xs text-gray-400">
+                  {alertaAbierta === "out" && `${alertDetails.out.length} items`}
+                  {alertaAbierta === "stockBajo" && `${alertDetails.stockBajo.length} items`}
+                  {alertaAbierta === "sampleFalta" && `${alertDetails.sampleFalta.length} items`}
+                  {alertaAbierta === "materiales" && `${materialesPendientes.length} items`}
+                  {alertaAbierta === "insumos" && `${insumosPendientes.length} items`}
+                </p>
+              </div>
+              <button onClick={() => setAlertaAbierta(null)} className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 text-xl font-bold">×</button>
+            </div>
+
+            {/* Lista */}
+            <div className="overflow-y-auto flex-1 p-4">
+
+              {/* Sold Out */}
+              {alertaAbierta === "out" && (
+                <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                  {alertDetails.out.map((d, idx) => (
+                    <div key={idx} className={`flex items-center gap-3 px-4 py-3 ${idx < alertDetails.out.length - 1 ? "border-b border-gray-100" : ""}`}>
+                      <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
+                      <p className="flex-1 text-sm font-medium text-gray-900">{d.nombre}</p>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${d.talla === "A4" ? "bg-yellow-100 text-yellow-700" : "bg-blue-100 text-blue-700"}`}>{d.talla}</span>
+                      <span className="text-xs text-gray-400 flex-shrink-0">{d.caja}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Stock bajo */}
+              {alertaAbierta === "stockBajo" && (
+                <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                  {alertDetails.stockBajo.map((d, idx) => (
+                    <div key={idx} className={`flex items-center gap-3 px-4 py-3 ${idx < alertDetails.stockBajo.length - 1 ? "border-b border-gray-100" : ""}`}>
+                      <span className={`text-xs font-bold px-2 py-1 rounded-lg min-w-[28px] text-center ${d.cantidad === 1 ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"}`}>{d.cantidad}</span>
+                      <p className="flex-1 text-sm font-medium text-gray-900">{d.nombre}</p>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${d.talla === "A4" ? "bg-yellow-100 text-yellow-700" : "bg-blue-100 text-blue-700"}`}>{d.talla}</span>
+                      <span className="text-xs text-gray-400 flex-shrink-0">{d.caja}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Samples — agrupar A4+A3 en misma fila */}
+              {alertaAbierta === "sampleFalta" && (() => {
+                const grouped: { nombre: string; caja: string; a4: boolean; a3: boolean }[] = [];
+                const seen = new Map<string, number>();
+                for (const d of alertDetails.sampleFalta) {
+                  const key = `${d.nombre}|${d.caja}`;
+                  if (seen.has(key)) {
+                    const entry = grouped[seen.get(key)!];
+                    if (d.talla === "A4") entry.a4 = true;
+                    if (d.talla === "A3") entry.a3 = true;
+                  } else {
+                    seen.set(key, grouped.length);
+                    grouped.push({ nombre: d.nombre, caja: d.caja, a4: d.talla === "A4", a3: d.talla === "A3" });
+                  }
+                }
+                return (
+                  <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                    {grouped.map((d, idx) => (
+                      <div key={idx} className={`flex items-center gap-3 px-4 py-3 ${idx < grouped.length - 1 ? "border-b border-gray-100" : ""}`}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-orange-400 flex-shrink-0">
+                          <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                        </svg>
+                        <p className="flex-1 text-sm font-medium text-gray-900">{d.nombre}</p>
+                        <div className="flex gap-1 flex-shrink-0">
+                          {d.a4 && <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-yellow-100 text-yellow-700">A4</span>}
+                          {d.a3 && <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-blue-100 text-blue-700">A3</span>}
+                        </div>
+                        <span className="text-xs text-gray-400 flex-shrink-0">{d.caja}</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+
+              {/* Materiales de caja */}
+              {alertaAbierta === "materiales" && (
+                <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                  {materialesPendientes.map((m, idx) => (
+                    <div key={idx} className={`flex items-center gap-3 px-4 py-3 ${idx < materialesPendientes.length - 1 ? "border-b border-gray-100" : ""}`}>
+                      <span className="w-2 h-2 rounded-full bg-yellow-500 flex-shrink-0" />
+                      <p className="flex-1 text-sm font-medium text-gray-900">{m.nombre}</p>
+                      {m.detalle && <span className="text-xs text-gray-400 flex-shrink-0">{m.detalle}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Insumos estudio */}
+              {alertaAbierta === "insumos" && (
+                <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                  {insumosPendientes.map((ins, idx) => (
+                    <div key={idx} className={`flex items-center gap-3 px-4 py-3 ${idx < insumosPendientes.length - 1 ? "border-b border-gray-100" : ""}`}>
+                      <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
+                      <p className="flex-1 text-sm font-medium text-gray-900">{ins.nombre}</p>
+                      {ins.detalle && <span className="text-xs text-gray-400 flex-shrink-0">{ins.detalle}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
