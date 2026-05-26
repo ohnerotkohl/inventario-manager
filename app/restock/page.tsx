@@ -669,17 +669,31 @@ export default function RestockPage() {
                   <span className="text-xs bg-orange-100 text-orange-600 font-bold px-1.5 py-0.5 rounded-full">{samplesA4.length + samplesA3.length}</span>
                 </div>
                 <div className="bg-orange-50 border border-orange-200 rounded-2xl overflow-hidden">
-                  {[...samplesA4.map(p => ({ p, talla: "A4" as const })), ...samplesA3.map(p => ({ p, talla: "A3" as const }))]
-                    .sort((a, b) => a.p.nombre.localeCompare(b.p.nombre))
-                    .map(({ p, talla }, idx, arr) => (
-                      <div key={`${p.id}-${talla}`} className={`flex items-center gap-3 px-4 py-3 ${idx < arr.length - 1 ? "border-b border-orange-100" : ""}`}>
+                  {(() => {
+                    const porPoster: { id: string; nombre: string; a4: boolean; a3: boolean }[] = [];
+                    const seen = new Set<string>();
+                    for (const p of [...samplesA4, ...samplesA3]) {
+                      if (!seen.has(p.id)) {
+                        seen.add(p.id);
+                        porPoster.push({ id: p.id, nombre: p.nombre, a4: !!p.a4SampleFalta, a3: !!p.a3SampleFalta });
+                      } else {
+                        const entry = porPoster.find(e => e.id === p.id);
+                        if (entry) { entry.a4 = entry.a4 || !!p.a4SampleFalta; entry.a3 = entry.a3 || !!p.a3SampleFalta; }
+                      }
+                    }
+                    return porPoster.sort((a, b) => a.nombre.localeCompare(b.nombre)).map(({ id, nombre, a4, a3 }, idx, arr) => (
+                      <div key={id} className={`flex items-center gap-3 px-4 py-3 ${idx < arr.length - 1 ? "border-b border-orange-100" : ""}`}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-orange-400 flex-shrink-0">
                           <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
                         </svg>
-                        <p className="flex-1 text-sm font-medium text-gray-900">{p.nombre}</p>
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${talla === "A4" ? "bg-yellow-100 text-yellow-700" : "bg-blue-100 text-blue-700"}`}>{talla}</span>
+                        <p className="flex-1 text-sm font-medium text-gray-900">{nombre}</p>
+                        <div className="flex gap-1.5 flex-shrink-0">
+                          {a4 && <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-yellow-100 text-yellow-700">A4</span>}
+                          {a3 && <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-blue-100 text-blue-700">A3</span>}
+                        </div>
                       </div>
-                    ))}
+                    ));
+                  })()}
                 </div>
               </div>
             );
