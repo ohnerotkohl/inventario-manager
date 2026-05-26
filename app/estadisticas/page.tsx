@@ -40,6 +40,8 @@ interface MercadoStats {
   minMedio: number;
   minTop: number;
   topN: number;
+  porMes: number[];
+  porSemana: number[];
   topPosters: { nombre: string; total: number; a4: number; a3: number }[];
 }
 
@@ -79,6 +81,7 @@ export default function EstadisticasPage() {
   const [savingMins, setSavingMins] = useState(false);
   const [saveMinsOk, setSaveMinsOk] = useState(false);
   const [saveMinsError, setSaveMinsError] = useState("");
+  const [mercadoChartMode, setMercadoChartMode] = useState<"semana" | "mes">("semana");
 
   useEffect(() => {
     if (user?.rol === "empleado") { router.replace("/sesion"); return; }
@@ -274,6 +277,23 @@ export default function EstadisticasPage() {
       domingoAntepasado.setDate(lunesActual.getDate() - 8);
       domingoAntepasado.setHours(23, 59, 59, 999);
 
+      // Estructura de las últimas 16 semanas para la gráfica semanal
+      const hoyGraf = new Date();
+      const diasLunesGraf = hoyGraf.getDay() === 0 ? 6 : hoyGraf.getDay() - 1;
+      const lunesActualGraf = new Date(hoyGraf);
+      lunesActualGraf.setDate(hoyGraf.getDate() - diasLunesGraf);
+      lunesActualGraf.setHours(0, 0, 0, 0);
+      const N_SEMANAS = 16;
+      const semanasGraf = Array.from({ length: N_SEMANAS }, (_, i) => {
+        const start = new Date(lunesActualGraf);
+        start.setDate(lunesActualGraf.getDate() - (N_SEMANAS - 1 - i) * 7);
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
+        end.setHours(23, 59, 59, 999);
+        return { start, end };
+      });
+      const anoActualGraf = hoyGraf.getFullYear();
+
       type MercadoAcc = {
         total: number;
         sesiones: Set<string>;
@@ -281,13 +301,15 @@ export default function EstadisticasPage() {
         totalAnterior: number;
         semanaActual: number;
         semanaAnterior: number;
+        porMes: number[];
+        porSemana: number[];
       };
       const acc: { [m: string]: MercadoAcc } = {};
 
       for (const v of ventasFiltradas) {
         const m = v.sesiones?.mercados?.nombre || "—";
         const sid = v.sesiones?.id || "";
-        if (!acc[m]) acc[m] = { total: 0, sesiones: new Set(), topPosters: {}, totalAnterior: 0, semanaActual: 0, semanaAnterior: 0 };
+        if (!acc[m]) acc[m] = { total: 0, sesiones: new Set(), topPosters: {}, totalAnterior: 0, semanaActual: 0, semanaAnterior: 0, porMes: Array(12).fill(0), porSemana: Array(N_SEMANAS).fill(0) };
         acc[m].total += v.cantidad;
         if (sid) acc[m].sesiones.add(sid);
         const nombre = v.posters?.nombre || "—";
@@ -303,20 +325,29 @@ export default function EstadisticasPage() {
           const f = new Date(v.sesiones.fecha);
           if (f >= desdeAnteriorMerc && f <= hastaAnteriorMerc) {
             const m = v.sesiones?.mercados?.nombre || "—";
-            if (!acc[m]) acc[m] = { total: 0, sesiones: new Set(), topPosters: {}, totalAnterior: 0, semanaActual: 0, semanaAnterior: 0 };
+            if (!acc[m]) acc[m] = { total: 0, sesiones: new Set(), topPosters: {}, totalAnterior: 0, semanaActual: 0, semanaAnterior: 0, porMes: Array(12).fill(0), porSemana: Array(N_SEMANAS).fill(0) };
             acc[m].totalAnterior += v.cantidad;
           }
         }
       }
 
-      // Comparativa semanal: siempre desde todos los datos (no filtrado por periodo)
+      // Comparativa semanal + gráficas: siempre desde todos los datos (no filtrado por periodo)
       for (const v of ventas) {
         if (!v.sesiones?.fecha) continue;
         const f = new Date(v.sesiones.fecha + "T12:00:00");
         const m = v.sesiones?.mercados?.nombre || "—";
-        if (!acc[m]) acc[m] = { total: 0, sesiones: new Set(), topPosters: {}, totalAnterior: 0, semanaActual: 0, semanaAnterior: 0 };
+        if (!acc[m]) acc[m] = { total: 0, sesiones: new Set(), topPosters: {}, totalAnterior: 0, semanaActual: 0, semanaAnterior: 0, porMes: Array(12).fill(0), porSemana: Array(N_SEMANAS).fill(0) };
         if (f >= lunesPasado && f <= domingoPasado) acc[m].semanaActual += v.cantidad;
         if (f >= lunesAntepasado && f <= domingoAntepasado) acc[m].semanaAnterior += v.cantidad;
+        // Gráfica mensual (año actual)
+        if (f.getFullYear() === anoActualGraf) acc[m].porMes[f.getMonth()] += v.cantidad;
+        // Gráfica semanal (últimas N_SEMANAS)
+        for (let wi = 0; wi < N_SEMANAS; wi++) {
+          if (f >= semanasGraf[wi].start && f <= semanasGraf[wi].end) {
+            acc[m].porSemana[wi] += v.cantidad;
+            break;
+          }
+        }
       }
 
       setMercadoStats(
@@ -335,6 +366,8 @@ export default function EstadisticasPage() {
             minMedio: conf?.min_medio ?? 4,
             minTop: conf?.min_top ?? 8,
             topN: conf?.top_n ?? 5,
+            porMes: d.porMes,
+            porSemana: d.porSemana,
             topPosters: Object.entries(d.topPosters)
               .sort((a, b) => b[1].total - a[1].total)
               .map(([nombre, vals]) => ({ nombre, ...vals })),
@@ -745,6 +778,76 @@ export default function EstadisticasPage() {
                     <p className="text-xs text-gray-400 mt-1">promedio/sesión</p>
                   </div>
                 </div>
+
+                {/* Gráfica de evolución */}
+                {(() => {
+                  const datos = mercadoChartMode === "mes" ? m.porMes : m.porSemana;
+                  const maxVal = Math.max(...datos, 1);
+                  // Etiquetas según modo
+                  let labels: string[];
+                  if (mercadoChartMode === "mes") {
+                    labels = t.months;
+                  } else {
+                    // Reconstruir etiquetas de semanas (lunes de cada semana)
+                    const hoyL = new Date();
+                    const dL = hoyL.getDay() === 0 ? 6 : hoyL.getDay() - 1;
+                    const lunesL = new Date(hoyL);
+                    lunesL.setDate(hoyL.getDate() - dL);
+                    lunesL.setHours(0,0,0,0);
+                    labels = Array.from({ length: 16 }, (_, i) => {
+                      const d = new Date(lunesL);
+                      d.setDate(lunesL.getDate() - (15 - i) * 7);
+                      return d.toLocaleDateString("es-DE", { day: "numeric", month: "short" });
+                    });
+                  }
+                  const tieneData = datos.some(v => v > 0);
+                  return (
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-bold text-gray-700">Evolución de ventas</h3>
+                        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+                          <button
+                            onClick={() => setMercadoChartMode("semana")}
+                            className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${mercadoChartMode === "semana" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                          >
+                            Semanas
+                          </button>
+                          <button
+                            onClick={() => setMercadoChartMode("mes")}
+                            className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${mercadoChartMode === "mes" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                          >
+                            Meses
+                          </button>
+                        </div>
+                      </div>
+                      <div className="bg-white border border-gray-200 rounded-2xl p-4">
+                        {!tieneData ? (
+                          <p className="text-sm text-gray-400 text-center py-4">Sin datos para este período</p>
+                        ) : (
+                          <div className="flex items-end gap-0.5" style={{ height: "96px" }}>
+                            {datos.map((val, i) => (
+                              <div key={i} className="flex-1 flex flex-col items-center gap-0.5 min-w-0">
+                                {val > 0 && (
+                                  <span className="text-[9px] text-gray-500 leading-none">{val}</span>
+                                )}
+                                <div
+                                  className="w-full rounded-t-sm bg-black"
+                                  style={{ height: `${Math.max((val / maxVal) * 68, val > 0 ? 3 : 0)}px` }}
+                                />
+                                <span
+                                  className="text-[9px] text-gray-400 leading-none truncate w-full text-center"
+                                  style={{ fontSize: mercadoChartMode === "semana" ? "8px" : "9px" }}
+                                >
+                                  {labels[i]}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Comparativa semanal — siempre visible */}
                 {(() => {
