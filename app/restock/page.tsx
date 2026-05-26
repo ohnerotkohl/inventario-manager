@@ -29,6 +29,8 @@ interface PosterConStock extends Poster {
   a3Stock: number;
   a4InvId?: string;
   a3InvId?: string;
+  a4SampleFalta?: boolean;
+  a3SampleFalta?: boolean;
 }
 
 type Step = "seleccion" | "restock" | "confirmado";
@@ -244,6 +246,8 @@ export default function RestockPage() {
         a3Stock: a3?.cantidad || 0,
         a4InvId: a4?.id,
         a3InvId: a3?.id,
+        a4SampleFalta: a4?.sample_falta || false,
+        a3SampleFalta: a3?.sample_falta || false,
       };
     });
 
@@ -653,6 +657,34 @@ export default function RestockPage() {
               <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded font-semibold">— sin ventas → mín. {mercadoMins.minBajo}</span>
             </div>
           )}
+          {/* Samples que faltan — siempre visible */}
+          {(() => {
+            const samplesA4 = posters.filter(p => p.tiene_a4 && p.a4SampleFalta);
+            const samplesA3 = posters.filter(p => p.tiene_a3 && p.a3SampleFalta);
+            if (samplesA4.length === 0 && samplesA3.length === 0) return null;
+            return (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <p className="text-xs font-bold uppercase tracking-widest text-orange-600">Sample falta</p>
+                  <span className="text-xs bg-orange-100 text-orange-600 font-bold px-1.5 py-0.5 rounded-full">{samplesA4.length + samplesA3.length}</span>
+                </div>
+                <div className="bg-orange-50 border border-orange-200 rounded-2xl overflow-hidden">
+                  {[...samplesA4.map(p => ({ p, talla: "A4" as const })), ...samplesA3.map(p => ({ p, talla: "A3" as const }))]
+                    .sort((a, b) => a.p.nombre.localeCompare(b.p.nombre))
+                    .map(({ p, talla }, idx, arr) => (
+                      <div key={`${p.id}-${talla}`} className={`flex items-center gap-3 px-4 py-3 ${idx < arr.length - 1 ? "border-b border-orange-100" : ""}`}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-orange-400 flex-shrink-0">
+                          <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                        </svg>
+                        <p className="flex-1 text-sm font-medium text-gray-900">{p.nombre}</p>
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${talla === "A4" ? "bg-yellow-100 text-yellow-700" : "bg-blue-100 text-blue-700"}`}>{talla}</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            );
+          })()}
+
           {printLoading ? (
             <div className="text-sm text-gray-400 text-center py-8">{t.loadingBestsellers}</div>
           ) : (() => {
