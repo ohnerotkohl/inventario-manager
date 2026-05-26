@@ -29,12 +29,17 @@ interface VentasPorSerie {
 
 interface MercadoStats {
   mercado: string;
+  id: string;
   total: number;
   sesiones: number;
   promedio: number;
   totalAnterior: number;
   semanaActual: number;
   semanaAnterior: number;
+  minBajo: number;
+  minMedio: number;
+  minTop: number;
+  topN: number;
   topPosters: { nombre: string; total: number; a4: number; a3: number }[];
 }
 
@@ -70,11 +75,28 @@ export default function EstadisticasPage() {
   const [showAllPosters, setShowAllPosters] = useState(false);
   const [mercadoStats, setMercadoStats] = useState<MercadoStats[]>([]);
   const [mercadoSeleccionado, setMercadoSeleccionado] = useState<string | null>(null);
+  const [restockMinsEdit, setRestockMinsEdit] = useState<{ id: string; minBajo: number; minMedio: number; minTop: number; topN: number } | null>(null);
+  const [savingMins, setSavingMins] = useState(false);
+  const [saveMinsOk, setSaveMinsOk] = useState(false);
+  const [saveMinsError, setSaveMinsError] = useState("");
 
   useEffect(() => {
     if (user?.rol === "empleado") { router.replace("/sesion"); return; }
     fetchStats();
   }, [periodo, user]);
+
+  async function saveMercadoMins() {
+    if (!restockMinsEdit) return;
+    setSavingMins(true);
+    setSaveMinsError("");
+    const { error } = await supabase
+      .from("mercados")
+      .update({ min_bajo: restockMinsEdit.minBajo, min_medio: restockMinsEdit.minMedio, min_top: restockMinsEdit.minTop, top_n: restockMinsEdit.topN })
+      .eq("id", restockMinsEdit.id);
+    setSavingMins(false);
+    if (error) { setSaveMinsError(error.message); }
+    else { setSaveMinsOk(true); setTimeout(() => setSaveMinsOk(false), 2000); fetchStats(); }
+  }
 
   async function fetchStats() {
     setLoading(true);
@@ -123,9 +145,14 @@ export default function EstadisticasPage() {
     const allPosters = Object.values(porPoster).sort((a, b) => b.total - a.total);
     setTopPosters(allPosters);
 
-    // Posters con inventario pero sin ventas en el período
-    const { data: todosPosters } = await supabase
-      .from("posters").select("nombre, activo, series(nombre, color)").eq("activo", true);
+    // Posters con inventario pero sin ventas en el período + config de mercados
+    const [postersRes, mercadosRes] = await Promise.all([
+      supabase.from("posters").select("nombre, activo, series(nombre, color)").eq("activo", true),
+      supabase.from("mercados").select("id, nombre, min_bajo, min_medio, min_top, top_n"),
+    ]);
+    const { data: todosPosters } = postersRes;
+    type MercConf = { id: string; nombre: string; min_bajo: number; min_medio: number; min_top: number; top_n: number };
+    const mercadosConf = (mercadosRes.data || []) as unknown as MercConf[];
     type PosterRow = { nombre: string; series: { nombre: string; color: string } | null };
     const vendidosSet = new Set(Object.keys(porPoster).map((id) => porPoster[id].nombre));
     setSinVentas(
@@ -293,18 +320,26 @@ export default function EstadisticasPage() {
       }
 
       setMercadoStats(
-        Object.entries(acc).map(([mercado, d]) => ({
-          mercado,
-          total: d.total,
-          sesiones: d.sesiones.size,
-          promedio: d.sesiones.size > 0 ? Math.round((d.total / d.sesiones.size) * 10) / 10 : 0,
-          totalAnterior: d.totalAnterior,
-          semanaActual: d.semanaActual,
-          semanaAnterior: d.semanaAnterior,
-          topPosters: Object.entries(d.topPosters)
-            .sort((a, b) => b[1].total - a[1].total)
-            .map(([nombre, vals]) => ({ nombre, ...vals })),
-        })).sort((a, b) => b.total - a.total)
+        Object.entries(acc).map(([mercado, d]) => {
+          const conf = mercadosConf.find(c => c.nombre === mercado);
+          return {
+            mercado,
+            id: conf?.id || "",
+            total: d.total,
+            sesiones: d.sesiones.size,
+            promedio: d.sesiones.size > 0 ? Math.round((d.total / d.sesiones.size) * 10) / 10 : 0,
+            totalAnterior: d.totalAnterior,
+            semanaActual: d.semanaActual,
+            semanaAnterior: d.semanaAnterior,
+            minBajo: conf?.min_bajo ?? 3,
+            minMedio: conf?.min_medio ?? 4,
+            minTop: conf?.min_top ?? 8,
+            topN: conf?.top_n ?? 5,
+            topPosters: Object.entries(d.topPosters)
+              .sort((a, b) => b[1].total - a[1].total)
+              .map(([nombre, vals]) => ({ nombre, ...vals })),
+          };
+        }).sort((a, b) => b.total - a.total)
       );
     }
 
@@ -642,7 +677,12 @@ export default function EstadisticasPage() {
                 {mercadoStats.map((m) => (
                   <button
                     key={m.mercado}
-                    onClick={() => setMercadoSeleccionado(m.mercado)}
+                    onClick={() => {
+                      setMercadoSeleccionado(m.mercado);
+                      setRestockMinsEdit({ id: m.id, minBajo: m.minBajo, minMedio: m.minMedio, minTop: m.minTop, topN: m.topN });
+                      setSaveMinsOk(false);
+                      setSaveMinsError("");
+                    }}
                     className="w-full flex items-center justify-between bg-white border border-gray-200 rounded-2xl px-4 py-4 hover:bg-gray-50 transition-colors text-left"
                   >
                     <div>
@@ -795,7 +835,10 @@ export default function EstadisticasPage() {
                           <span className={`text-sm font-bold w-7 text-right flex-shrink-0 ${idx < 3 ? "text-gray-900" : "text-gray-300"}`}>{idx + 1}</span>
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm text-gray-900 truncate">{p.nombre}</p>
-                            <p className="text-xs text-gray-400">A4: {p.a4} · A3: {p.a3}</p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              {idx < m.topN && <span className="text-xs bg-amber-100 text-amber-700 font-semibold px-1.5 py-0.5 rounded-md">⭐ top {idx + 1}</span>}
+                              <span className="text-xs text-gray-400">A4: {p.a4} · A3: {p.a3}</span>
+                            </div>
                           </div>
                           <div className="text-right flex-shrink-0">
                             <p className="font-bold text-gray-900">{p.total}</p>
@@ -806,6 +849,75 @@ export default function EstadisticasPage() {
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* Mínimos de restock */}
+                {restockMinsEdit && restockMinsEdit.id === m.id && (
+                  <div className="bg-white border border-gray-200 rounded-2xl p-4 pb-5">
+                    <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1">Mínimos de restock</p>
+                    <p className="text-xs text-gray-400 mb-4">El tab Imprimir en Restock usará estos valores para calcular cuánto imprimir.</p>
+
+                    {/* Top N */}
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="flex-1">
+                        <p className="text-xs font-semibold text-amber-700 mb-1">⭐ N° de top sellers</p>
+                        <p className="text-xs text-gray-400 mb-1.5">Cuántos pósters se consideran "top" (por ventas en este mercado)</p>
+                      </div>
+                      <input
+                        type="number" inputMode="numeric" min={1} max={20}
+                        value={restockMinsEdit.topN}
+                        onChange={(e) => setRestockMinsEdit(prev => prev ? { ...prev, topN: parseInt(e.target.value) || 1 } : null)}
+                        onFocus={(e) => e.target.select()}
+                        className="w-16 text-center border-2 border-amber-200 bg-amber-50 rounded-xl py-2 text-sm font-bold focus:outline-none focus:border-amber-400"
+                      />
+                    </div>
+
+                    {/* Tres mínimos */}
+                    <div className="grid grid-cols-3 gap-3 mb-4">
+                      <div className="text-center">
+                        <p className="text-xs font-semibold text-amber-700 mb-1.5">⭐ Top {restockMinsEdit.topN}</p>
+                        <input
+                          type="number" inputMode="numeric" min={1} max={50}
+                          value={restockMinsEdit.minTop}
+                          onChange={(e) => setRestockMinsEdit(prev => prev ? { ...prev, minTop: parseInt(e.target.value) || 1 } : null)}
+                          onFocus={(e) => e.target.select()}
+                          className="w-full text-center border-2 border-amber-200 bg-amber-50 rounded-xl py-2.5 text-lg font-bold focus:outline-none focus:border-amber-400"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">mínimo</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs font-semibold text-blue-600 mb-1.5">↗ Con ventas</p>
+                        <input
+                          type="number" inputMode="numeric" min={1} max={50}
+                          value={restockMinsEdit.minMedio}
+                          onChange={(e) => setRestockMinsEdit(prev => prev ? { ...prev, minMedio: parseInt(e.target.value) || 1 } : null)}
+                          onFocus={(e) => e.target.select()}
+                          className="w-full text-center border-2 border-blue-200 bg-blue-50 rounded-xl py-2.5 text-lg font-bold focus:outline-none focus:border-blue-400"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">mínimo</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs font-semibold text-gray-500 mb-1.5">— Sin ventas</p>
+                        <input
+                          type="number" inputMode="numeric" min={0} max={50}
+                          value={restockMinsEdit.minBajo}
+                          onChange={(e) => setRestockMinsEdit(prev => prev ? { ...prev, minBajo: parseInt(e.target.value) || 0 } : null)}
+                          onFocus={(e) => e.target.select()}
+                          className="w-full text-center border-2 border-gray-200 bg-gray-50 rounded-xl py-2.5 text-lg font-bold focus:outline-none focus:border-gray-400"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">mínimo</p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={saveMercadoMins}
+                      disabled={savingMins}
+                      className={`w-full py-3 rounded-2xl font-semibold text-sm transition-colors disabled:opacity-40 ${saveMinsOk ? "bg-green-600 text-white" : "bg-black text-white hover:bg-gray-900"}`}
+                    >
+                      {savingMins ? "Guardando..." : saveMinsOk ? "✓ Guardado" : "Guardar mínimos"}
+                    </button>
+                    {saveMinsError && <p className="text-xs text-red-500 mt-2 text-center">{saveMinsError}</p>}
                   </div>
                 )}
               </div>

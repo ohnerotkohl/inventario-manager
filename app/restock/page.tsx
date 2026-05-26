@@ -72,6 +72,7 @@ export default function RestockPage() {
   const [printLoading, setPrintLoading] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [mercadoMins, setMercadoMins] = useState({ minBajo: 3, minMedio: 4, minTop: 8, topN: 5, nombre: "" });
 
   function toggleSerie(id: string) {
     setCollapsed((prev) => {
@@ -81,53 +82,77 @@ export default function RestockPage() {
     });
   }
 
-  const isBoxieRAW = cajas.find((c) => c.id === cajaId)?.nombre === "Boxie RAW";
-
-  function getParams() {
-    return isBoxieRAW
-      ? { topN: 5, topTarget: 8, medTarget: 5, baseTarget: 4, threshold: 4 }
-      : { topN: 8, topTarget: 5, medTarget: 4, baseTarget: 3, threshold: 3 };
-  }
-
-  function computePrintQty(topSet: Set<string>, hs: Set<string>, ps: PosterConStock[]) {
-    const { topTarget, medTarget, baseTarget, threshold } = getParams();
+  function computePrintQty(
+    topSet: Set<string>,
+    hs: Set<string>,
+    ps: PosterConStock[],
+    mins: { minBajo: number; minMedio: number; minTop: number }
+  ) {
     const qty: { [key: string]: number } = {};
     ps.forEach((p) => {
-      const target = topSet.has(p.id) ? topTarget : hs.has(p.id) ? medTarget : baseTarget;
+      const target = topSet.has(p.id) ? mins.minTop : hs.has(p.id) ? mins.minMedio : mins.minBajo;
       if (p.tiene_a4) {
         const stock = p.a4Stock;
-        if (stock < threshold) qty[`${p.id}-A4`] = Math.max(1, target - stock);
+        if (stock < target) qty[`${p.id}-A4`] = Math.max(1, target - stock);
       }
       if (p.tiene_a3) {
         const stock = p.a3Stock;
-        if (stock < threshold) qty[`${p.id}-A3`] = Math.max(1, target - stock);
+        if (stock < target) qty[`${p.id}-A3`] = Math.max(1, target - stock);
       }
     });
     return qty;
   }
 
-  async function loadPrintData(ps: PosterConStock[]) {
-    if (top8.size > 0 || hasSales.size > 0) {
-      setPrintQty(computePrintQty(top8, hasSales, ps));
-      return;
-    }
+  async function loadPrintData(ps: PosterConStock[], cid: string) {
     setPrintLoading(true);
-    const { data } = await supabase
-      .from("ventas")
-      .select("poster_id, cantidad, sesiones!inner(fecha)");
-    const hace30 = new Date();
-    hace30.setDate(hace30.getDate() - 30);
-    const totales: { [id: string]: number } = {};
-    ((data || []) as unknown as { poster_id: string; cantidad: number; sesiones: { fecha: string } }[])
-      .filter((v) => v.sesiones?.fecha && new Date(v.sesiones.fecha) >= hace30)
-      .forEach((v) => { totales[v.poster_id] = (totales[v.poster_id] || 0) + v.cantidad; });
-    const sorted = Object.entries(totales).sort((a, b) => b[1] - a[1]);
-    const { topN } = getParams();
-    const newTop = new Set(sorted.slice(0, topN).map(([id]) => id));
-    const newHasSales = new Set(sorted.map(([id]) => id));
+
+    // 1. Mercados asociados a esta caja → obtener sus mínimos configurados
+    type MercRow = { id: string; nombre: string; min_bajo: number; min_medio: number; min_top: number; top_n: number };
+    const { data: mercadosData } = await supabase
+      .from("mercados")
+      .select("id, nombre, min_bajo, min_medio, min_top, top_n")
+      .eq("caja_id", cid);
+    const mercs = (mercadosData || []) as unknown as MercRow[];
+
+    // Usar el máximo de cada umbral (preparar para el mercado más exigente)
+    const minTop  = mercs.length > 0 ? Math.max(...mercs.map(m => m.min_top  ?? 8)) : 8;
+    const minMedio = mercs.length > 0 ? Math.max(...mercs.map(m => m.min_medio ?? 4)) : 4;
+    const minBajo  = mercs.length > 0 ? Math.max(...mercs.map(m => m.min_bajo  ?? 3)) : 3;
+    const topN     = mercs.length > 0 ? Math.max(...mercs.map(m => m.top_n     ?? 5)) : 5;
+    const nombre   = mercs.map(m => m.nombre).join(" + ");
+    const mins = { minTop, minMedio, minBajo, topN, nombre };
+    setMercadoMins(mins);
+
+    // 2. Sesiones en estos mercados
+    const mercadoIds = mercs.map(m => m.id);
+    let newTop = new Set<string>();
+    let newHasSales = new Set<string>();
+
+    if (mercadoIds.length > 0) {
+      const { data: sesionesData } = await supabase
+        .from("sesiones")
+        .select("id")
+        .in("mercado_id", mercadoIds);
+      const sesionIds = ((sesionesData || []) as { id: string }[]).map(s => s.id);
+
+      if (sesionIds.length > 0) {
+        // 3. Ventas históricas en estas sesiones → velocidad por póster
+        const { data: ventasData } = await supabase
+          .from("ventas")
+          .select("poster_id, cantidad")
+          .in("sesion_id", sesionIds);
+        const totales: { [id: string]: number } = {};
+        ((ventasData || []) as { poster_id: string; cantidad: number }[])
+          .forEach(v => { totales[v.poster_id] = (totales[v.poster_id] || 0) + v.cantidad; });
+        const sorted = Object.entries(totales).sort((a, b) => b[1] - a[1]);
+        newTop = new Set(sorted.slice(0, topN).map(([id]) => id));
+        newHasSales = new Set(sorted.map(([id]) => id));
+      }
+    }
+
     setTop8(newTop);
     setHasSales(newHasSales);
-    setPrintQty(computePrintQty(newTop, newHasSales, ps));
+    setPrintQty(computePrintQty(newTop, newHasSales, ps, mins));
     setPrintLoading(false);
   }
 
@@ -225,10 +250,12 @@ export default function RestockPage() {
     setPosters(postersConStock);
     setCantidades({});
     setPrintQty({});
+    setTop8(new Set());
+    setHasSales(new Set());
     setTabRestock("imprimir");
     setLoading(false);
     setStep("restock");
-    loadPrintData(postersConStock);
+    loadPrintData(postersConStock, cajaId);
   }
 
   async function confirmarRestock() {
@@ -617,6 +644,15 @@ export default function RestockPage() {
               Limpiar todo
             </button>
           </div>
+          {/* Info de mínimos del mercado */}
+          {mercadoMins.nombre && (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="text-xs text-gray-500 font-medium">{mercadoMins.nombre}</span>
+              <span className="text-xs text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded font-semibold">⭐ top {mercadoMins.topN} → mín. {mercadoMins.minTop}</span>
+              <span className="text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded font-semibold">↗ con ventas → mín. {mercadoMins.minMedio}</span>
+              <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded font-semibold">— sin ventas → mín. {mercadoMins.minBajo}</span>
+            </div>
+          )}
           {printLoading ? (
             <div className="text-sm text-gray-400 text-center py-8">{t.loadingBestsellers}</div>
           ) : (() => {
