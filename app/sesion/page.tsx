@@ -107,6 +107,7 @@ export default function SesionPage() {
   const [submitting, setSubmitting] = useState(false);
   const [enviandoEmail, setEnviandoEmail] = useState(false);
   const [emailEnviado, setEmailEnviado] = useState(false);
+  const [emailError, setEmailError] = useState("");
   const [sesionId, setSesionId] = useState("");
   const [ventasOriginales, setVentasOriginales] = useState<{ [key: string]: number }>({});
   const [modoEdicion, setModoEdicion] = useState(false);
@@ -536,6 +537,7 @@ export default function SesionPage() {
   async function enviarReporteEmail(reporte: { a4: { linea: string; stockRestante: number }[]; a3: { linea: string; stockRestante: number }[] }) {
     setEnviandoEmail(true);
     setEmailEnviado(false);
+    setEmailError("");
     const mercadoNombre = mercados.find((m) => m.id === mercadoId)?.nombre || "";
     const ahora = new Date().toLocaleTimeString("es-DE", { hour: "2-digit", minute: "2-digit" });
     try {
@@ -556,13 +558,13 @@ export default function SesionPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
-        alert(`Error enviando el email:\n${data.error || `HTTP ${res.status}`}`);
+        setEmailError(data.error || `HTTP ${res.status}`);
         setEnviandoEmail(false);
         return;
       }
       setEmailEnviado(true);
     } catch (err) {
-      alert(`Error de red: ${err instanceof Error ? err.message : String(err)}`);
+      setEmailError(err instanceof Error ? err.message : String(err));
     }
     setEnviandoEmail(false);
   }
@@ -730,23 +732,35 @@ export default function SesionPage() {
               {t.shareReport}
             </button>
 
-            <button
-              onClick={handleEnviarReporte}
-              disabled={enviandoEmail || emailEnviado}
-              className={`w-full py-3 rounded-2xl font-semibold transition-colors flex items-center justify-center gap-2 ${
-                emailEnviado
-                  ? "bg-green-100 text-green-700"
-                  : "bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50"
-              } disabled:opacity-60`}
-            >
-              {!enviandoEmail && !emailEnviado && (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="2" y="4" width="20" height="16" rx="2" />
-                  <path d="M22 7l-10 6L2 7" />
-                </svg>
-              )}
-              {enviandoEmail ? t.sending : emailEnviado ? t.reportSent : t.sendEmail}
-            </button>
+            {/* Estado del envío automático: solo hay botón si falló */}
+            {enviandoEmail && (
+              <div className="w-full py-3 rounded-2xl bg-gray-100 text-gray-500 font-semibold flex items-center justify-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-gray-400 animate-pulse inline-block" />
+                {t.sending}
+              </div>
+            )}
+            {!enviandoEmail && emailEnviado && (
+              <div className="w-full py-3 rounded-2xl bg-green-100 text-green-700 font-semibold flex items-center justify-center gap-2">
+                <Check size={16} /> {t.reportSent}
+              </div>
+            )}
+            {!enviandoEmail && !emailEnviado && (
+              <div className="space-y-2">
+                {emailError && (
+                  <p className="text-xs text-red-600 text-center">{emailError}</p>
+                )}
+                <button
+                  onClick={handleEnviarReporte}
+                  className="w-full py-3 rounded-2xl font-semibold transition-colors flex items-center justify-center gap-2 bg-red-50 border-2 border-red-300 text-red-700 hover:bg-red-100"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="4" width="20" height="16" rx="2" />
+                    <path d="M22 7l-10 6L2 7" />
+                  </svg>
+                  {t.retryEmail}
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -761,6 +775,7 @@ export default function SesionPage() {
             setReporteImpresion({ a4: [], a3: [] });
             setSesionId("");
             setEmailEnviado(false);
+            setEmailError("");
           }}
           className="w-full bg-black text-white px-6 py-3 rounded-2xl font-semibold hover:bg-gray-900"
         >
