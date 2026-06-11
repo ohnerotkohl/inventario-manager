@@ -77,13 +77,12 @@ function InventarioInner() {
   const [cajaId, setCajaId] = useState<string>("");
 
   // Permiso por caja: admin = todas; empleado con puede_inventario =
-  // solo sus cajas_permitidas (NULL = todas); resto = solo lectura
+  // solo sus cajas_permitidas (NULL = ninguna); resto = solo lectura
   const puedeEditarCaja = useCallback((id: string) => {
     if (!user) return false;
     if (user.rol === "admin") return true;
     if (!user.puede_inventario) return false;
-    if (!user.cajas_permitidas) return true;
-    return user.cajas_permitidas.includes(id);
+    return (user.cajas_permitidas ?? []).includes(id);
   }, [user]);
   const readOnly = !puedeEditarCaja(cajaId);
   const [series, setSeries] = useState<Serie[]>([]);

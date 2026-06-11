@@ -60,8 +60,8 @@ export default function AdminPage() {
   }
 
   async function toggleCajaPermitida(u: UsuarioRow, cajaId: string) {
-    // NULL significa "todas": al quitar una, el set pasa a ser explícito
-    const actual = u.cajas_permitidas ?? cajas.map((c) => c.id);
+    // NULL significa "ninguna autorizada todavía"
+    const actual = u.cajas_permitidas ?? [];
     const nuevas = actual.includes(cajaId)
       ? actual.filter((id) => id !== cajaId)
       : [...actual, cajaId];
@@ -249,7 +249,7 @@ export default function AdminPage() {
                     <p className="text-xs text-gray-400 mb-1.5">{t.allowedBoxes}</p>
                     <div className="flex flex-wrap gap-1.5">
                       {cajas.map((c) => {
-                        const permitida = !u.cajas_permitidas || u.cajas_permitidas.includes(c.id);
+                        const permitida = (u.cajas_permitidas ?? []).includes(c.id);
                         return (
                           <button
                             key={c.id}
@@ -260,7 +260,7 @@ export default function AdminPage() {
                                 : "bg-white text-gray-400 border-gray-200 hover:border-gray-400"
                             }`}
                           >
-                            {c.nombre}
+                            {permitida ? "✓ " : ""}{c.nombre}
                           </button>
                         );
                       })}
