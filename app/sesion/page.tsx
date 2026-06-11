@@ -103,6 +103,7 @@ export default function SesionPage() {
   const [nuevoNombre, setNuevoNombre] = useState("");
   const [nuevaCajaId, setNuevaCajaId] = useState("");
   const [guardandoMercado, setGuardandoMercado] = useState(false);
+  const [guardandoInfo, setGuardandoInfo] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [enviandoEmail, setEnviandoEmail] = useState(false);
@@ -183,6 +184,34 @@ export default function SesionPage() {
     setModoEdicion(true);
     setTabPrincipal("nueva");
     setStep("info");
+  }
+
+  // Guardar solo fecha/trabajador de la sesión, sin tocar las ventas
+  async function guardarSoloInfo() {
+    if (!sesionId) return;
+    if (mercadoId !== sesionMercadoIdOriginal) {
+      alert(t.marketChangeNeedsSales);
+      return;
+    }
+    setGuardandoInfo(true);
+    const { error } = await supabase
+      .from("sesiones")
+      .update({ fecha, trabajador: trabajador.trim() })
+      .eq("id", sesionId);
+    setGuardandoInfo(false);
+    if (error) { alert(`${t.saveError}\n${error.message}`); return; }
+    setModoEdicion(false);
+    setSesionId("");
+    setSesionMercadoIdOriginal("");
+    setTabPrincipal("historial");
+    fetchHistorial();
+  }
+
+  function cancelarEdicion() {
+    setModoEdicion(false);
+    setSesionId("");
+    setSesionMercadoIdOriginal("");
+    setTabPrincipal("historial");
   }
 
   async function eliminarSesion(sesion: SesionHistorial) {
@@ -1067,13 +1096,45 @@ export default function SesionPage() {
           </div>
         </div>
 
-        <button
-          onClick={handleIniciar}
-          disabled={!mercadoId || !trabajador.trim()}
-          className="w-full bg-black text-white py-4 rounded-2xl font-semibold text-lg disabled:opacity-40 hover:bg-gray-900 transition-colors"
-        >
-          {t.registerSales}
-        </button>
+        {modoEdicion ? (
+          <>
+            {/* Modo edición: guardar solo datos o entrar a editar ventas */}
+            <div className="bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 text-sm text-blue-700">
+              {t.editingSessionBanner}
+            </div>
+            <button
+              onClick={guardarSoloInfo}
+              disabled={!mercadoId || !trabajador.trim() || guardandoInfo || mercadoId !== sesionMercadoIdOriginal}
+              className="w-full bg-black text-white py-4 rounded-2xl font-semibold text-lg disabled:opacity-40 hover:bg-gray-900 transition-colors"
+            >
+              {guardandoInfo ? t.saving : t.saveInfoOnly}
+            </button>
+            {mercadoId !== sesionMercadoIdOriginal && (
+              <p className="text-xs text-amber-600 text-center -mt-3">{t.marketChangeNeedsSales}</p>
+            )}
+            <button
+              onClick={handleIniciar}
+              disabled={!mercadoId || !trabajador.trim()}
+              className="w-full border-2 border-black text-black py-3.5 rounded-2xl font-semibold disabled:opacity-40 hover:bg-gray-50 transition-colors"
+            >
+              {t.editSalesBtn}
+            </button>
+            <button
+              onClick={cancelarEdicion}
+              className="w-full text-sm text-gray-400 hover:text-gray-700 underline py-1"
+            >
+              {t.cancel}
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={handleIniciar}
+            disabled={!mercadoId || !trabajador.trim()}
+            className="w-full bg-black text-white py-4 rounded-2xl font-semibold text-lg disabled:opacity-40 hover:bg-gray-900 transition-colors"
+          >
+            {t.registerSales}
+          </button>
+        )}
         </>}
       </div>
     );
