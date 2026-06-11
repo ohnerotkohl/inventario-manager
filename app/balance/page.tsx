@@ -113,6 +113,19 @@ export default function BalancePage() {
     setGastos((prev) => prev.map((g, idx) => (idx === i ? { ...g, ...cambio } : g)));
   }
 
+  const esAdmin = user?.rol === "admin";
+
+  // El historial es privado: mercados del negocio para todos los admins,
+  // los personales (Mauerpark/RAW) solo para su dueño
+  function contabDe(b: Balance): string {
+    if (!b.mercado_id) return "negocio";
+    return mercados.find((m) => m.id === b.mercado_id)?.contabilidad || "negocio";
+  }
+  const historialVisible = historial.filter((b) => {
+    const c = contabDe(b);
+    return c === "negocio" || c === (user?.nombre || "").toLowerCase();
+  });
+
   const mercadoNombre = mercadoId === ESPECIAL ? (mercadoCustom.trim() || "Especial") : (mercados.find((m) => m.id === mercadoId)?.nombre || "");
   const turnoCosto = turnoTipo === "horas" ? turnoHoras * turnoTarifa : 0;
   const ivaMonto = ivaOn ? ventaSumup * 0.19 : 0;
@@ -231,21 +244,23 @@ export default function BalancePage() {
         <p className="text-gray-500 text-sm">{t.balanceSubtitle}</p>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => setTab("nuevo")}
-          className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-colors ${tab === "nuevo" ? "bg-black text-white" : "bg-gray-100 text-gray-600"}`}
-        >
-          {t.newBalance}
-        </button>
-        <button
-          onClick={() => setTab("historial")}
-          className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-colors ${tab === "historial" ? "bg-black text-white" : "bg-gray-100 text-gray-600"}`}
-        >
-          {t.history}
-        </button>
-      </div>
+      {/* Tabs — los empleados solo registran, sin historial */}
+      {esAdmin && (
+        <div className="flex gap-2">
+          <button
+            onClick={() => setTab("nuevo")}
+            className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-colors ${tab === "nuevo" ? "bg-black text-white" : "bg-gray-100 text-gray-600"}`}
+          >
+            {t.newBalance}
+          </button>
+          <button
+            onClick={() => setTab("historial")}
+            className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-colors ${tab === "historial" ? "bg-black text-white" : "bg-gray-100 text-gray-600"}`}
+          >
+            {t.history}
+          </button>
+        </div>
+      )}
 
       {tab === "nuevo" && (
         <div className="space-y-4">
@@ -402,10 +417,10 @@ export default function BalancePage() {
         </div>
       )}
 
-      {tab === "historial" && (
+      {tab === "historial" && esAdmin && (
         <div className="space-y-3">
-          {historial.length === 0 && <p className="text-sm text-gray-400 text-center py-8">{t.noBalances}</p>}
-          {historial.map((b) => {
+          {historialVisible.length === 0 && <p className="text-sm text-gray-400 text-center py-8">{t.noBalances}</p>}
+          {historialVisible.map((b) => {
             const open = abierto === b.id;
             const contab = mercados.find((m) => m.id === b.mercado_id)?.contabilidad;
             const personal = contab === "marcello" || contab === "nuria";

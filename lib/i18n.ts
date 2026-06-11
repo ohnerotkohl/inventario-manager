@@ -147,6 +147,15 @@ const es = {
   specialMarketOption: "Otro (mercado especial)",
   balanceFloat: "Float", balanceShift: "Turno",
   personalBadge: "personal — {name}",
+  // Finanzas
+  finance: "Finanzas",
+  financeSubtitle: "Cuánto entra, cuánto sale y qué queda",
+  businessTab: "Negocio", personalTab: "Personal",
+  incomeLabel: "Ingresos", expensesShort: "Gastos", netLabel: "Neto",
+  netByMonth: "Neto por mes",
+  includedMarkets: "Mercados incluidos: {list}",
+  noPersonalMarkets: "No tienes mercados personales asignados",
+  balancesCount: "{n} balance(s) registrado(s)",
 };
 
 const en: typeof es = {
@@ -280,6 +289,14 @@ const en: typeof es = {
   specialMarketOption: "Other (special market)",
   balanceFloat: "Float", balanceShift: "Shift",
   personalBadge: "personal — {name}",
+  finance: "Finance",
+  financeSubtitle: "Money in, money out and what's left",
+  businessTab: "Business", personalTab: "Personal",
+  incomeLabel: "Income", expensesShort: "Expenses", netLabel: "Net",
+  netByMonth: "Net by month",
+  includedMarkets: "Markets included: {list}",
+  noPersonalMarkets: "You have no personal markets assigned",
+  balancesCount: "{n} balance(s) recorded",
 };
 
 export const translations: Record<Lang, typeof es> = { es, en };

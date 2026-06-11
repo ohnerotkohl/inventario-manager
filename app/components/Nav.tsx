@@ -52,6 +52,14 @@ const ComprasIcon = () => (
   </svg>
 );
 
+const FinanzasIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 12V7H5a2 2 0 010-4h14v4"/>
+    <path d="M3 5v14a2 2 0 002 2h16v-5"/>
+    <path d="M18 12a2 2 0 000 4h4v-4z"/>
+  </svg>
+);
+
 const BalanceIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="10"/>
@@ -84,6 +92,7 @@ export default function Nav() {
     { href: "/restock", label: t.restock, Icon: RestockIcon },
     { href: "/sesion", label: t.session, Icon: SesionIcon },
     { href: "/balance", label: t.balance, Icon: BalanceIcon },
+    { href: "/finanzas", label: t.finance, Icon: FinanzasIcon },
     { href: "/estadisticas", label: t.stats, Icon: StatsIcon },
     { href: "/compras", label: t.purchases, Icon: ComprasIcon },
     { href: "/admin", label: t.team, Icon: AdminIcon },
