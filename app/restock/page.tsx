@@ -549,8 +549,8 @@ export default function RestockPage() {
                       {Object.entries(
                         r.lineas.reduce((acc, l) => {
                           acc[l.nombre] = acc[l.nombre] || {};
-                          if (l.talla === "A4") acc[l.nombre].a4 = l.cantidad;
-                          if (l.talla === "A3") acc[l.nombre].a3 = l.cantidad;
+                          if (l.talla === "A4") acc[l.nombre].a4 = (acc[l.nombre].a4 || 0) + l.cantidad;
+                          if (l.talla === "A3") acc[l.nombre].a3 = (acc[l.nombre].a3 || 0) + l.cantidad;
                           return acc;
                         }, {} as { [n: string]: { a4?: number; a3?: number } })
                       ).sort((a, b) => Math.max(b[1].a4||0, b[1].a3||0) - Math.max(a[1].a4||0, a[1].a3||0))
@@ -866,8 +866,8 @@ export default function RestockPage() {
                           min={0}
                           placeholder="0"
                           value={cantidades[`${p.id}-A4`] || ""}
-                          onChange={(e) => setCantidades((prev) => ({ ...prev, [`${p.id}-A4`]: parseInt(e.target.value) || 0 }))}
-                          onBlur={(e) => setCantidades((prev) => ({ ...prev, [`${p.id}-A4`]: parseInt(e.target.value) || 0 }))}
+                          onChange={(e) => setCantidades((prev) => ({ ...prev, [`${p.id}-A4`]: Math.max(0, parseInt(e.target.value) || 0) }))}
+                          onBlur={(e) => setCantidades((prev) => ({ ...prev, [`${p.id}-A4`]: Math.max(0, parseInt(e.target.value) || 0) }))}
                           onFocus={(e) => e.target.select()}
                           className="w-16 text-center text-sm border border-gray-200 rounded-lg py-1.5 focus:outline-none focus:border-black"
                         />
@@ -883,8 +883,8 @@ export default function RestockPage() {
                           min={0}
                           placeholder="0"
                           value={cantidades[`${p.id}-A3`] || ""}
-                          onChange={(e) => setCantidades((prev) => ({ ...prev, [`${p.id}-A3`]: parseInt(e.target.value) || 0 }))}
-                          onBlur={(e) => setCantidades((prev) => ({ ...prev, [`${p.id}-A3`]: parseInt(e.target.value) || 0 }))}
+                          onChange={(e) => setCantidades((prev) => ({ ...prev, [`${p.id}-A3`]: Math.max(0, parseInt(e.target.value) || 0) }))}
+                          onBlur={(e) => setCantidades((prev) => ({ ...prev, [`${p.id}-A3`]: Math.max(0, parseInt(e.target.value) || 0) }))}
                           onFocus={(e) => e.target.select()}
                           className="w-16 text-center text-sm border border-gray-200 rounded-lg py-1.5 focus:outline-none focus:border-black"
                         />

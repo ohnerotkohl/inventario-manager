@@ -119,7 +119,8 @@ function EditarSesionInner() {
       }
     }
 
-    // Reemplazar todas las ventas de esta sesión
+    // Reemplazar todas las ventas de esta sesión.
+    // Insertar primero las nuevas; solo si funciona, borrar las viejas por id
     const nuevasVentas = Object.entries(ventas)
       .filter(([, cant]) => cant > 0)
       .map(([key, cantidad]) => ({
@@ -129,14 +130,22 @@ function EditarSesionInner() {
         cantidad,
       }));
 
-    await Promise.all([
-      supabase.from("ventas").delete().eq("sesion_id", sesionId),
-      ...inventarioUpdates,
-    ]);
+    const { data: lineasViejas } = await supabase.from("ventas").select("id").eq("sesion_id", sesionId);
 
     if (nuevasVentas.length > 0) {
-      await supabase.from("ventas").insert(nuevasVentas);
+      const { error: insertError } = await supabase.from("ventas").insert(nuevasVentas);
+      if (insertError) {
+        alert(`Error guardando las ventas — no se cambió nada:\n${insertError.message}`);
+        setSubmitting(false);
+        return;
+      }
     }
+
+    const idsViejos = (lineasViejas || []).map((l) => l.id);
+    if (idsViejos.length > 0) {
+      await supabase.from("ventas").delete().in("id", idsViejos);
+    }
+    await Promise.all(inventarioUpdates);
 
     router.push("/estadisticas");
   }
@@ -241,7 +250,7 @@ function EditarSesionInner() {
                                 type="number"
                                 min={0}
                                 value={ventas[`${p.id}-A4`] || 0}
-                                onChange={(e) => setVentas((prev) => ({ ...prev, [`${p.id}-A4`]: parseInt(e.target.value) || 0 }))}
+                                onChange={(e) => setVentas((prev) => ({ ...prev, [`${p.id}-A4`]: Math.max(0, parseInt(e.target.value) || 0) }))}
                                 className="w-16 text-center text-sm border border-gray-200 rounded-lg py-1 focus:outline-none focus:border-black"
                               />
                               {invA4 && <span className="text-xs text-gray-400">stock: {invA4.cantidad}</span>}
@@ -253,7 +262,7 @@ function EditarSesionInner() {
                                 type="number"
                                 min={0}
                                 value={ventas[`${p.id}-A3`] || 0}
-                                onChange={(e) => setVentas((prev) => ({ ...prev, [`${p.id}-A3`]: parseInt(e.target.value) || 0 }))}
+                                onChange={(e) => setVentas((prev) => ({ ...prev, [`${p.id}-A3`]: Math.max(0, parseInt(e.target.value) || 0) }))}
                                 className="w-16 text-center text-sm border border-gray-200 rounded-lg py-1 focus:outline-none focus:border-black"
                               />
                               {invA3 && <span className="text-xs text-gray-400">stock: {invA3.cantidad}</span>}

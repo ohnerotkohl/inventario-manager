@@ -483,7 +483,7 @@ function TallaCell({ posterId, talla, stock, saving, editando, setEditando, guar
             pattern="[0-9]*"
             min={0}
             value={editando[key] !== undefined ? editando[key] : (stock?.cantidad ?? 0)}
-            onChange={(e) => setEditando((prev) => ({ ...prev, [key]: parseInt(e.target.value) || 0 }))}
+            onChange={(e) => setEditando((prev) => ({ ...prev, [key]: Math.max(0, parseInt(e.target.value) || 0) }))}
             onFocus={(e) => e.target.select()}
             onBlur={() => guardarCantidad(posterId, talla)}
             className={`w-12 text-center text-sm font-semibold border rounded-lg py-1 focus:outline-none transition-colors ${

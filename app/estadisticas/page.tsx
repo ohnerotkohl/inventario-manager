@@ -123,7 +123,7 @@ export default function EstadisticasPage() {
           if (!v.sesiones?.fecha) return false;
           const desde = new Date();
           desde.setDate(desde.getDate() - parseInt(periodo));
-          return new Date(v.sesiones.fecha) >= desde;
+          return new Date(v.sesiones.fecha + "T12:00:00") >= desde;
         })
       : ventas;
 
@@ -204,14 +204,14 @@ export default function EstadisticasPage() {
       const totalActual = ventas
         .filter((v) => {
           if (!v.sesiones?.fecha) return false;
-          const f = new Date(v.sesiones.fecha);
+          const f = new Date(v.sesiones.fecha + "T12:00:00");
           return f >= desdeActual && f <= hastaActual;
         })
         .reduce((a, v) => a + v.cantidad, 0);
       const totalAnterior = ventas
         .filter((v) => {
           if (!v.sesiones?.fecha) return false;
-          const f = new Date(v.sesiones.fecha);
+          const f = new Date(v.sesiones.fecha + "T12:00:00");
           return f >= desdeAnterior && f <= hastaAnterior;
         })
         .reduce((a, v) => a + v.cantidad, 0);
@@ -322,7 +322,7 @@ export default function EstadisticasPage() {
       if (desdeAnteriorMerc && hastaAnteriorMerc) {
         for (const v of ventas) {
           if (!v.sesiones?.fecha) continue;
-          const f = new Date(v.sesiones.fecha);
+          const f = new Date(v.sesiones.fecha + "T12:00:00");
           if (f >= desdeAnteriorMerc && f <= hastaAnteriorMerc) {
             const m = v.sesiones?.mercados?.nombre || "—";
             if (!acc[m]) acc[m] = { total: 0, sesiones: new Set(), topPosters: {}, totalAnterior: 0, semanaActual: 0, semanaAnterior: 0, porMes: Array(12).fill(0), porSemana: Array(N_SEMANAS).fill(0) };
@@ -376,12 +376,14 @@ export default function EstadisticasPage() {
       );
     }
 
-    // Por mes (siempre sobre todos los datos, sin filtro de periodo)
+    // Por mes (año actual, sin filtro de periodo — no mezclar años)
     const meses = Array(12).fill(0);
+    const anoActualMes = new Date().getFullYear();
     for (const v of ventas) {
       if (!v.sesiones?.fecha) continue;
-      const mes = new Date(v.sesiones.fecha).getMonth();
-      meses[mes] += v.cantidad;
+      const fMes = new Date(v.sesiones.fecha + "T12:00:00");
+      if (fMes.getFullYear() !== anoActualMes) continue;
+      meses[fMes.getMonth()] += v.cantidad;
     }
     setPorMes(meses);
 
@@ -1077,8 +1079,8 @@ export default function EstadisticasPage() {
                     {Object.entries(
                       s.posters.reduce((acc, p) => {
                         acc[p.nombre] = acc[p.nombre] || {};
-                        if (p.talla === "A4") acc[p.nombre].a4 = p.cantidad;
-                        if (p.talla === "A3") acc[p.nombre].a3 = p.cantidad;
+                        if (p.talla === "A4") acc[p.nombre].a4 = (acc[p.nombre].a4 || 0) + p.cantidad;
+                        if (p.talla === "A3") acc[p.nombre].a3 = (acc[p.nombre].a3 || 0) + p.cantidad;
                         return acc;
                       }, {} as { [n: string]: { a4?: number; a3?: number } })
                     ).sort((a, b) => Math.max(b[1].a4||0, b[1].a3||0) - Math.max(a[1].a4||0, a[1].a3||0))
