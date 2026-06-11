@@ -27,7 +27,39 @@ export interface Mercado {
   nombre: string
   dia_semana: string
   caja_id: string
+  costo_stand?: number
+  contabilidad?: 'negocio' | 'marcello' | 'nuria'
   cajas?: Caja
+}
+
+export interface GastoBalance {
+  nombre: string
+  monto: number
+  efectivo: boolean
+}
+
+export interface Balance {
+  id: string
+  mercado_id: string | null
+  mercado_nombre: string
+  fecha: string
+  trabajador: string
+  turno_tipo: 'na' | 'horas'
+  turno_horas: number
+  turno_tarifa: number
+  turno_costo: number
+  float_inicial: number
+  venta_sumup: number
+  venta_efectivo: number
+  venta_paypal: number
+  iva_aplicado: boolean
+  iva_monto: number
+  gastos: GastoBalance[]
+  total_gastos: number
+  total_ventas: number
+  neto: number
+  email_enviado: boolean
+  created_at: string
 }
 
 export interface Inventario {

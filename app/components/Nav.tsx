@@ -52,6 +52,15 @@ const ComprasIcon = () => (
   </svg>
 );
 
+const BalanceIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <path d="M15 9.5c-.6-1-1.7-1.5-3-1.5-1.8 0-3 1-3 2s.8 1.7 3 2c2.2.3 3 1 3 2s-1.2 2-3 2c-1.3 0-2.4-.5-3-1.5"/>
+    <line x1="12" y1="6" x2="12" y2="8"/>
+    <line x1="12" y1="16" x2="12" y2="18"/>
+  </svg>
+);
+
 const AdminIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
@@ -74,6 +83,7 @@ export default function Nav() {
     { href: "/inventario", label: t.stock, Icon: StockIcon },
     { href: "/restock", label: t.restock, Icon: RestockIcon },
     { href: "/sesion", label: t.session, Icon: SesionIcon },
+    { href: "/balance", label: t.balance, Icon: BalanceIcon },
     { href: "/estadisticas", label: t.stats, Icon: StatsIcon },
     { href: "/compras", label: t.purchases, Icon: ComprasIcon },
     { href: "/admin", label: t.team, Icon: AdminIcon },
@@ -81,6 +91,7 @@ export default function Nav() {
 
   const empleadoLinks = [
     { href: "/sesion", label: t.session, Icon: SesionIcon },
+    { href: "/balance", label: t.balance, Icon: BalanceIcon },
     { href: "/inventario", label: t.stock, Icon: StockIcon },
   ];
 
