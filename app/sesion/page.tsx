@@ -311,14 +311,24 @@ export default function SesionPage() {
             );
           }
         }
-        await Promise.all([
-          supabase.from("ventas").delete().eq("sesion_id", sesionId),
-          ...inventarioUpdates,
-        ]);
+        // Insertar primero las líneas nuevas; solo si funciona, borrar las viejas por id
+        const { data: lineasViejasMc } = await supabase.from("ventas").select("id").eq("sesion_id", sesionId);
         const ventasInsert = Object.entries(ventas)
           .filter(([, c]) => c > 0)
           .map(([key, cantidad]) => ({ sesion_id: sesionId, poster_id: key.slice(0, -3), talla: key.slice(-2), cantidad }));
-        if (ventasInsert.length > 0) await supabase.from("ventas").insert(ventasInsert);
+        if (ventasInsert.length > 0) {
+          const { error: insertErrorMc } = await supabase.from("ventas").insert(ventasInsert);
+          if (insertErrorMc) {
+            alert(`${t.saveError}\n${insertErrorMc.message}`);
+            setSubmitting(false);
+            return;
+          }
+        }
+        const idsViejosMc = (lineasViejasMc || []).map((l) => l.id);
+        if (idsViejosMc.length > 0) {
+          await supabase.from("ventas").delete().in("id", idsViejosMc);
+        }
+        await Promise.all(inventarioUpdates);
 
       } else {
         // Mismo mercado: calcular diferencias
@@ -332,23 +342,35 @@ export default function SesionPage() {
           const newCantidad = ventas[key] || 0;
           const diff = newCantidad - oldCantidad;
 
-          if (diff === 0) continue;
-
-          const invItem = inventario.find((i) => i.poster_id === posterId && i.talla === talla);
-          if (invItem) {
-            const nuevaCantidad = Math.max(0, invItem.cantidad - diff);
-            inventarioUpdates.push(
-              supabase.from("inventario").update({ cantidad: nuevaCantidad, out: nuevaCantidad === 0 }).eq("id", invItem.id).then(() => { return; })
-            );
+          if (diff !== 0) {
+            const invItem = inventario.find((i) => i.poster_id === posterId && i.talla === talla);
+            if (invItem) {
+              const nuevaCantidad = Math.max(0, invItem.cantidad - diff);
+              inventarioUpdates.push(
+                supabase.from("inventario").update({ cantidad: nuevaCantidad, out: nuevaCantidad === 0 }).eq("id", invItem.id).then(() => { return; })
+              );
+            }
           }
+          // Re-insertar TODAS las líneas con cantidad > 0 (no solo las cambiadas):
+          // el delete de abajo borra todas las ventas de la sesión
           if (newCantidad > 0) ventasUpsert.push({ sesion_id: sesionId, poster_id: posterId, talla, cantidad: newCantidad });
         }
 
-        await Promise.all([
-          supabase.from("ventas").delete().eq("sesion_id", sesionId),
-          ...inventarioUpdates,
-        ]);
-        if (ventasUpsert.length > 0) await supabase.from("ventas").insert(ventasUpsert);
+        // Insertar primero las líneas nuevas; solo si funciona, borrar las viejas por id
+        const { data: lineasViejas } = await supabase.from("ventas").select("id").eq("sesion_id", sesionId);
+        if (ventasUpsert.length > 0) {
+          const { error: insertError } = await supabase.from("ventas").insert(ventasUpsert);
+          if (insertError) {
+            alert(`${t.saveError}\n${insertError.message}`);
+            setSubmitting(false);
+            return;
+          }
+        }
+        const idsViejos = (lineasViejas || []).map((l) => l.id);
+        if (idsViejos.length > 0) {
+          await supabase.from("ventas").delete().in("id", idsViejos);
+        }
+        await Promise.all(inventarioUpdates);
       }
 
       setModoEdicion(false);
@@ -412,8 +434,15 @@ export default function SesionPage() {
         }
       }
 
+      if (ventasInsert.length > 0) {
+        const { error: insertErrorNuevo } = await supabase.from("ventas").insert(ventasInsert);
+        if (insertErrorNuevo) {
+          alert(`${t.saveError}\n${insertErrorNuevo.message}`);
+          setSubmitting(false);
+          return;
+        }
+      }
       await Promise.all([
-        ventasInsert.length > 0 ? supabase.from("ventas").insert(ventasInsert) : Promise.resolve(),
         ...ventasUpdate.map((v) => supabase.from("ventas").update({ cantidad: v.cantidad }).eq("id", v.id)),
         ...inventarioUpdates,
       ]);
