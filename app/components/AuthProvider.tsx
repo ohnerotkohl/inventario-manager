@@ -36,7 +36,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     // Refresca permisos desde Supabase en cada carga
     supabase
       .from("usuarios")
-      .select("id, nombre, rol, puede_inventario, activo")
+      .select("*")
       .eq("id", session.id)
       .single()
       .then(({ data }) => {
@@ -50,6 +50,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
             nombre: data.nombre,
             rol: data.rol,
             puede_inventario: data.puede_inventario,
+            cajas_permitidas: data.cajas_permitidas ?? null,
           };
           setSession(fresh);
           setUser(fresh);

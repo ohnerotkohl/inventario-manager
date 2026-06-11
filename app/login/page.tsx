@@ -13,6 +13,7 @@ interface UsuarioRow {
   pin_hash: string;
   rol: "admin" | "empleado";
   puede_inventario: boolean;
+  cajas_permitidas: string[] | null;
 }
 
 export default function LoginPage() {
@@ -32,7 +33,7 @@ export default function LoginPage() {
     }
     supabase
       .from("usuarios")
-      .select("id, nombre, pin_hash, rol, puede_inventario")
+      .select("*")
       .eq("activo", true)
       .order("nombre")
       .then(({ data }) => {
@@ -65,6 +66,7 @@ export default function LoginPage() {
       nombre: selected.nombre,
       rol: selected.rol,
       puede_inventario: selected.puede_inventario,
+      cajas_permitidas: selected.cajas_permitidas ?? null,
     };
     setSession(user);
     router.replace("/");

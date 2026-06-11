@@ -29,6 +29,8 @@ const es = {
   addBtn: "+ Añadir", newUser: "Nuevo usuario", createUser: "Crear usuario",
   newPin: "Nuevo PIN (4 dígitos)", savePin: "Guardar PIN", changePin: "🔑 Cambiar PIN",
   canCountStock: "Puede hacer conteo de stock",
+  allowedBoxes: "Stocks que puede contar:",
+  allBoxesAllowed: "todas",
   nameAndPin4Required: "Nombre y PIN de exactamente 4 dígitos son requeridos.",
   pinMustBe4Exact: "El PIN debe tener 4 dígitos.",
   // Dashboard
@@ -45,6 +47,9 @@ const es = {
   boxStatus: "Estado de cajas", latestSessions: "Últimas sesiones",
   // Inventory
   inventory: "Inventario", inventorySubtitle: "Stock por caja y póster",
+  selectBoxFirst: "Selecciona el mercado que vas a contar",
+  canEditBadge: "puedes editar", readOnlyBadge: "solo lectura",
+  changeBox: "← Cambiar mercado",
   readOnlyMode: "Modo lectura — pide autorización a un admin para editar el stock.",
   soldOutTitle: "Sold Out", missingSampleTitle: "Falta sample",
   // Session
@@ -139,6 +144,8 @@ const en: typeof es = {
   addBtn: "+ Add", newUser: "New user", createUser: "Create user",
   newPin: "New PIN (4 digits)", savePin: "Save PIN", changePin: "🔑 Change PIN",
   canCountStock: "Can do stock count",
+  allowedBoxes: "Stocks they can count:",
+  allBoxesAllowed: "all",
   nameAndPin4Required: "Name and a 4-digit PIN are required.",
   pinMustBe4Exact: "PIN must be 4 digits.",
   dashboard: "Dashboard", dashboardSubtitle: "Ohne Rotkohl overview",
@@ -153,6 +160,9 @@ const en: typeof es = {
   remaining: "{qty} {unit} left", registerSession: "Register market session",
   boxStatus: "Box status", latestSessions: "Latest sessions",
   inventory: "Inventory", inventorySubtitle: "Stock by box and poster",
+  selectBoxFirst: "Select the market you are going to count",
+  canEditBadge: "can edit", readOnlyBadge: "read only",
+  changeBox: "← Change market",
   readOnlyMode: "Read-only — ask an admin to authorize stock editing.",
   soldOutTitle: "Sold Out", missingSampleTitle: "Missing sample",
   sessions: "Sessions", sessionsSubtitle: "Record market sales",

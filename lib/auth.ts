@@ -3,6 +3,8 @@ export interface Usuario {
   nombre: string;
   rol: "admin" | "empleado";
   puede_inventario: boolean;
+  // NULL/undefined = todas las cajas; array = solo esas cajas
+  cajas_permitidas?: string[] | null;
 }
 
 const SESSION_KEY = "or_session";

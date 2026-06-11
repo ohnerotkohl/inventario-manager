@@ -76,6 +76,11 @@ export default function RestockPage() {
   const [saveError, setSaveError] = useState("");
   const [mercadoMins, setMercadoMins] = useState({ minBajo: 3, minMedio: 4, minTop: 8, topN: 5, nombre: "" });
 
+  // El nombre del trabajador viene del usuario logueado
+  useEffect(() => {
+    if (user?.nombre) setTrabajador((prev) => prev || user.nombre);
+  }, [user]);
+
   function toggleSerie(id: string) {
     setCollapsed((prev) => {
       const next = new Set(prev);

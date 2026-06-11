@@ -73,9 +73,19 @@ function InventarioInner() {
   const params = useSearchParams();
   const { user } = useAuth();
   const { t, tr } = useLang();
-  const readOnly = user?.rol === "empleado" && !user?.puede_inventario;
   const [cajas, setCajas] = useState<Caja[]>([]);
   const [cajaId, setCajaId] = useState<string>("");
+
+  // Permiso por caja: admin = todas; empleado con puede_inventario =
+  // solo sus cajas_permitidas (NULL = todas); resto = solo lectura
+  const puedeEditarCaja = useCallback((id: string) => {
+    if (!user) return false;
+    if (user.rol === "admin") return true;
+    if (!user.puede_inventario) return false;
+    if (!user.cajas_permitidas) return true;
+    return user.cajas_permitidas.includes(id);
+  }, [user]);
+  const readOnly = !puedeEditarCaja(cajaId);
   const [series, setSeries] = useState<Serie[]>([]);
   const [posters, setPosters] = useState<PosterConStock[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,9 +107,10 @@ function InventarioInner() {
     supabase.from("cajas").select("*").then(({ data }) => {
       if (data && data.length > 0) {
         setCajas(data);
+        // Solo preseleccionar si viene por URL; si no, mostrar el panel de selección
         const paramCaja = params.get("caja");
         const found = data.find((c) => c.nombre.replace(/ /g, '-') === paramCaja || c.id === paramCaja);
-        setCajaId(found?.id || data[0].id);
+        if (found) setCajaId(found.id);
       }
     });
   }, [params]);
@@ -260,6 +271,36 @@ function InventarioInner() {
 
   const caja = cajas.find((c) => c.id === cajaId);
 
+  // Paso 1: seleccionar el mercado/caja antes de mostrar el stock
+  if (!cajaId) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">{t.inventory}</h1>
+          <p className="text-gray-500 text-sm">{t.selectBoxFirst}</p>
+        </div>
+        <div className="grid grid-cols-1 gap-3">
+          {cajas.map((c) => {
+            const editable = puedeEditarCaja(c.id);
+            return (
+              <button
+                key={c.id}
+                onClick={() => setCajaId(c.id)}
+                className="text-left bg-white border-2 border-gray-200 rounded-2xl px-5 py-4 hover:border-black transition-colors flex items-center justify-between"
+              >
+                <span className="font-semibold text-gray-900">{c.nombre}</span>
+                <span className={`text-xs px-2 py-1 rounded-full ${editable ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-400"}`}>
+                  {editable ? t.canEditBadge : t.readOnlyBadge}
+                </span>
+              </button>
+            );
+          })}
+          {cajas.length === 0 && <SkeletonPage />}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -272,19 +313,19 @@ function InventarioInner() {
         </div>
       )}
 
-      {/* Selector de caja */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {cajas.map((c) => (
-          <button
-            key={c.id}
-            onClick={() => setCajaId(c.id)}
-            className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-              cajaId === c.id ? "bg-black text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            {c.nombre}
-          </button>
-        ))}
+      {/* Caja seleccionada + botón cambiar */}
+      <div className="flex items-center justify-between bg-black text-white rounded-2xl px-4 py-3">
+        <span className="font-semibold">{caja?.nombre}</span>
+        <button
+          onClick={() => {
+            if (Object.keys(editando).length > 0 && !window.confirm(t.leaveConfirm)) return;
+            setEditando({});
+            setCajaId("");
+          }}
+          className="text-xs underline text-gray-300 hover:text-white transition-colors"
+        >
+          {t.changeBox}
+        </button>
       </div>
 
       {/* Floating save bar — fixed above nav, doesn't affect page layout */}

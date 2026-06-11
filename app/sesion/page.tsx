@@ -6,6 +6,7 @@ import type { Mercado, Poster, Serie, Inventario } from "@/lib/types";
 import { SkeletonList } from "@/app/components/Skeleton";
 import { Check, CheckCircle, Printer, Pencil, Dot } from "@/app/components/Icons";
 import { useLang } from "@/app/components/LangProvider";
+import { useAuth } from "@/app/components/AuthProvider";
 
 const SERIES_ORDER = [
   "Life is Food - Kitchen",
@@ -87,6 +88,7 @@ interface VentaEntry {
 
 export default function SesionPage() {
   const { t, tr } = useLang();
+  const { user } = useAuth();
   const [step, setStep] = useState<Step>("info");
   const [mercados, setMercados] = useState<Mercado[]>([]);
   const [mercadoId, setMercadoId] = useState("");
@@ -121,6 +123,11 @@ export default function SesionPage() {
   const [materiales, setMateriales] = useState<string[]>([]);
   const [showReview, setShowReview] = useState(false);
   const reviewPosterIdsRef = useRef<Set<string>>(new Set());
+
+  // El nombre del trabajador viene del usuario logueado
+  useEffect(() => {
+    if (user?.nombre) setTrabajador((prev) => prev || user.nombre);
+  }, [user]);
 
   useEffect(() => {
     supabase.from("mercados").select("*, cajas(*)").then(({ data }) => {
@@ -269,6 +276,23 @@ export default function SesionPage() {
 
   async function handleSubmit() {
     setSubmitting(true);
+
+    // Solo ideas/materiales/comisiones sin ventas (y sin editar):
+    // no crear sesión, solo guardar las notas y enviar el reporte
+    const totalVentasSubmit = Object.values(ventas).reduce((a, b) => a + b, 0);
+    if (!modoEdicion && totalVentasSubmit === 0) {
+      const mercadoNombreSolo = mercados.find((m) => m.id === mercadoId)?.nombre || "";
+      const extras: PromiseLike<unknown>[] = [];
+      if (notas.trim()) extras.push(supabase.from("comisiones").insert({ texto: notas.trim(), fecha, mercado: mercadoNombreSolo }));
+      if (ideas.trim()) extras.push(supabase.from("ideas").insert({ texto: ideas.trim(), fecha, mercado: mercadoNombreSolo }));
+      if (extras.length > 0) await Promise.all(extras);
+      setReporteImpresion({ a4: [], a3: [] });
+      setSesionId("");
+      setStep("confirmado");
+      setSubmitting(false);
+      enviarReporteEmail({ a4: [], a3: [] });
+      return;
+    }
 
     const mercado = mercados.find((m) => m.id === mercadoId);
     const inventarioUpdates: PromiseLike<void>[] = [];
@@ -460,11 +484,12 @@ export default function SesionPage() {
     }
     if (insertExtras.length > 0) await Promise.all(insertExtras);
 
-    await generarReporte(reportSesionId);
+    const reporte = await generarReporte(reportSesionId);
 
     setStep("confirmado");
     setSubmitting(false);
-    setEmailEnviado(false);
+    // Enviar el reporte por email automáticamente al confirmar
+    enviarReporteEmail(reporte);
   }
 
   async function generarReporte(sid: string) {
@@ -501,10 +526,16 @@ export default function SesionPage() {
     }
 
     setReporteImpresion({ a4, a3 });
+    return { a4, a3 };
   }
 
-  async function handleEnviarReporte() {
+  function handleEnviarReporte() {
+    return enviarReporteEmail(reporteImpresion);
+  }
+
+  async function enviarReporteEmail(reporte: { a4: { linea: string; stockRestante: number }[]; a3: { linea: string; stockRestante: number }[] }) {
     setEnviandoEmail(true);
+    setEmailEnviado(false);
     const mercadoNombre = mercados.find((m) => m.id === mercadoId)?.nombre || "";
     const ahora = new Date().toLocaleTimeString("es-DE", { hour: "2-digit", minute: "2-digit" });
     try {
@@ -516,8 +547,8 @@ export default function SesionPage() {
           fecha,
           trabajador: trabajador.trim(),
           hora: ahora,
-          a4: reporteImpresion.a4,
-          a3: reporteImpresion.a3,
+          a4: reporte.a4,
+          a3: reporte.a3,
           notas: notas.trim(),
           ideas: ideas.trim(),
           materiales: materiales.map(k => t[k as MaterialKey]),
@@ -630,8 +661,8 @@ export default function SesionPage() {
           </div>
         )}
 
-        {/* Botón seguir editando */}
-        <button
+        {/* Botón seguir editando (solo si hay sesión guardada) */}
+        {sesionId && <button
           onClick={async () => {
             // Cargar ventas actuales de la sesión para pre-rellenar
             const { data: ventasActuales } = await supabase
@@ -652,10 +683,10 @@ export default function SesionPage() {
           className="w-full border-2 border-black text-black py-3 rounded-2xl font-semibold hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
         >
           <Pencil size={16} /> {t.keepEditing}
-        </button>
+        </button>}
 
         {/* Botones compartir / email reporte */}
-        {(reporteImpresion.a4.length > 0 || reporteImpresion.a3.length > 0) && (
+        {(reporteImpresion.a4.length > 0 || reporteImpresion.a3.length > 0 || notas.trim() || ideas.trim() || materiales.length > 0) && (
           <div className="space-y-2">
             <button
               onClick={async () => {
@@ -1190,7 +1221,7 @@ export default function SesionPage() {
             </div>
             <button
               onClick={openReview}
-              disabled={submitting || (totalVentas === 0 && !notas.trim() && !ideas.trim())}
+              disabled={submitting || (totalVentas === 0 && !notas.trim() && !ideas.trim() && materiales.length === 0)}
               className="bg-black text-white px-5 py-2.5 rounded-xl font-semibold disabled:opacity-40 hover:bg-gray-900 transition-colors"
             >
               {submitting ? t.saving : t.confirm}

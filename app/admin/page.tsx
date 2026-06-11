@@ -13,6 +13,13 @@ interface UsuarioRow {
   rol: "admin" | "empleado";
   puede_inventario: boolean;
   activo: boolean;
+  // NULL = todas las cajas; array = solo esas
+  cajas_permitidas: string[] | null;
+}
+
+interface CajaRow {
+  id: string;
+  nombre: string;
 }
 
 export default function AdminPage() {
@@ -32,21 +39,37 @@ export default function AdminPage() {
   const [newPin, setNewPin] = useState("");
   const [pinError, setPinError] = useState("");
 
+  const [cajas, setCajas] = useState<CajaRow[]>([]);
+
   useEffect(() => {
     if (user && user.rol !== "admin") {
       router.replace("/");
       return;
     }
     fetchUsuarios();
+    supabase.from("cajas").select("id, nombre").order("nombre").then(({ data }) => setCajas(data ?? []));
   }, [user]);
 
   async function fetchUsuarios() {
     const { data } = await supabase
       .from("usuarios")
-      .select("id, nombre, rol, puede_inventario, activo")
+      .select("*")
       .order("nombre");
     setUsuarios(data ?? []);
     setLoading(false);
+  }
+
+  async function toggleCajaPermitida(u: UsuarioRow, cajaId: string) {
+    // NULL significa "todas": al quitar una, el set pasa a ser explícito
+    const actual = u.cajas_permitidas ?? cajas.map((c) => c.id);
+    const nuevas = actual.includes(cajaId)
+      ? actual.filter((id) => id !== cajaId)
+      : [...actual, cajaId];
+    const { error: err } = await supabase.from("usuarios").update({ cajas_permitidas: nuevas }).eq("id", u.id);
+    if (err) return;
+    setUsuarios((prev) => prev.map((x) => x.id === u.id ? { ...x, cajas_permitidas: nuevas } : x));
+    setSavedId(u.id);
+    setTimeout(() => setSavedId(null), 2000);
   }
 
   async function toggleActivo(u: UsuarioRow) {
@@ -211,15 +234,40 @@ export default function AdminPage() {
             )}
 
             {u.rol === "empleado" && (
-              <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={u.puede_inventario}
-                  onChange={() => toggleInventario(u)}
-                  className="w-4 h-4 rounded"
-                />
-                {t.canCountStock}
-              </label>
+              <div className="flex flex-col gap-2">
+                <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={u.puede_inventario}
+                    onChange={() => toggleInventario(u)}
+                    className="w-4 h-4 rounded"
+                  />
+                  {t.canCountStock}
+                </label>
+                {u.puede_inventario && (
+                  <div className="pl-6">
+                    <p className="text-xs text-gray-400 mb-1.5">{t.allowedBoxes}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {cajas.map((c) => {
+                        const permitida = !u.cajas_permitidas || u.cajas_permitidas.includes(c.id);
+                        return (
+                          <button
+                            key={c.id}
+                            onClick={() => toggleCajaPermitida(u, c.id)}
+                            className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                              permitida
+                                ? "bg-black text-white border-black"
+                                : "bg-white text-gray-400 border-gray-200 hover:border-gray-400"
+                            }`}
+                          >
+                            {c.nombre}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         ))}
