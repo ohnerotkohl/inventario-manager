@@ -41,12 +41,6 @@ interface ColesMove {
 
 const COLES_MES = 100;
 
-// Cada nivel de coles tiene su propio tornasol (1 verde-azul, 2 morado-rosa,
-// 3 naranja-rojo, 4 dorado)
-function colesTornasol(n: number): string {
-  return `coles-tornasol-${Math.min(4, Math.max(1, n))}`;
-}
-
 function hoy(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -243,8 +237,8 @@ export default function TareasPage() {
             <p className="text-sm font-semibold text-gray-900">{tarea.nombre}</p>
             {tarea.descripcion && <p className="text-xs text-gray-500 mt-0.5">{tarea.descripcion}</p>}
           </div>
-          <span className="shrink-0 text-xs font-bold bg-gray-900 rounded-full px-2.5 py-0.5">
-            <span className={colesTornasol(tarea.puntos_coles)}>{tr("colesN", { n: tarea.puntos_coles })}</span>
+          <span className="shrink-0 text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200 rounded-full px-2 py-0.5">
+            {tr("colesN", { n: tarea.puntos_coles })}
           </span>
         </div>
         <div className="flex flex-wrap gap-1.5 text-[10px]">
@@ -311,27 +305,15 @@ export default function TareasPage() {
           <button
             key={tb.id}
             onClick={() => setTab(tb.id)}
-            className={`flex-1 py-2.5 rounded-xl font-medium text-xs transition-colors ${tab === tb.id ? "bg-black text-white" : "bg-gray-100 text-gray-600"}`}
+            className={`flex-1 py-2.5 px-0.5 rounded-xl font-medium text-[11px] whitespace-nowrap transition-colors ${tab === tb.id ? "bg-black text-white" : "bg-gray-100 text-gray-600"}`}
           >
             {tb.label}
-            {tb.badge > 0 && <span className="ml-1.5 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{tb.badge}</span>}
+            {tb.badge > 0 && <span className="ml-1 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{tb.badge}</span>}
           </button>
         ))}
       </div>
 
       {tab === "activas" && (
-        <div className="space-y-3">
-          {activas.length === 0 && <p className="text-sm text-gray-400 text-center py-8">{t.noActiveTasks}</p>}
-          {[...activas].sort((a, b) => {
-            const aa = estaAtrasada(a) ? 0 : 1;
-            const bb = estaAtrasada(b) ? 0 : 1;
-            if (aa !== bb) return aa - bb;
-            return (a.proxima_fecha || "9999").localeCompare(b.proxima_fecha || "9999");
-          }).map((tarea) => <TareaCard key={tarea.id} tarea={tarea} />)}
-        </div>
-      )}
-
-      {tab === "pendientes" && (
         <div className="space-y-3">
           {/* Nueva tarea */}
           {formAbierto ? (
@@ -432,12 +414,24 @@ export default function TareasPage() {
           ) : (
             <button
               onClick={() => setFormAbierto(true)}
-              className="w-full text-left text-sm text-gray-400 border border-dashed border-gray-300 rounded-2xl px-4 py-3 hover:border-black hover:text-black transition-colors"
+              className="w-full py-3 rounded-xl bg-emerald-600 text-white font-medium text-sm hover:bg-emerald-700 transition-colors"
             >
               {t.newTask}
             </button>
           )}
 
+          {activas.length === 0 && <p className="text-sm text-gray-400 text-center py-8">{t.noActiveTasks}</p>}
+          {[...activas].sort((a, b) => {
+            const aa = estaAtrasada(a) ? 0 : 1;
+            const bb = estaAtrasada(b) ? 0 : 1;
+            if (aa !== bb) return aa - bb;
+            return (a.proxima_fecha || "9999").localeCompare(b.proxima_fecha || "9999");
+          }).map((tarea) => <TareaCard key={tarea.id} tarea={tarea} />)}
+        </div>
+      )}
+
+      {tab === "pendientes" && (
+        <div className="space-y-3">
           {pendientes.length === 0 && <p className="text-sm text-gray-400 text-center py-8">{t.noTasks}</p>}
           {/* Atrasadas primero, luego por fecha límite */}
           {[...pendientes].sort((a, b) => {
@@ -458,9 +452,7 @@ export default function TareasPage() {
                 <p className="text-sm text-gray-500 line-through">{tarea.nombre}</p>
                 <p className="text-[11px] text-gray-400">{t.completedOn} · {tarea.updated_at.slice(0, 10)}</p>
               </div>
-              <span className="shrink-0 text-xs font-bold bg-gray-900 rounded-full px-2.5 py-0.5">
-                <span className={colesTornasol(tarea.puntos_coles)}>{tr("colesN", { n: tarea.puntos_coles })}</span>
-              </span>
+              <span className="shrink-0 text-xs font-semibold text-purple-600">{tr("colesN", { n: tarea.puntos_coles })}</span>
             </div>
           ))}
         </div>
@@ -532,13 +524,9 @@ export default function TareasPage() {
                   <p className="text-xs text-gray-700 truncate">{m.motivo}</p>
                   <p className="text-[10px] text-gray-400">{m.usuario_nombre} · {m.created_at.slice(0, 10)}</p>
                 </div>
-                {m.coles_delta < 0 ? (
-                  <span className="shrink-0 text-xs font-bold bg-gray-900 rounded-full px-2.5 py-0.5">
-                    <span className={colesTornasol(-m.coles_delta)}>{m.coles_delta}</span>
-                  </span>
-                ) : (
-                  <span className="shrink-0 text-xs font-bold text-gray-500">+{m.coles_delta}</span>
-                )}
+                <span className={`shrink-0 text-xs font-bold ${m.coles_delta < 0 ? "text-purple-600" : "text-gray-500"}`}>
+                  {m.coles_delta}
+                </span>
               </div>
             ))}
           </div>

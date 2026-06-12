@@ -83,32 +83,3 @@ textarea {
 .icono-tornasol {
   animation: tornasol-color 5s ease-in-out infinite;
 }
-
-/* Chips de coles: cada nivel con su tornasol (texto enmascarado, fondo oscuro)
-   1 = verde-azul · 2 = morado-rosa · 3 = naranja-rojo · 4 = dorado (top) */
-.coles-tornasol-1,
-.coles-tornasol-2,
-.coles-tornasol-3,
-.coles-tornasol-4 {
-  background-size: 300% 100%;
-  animation: tornasol 5s ease-in-out infinite;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-.coles-tornasol-1 {
-  background-image: linear-gradient(90deg, #2eb87a, #06b6d4, #3b82f6, #34d399, #2eb87a);
-}
-
-.coles-tornasol-2 {
-  background-image: linear-gradient(90deg, #a855f7, #ec4899, #f0abfc, #8b5cf6, #a855f7);
-}
-
-.coles-tornasol-3 {
-  background-image: linear-gradient(90deg, #f97316, #e03c2b, #fb923c, #ef4444, #f97316);
-}
-
-.coles-tornasol-4 {
-  background-image: linear-gradient(90deg, #f0d848, #d4a017, #fde68a, #eab308, #f0d848);
-}
