@@ -7,7 +7,7 @@ import { useAuth } from "@/app/components/AuthProvider";
 import { useLang } from "@/app/components/LangProvider";
 import { SkeletonPage } from "@/app/components/Skeleton";
 
-type Tab = "pendientes" | "completadas" | "coles";
+type Tab = "activas" | "pendientes" | "completadas" | "coles";
 type Frecuencia = "diaria" | "semanal" | "mensual" | "puntual";
 type Dificultad = "simple" | "media" | "compleja";
 
@@ -24,6 +24,9 @@ interface Tarea {
   dificultad: Dificultad;
   puntos_coles: number;
   estado: "pendiente" | "atrasada" | "completada" | "urgente";
+  rotacion: boolean;
+  orden_rotacion: string[];
+  rotacion_idx: number;
   created_at: string;
   updated_at: string;
 }
@@ -47,7 +50,7 @@ export default function TareasPage() {
   const { t, tr } = useLang();
   const router = useRouter();
   const { user } = useAuth();
-  const [tab, setTab] = useState<Tab>("pendientes");
+  const [tab, setTab] = useState<Tab>("activas");
   const [tareas, setTareas] = useState<Tarea[]>([]);
   const [usuarios, setUsuarios] = useState<UsuarioMin[]>([]);
   const [coles, setColes] = useState<ColesMove[]>([]);
@@ -66,6 +69,9 @@ export default function TareasPage() {
   const [fFecha, setFFecha] = useState("");
   const [fDificultad, setFDificultad] = useState<Dificultad>("media");
   const [fColes, setFColes] = useState(2);
+  const [fRotacion, setFRotacion] = useState(false);
+  const [fEmpieza, setFEmpieza] = useState("");
+  const [fCiclos, setFCiclos] = useState(2);
   const [creando, setCreando] = useState(false);
 
   useEffect(() => {
@@ -91,7 +97,9 @@ export default function TareasPage() {
   const admins = usuarios.filter((u) => u.rol === "admin");
   const nombreDe = (id: string | null) => usuarios.find((u) => u.id === id)?.nombre || null;
 
-  const pendientes = tareas.filter((tarea) => tarea.estado !== "completada");
+  // Activas = recurrentes (mantenimiento que siempre corre); Pendientes = puntuales por hacer
+  const activas = tareas.filter((tarea) => tarea.frecuencia !== "puntual" && tarea.estado !== "completada");
+  const pendientes = tareas.filter((tarea) => tarea.frecuencia === "puntual" && tarea.estado !== "completada");
   const completadas = tareas.filter((tarea) => tarea.estado === "completada");
 
   function estaAtrasada(tarea: Tarea): boolean {
@@ -106,22 +114,34 @@ export default function TareasPage() {
   async function crearTarea() {
     if (!fNombre.trim() || creando) return;
     setCreando(true);
+    // Rotación: lista con turnos repetidos, ej. [A,A,B,B] = 2 turnos cada uno
+    const rotacionActiva = fRotacion && fFrecuencia !== "puntual" && admins.length > 1;
+    let orden: string[] = [];
+    if (rotacionActiva) {
+      const primero = fEmpieza || admins[0].id;
+      const resto = admins.filter((a) => a.id !== primero).map((a) => a.id);
+      orden = [primero, ...resto].flatMap((id) => Array(Math.max(1, fCiclos)).fill(id));
+    }
     const { error } = await supabase.from("tareas").insert({
       nombre: fNombre.trim(),
       descripcion: fDescripcion.trim() || null,
       categoria: fCategoria,
-      asignada_a: fAsignada || null,
+      asignada_a: rotacionActiva ? orden[0] : (fAsignada || null),
       frecuencia: fFrecuencia,
       proxima_fecha: fFecha || null,
       dificultad: fDificultad,
       puntos_coles: fColes,
       estado: "pendiente",
+      rotacion: rotacionActiva,
+      orden_rotacion: orden,
+      rotacion_idx: 0,
       creada_por: user?.id || null,
     });
     setCreando(false);
     if (error) { alert(t.saveError); return; }
     setFNombre(""); setFDescripcion(""); setFCategoria("Otra"); setFAsignada("");
     setFFrecuencia("puntual"); setFFecha(""); setDificultad("media");
+    setFRotacion(false); setFEmpieza(""); setFCiclos(2);
     setFormAbierto(false);
     fetchData();
   }
@@ -137,11 +157,23 @@ export default function TareasPage() {
   async function completarTarea(tarea: Tarea, usuarioId: string) {
     const quien = usuarios.find((u) => u.id === usuarioId);
     if (!quien) return;
-    // Las recurrentes no se cierran: avanzan a la siguiente fecha
-    if (tarea.frecuencia !== "puntual" && tarea.proxima_fecha) {
+    let mensajeExtra = "";
+    // Las recurrentes no se cierran: avanzan a la siguiente fecha (y rotan el turno)
+    if (tarea.frecuencia !== "puntual") {
+      let nuevaAsignada = tarea.asignada_a;
+      let nuevoIdx = tarea.rotacion_idx;
+      if (tarea.rotacion && (tarea.orden_rotacion || []).length > 1) {
+        nuevoIdx = (tarea.rotacion_idx + 1) % tarea.orden_rotacion.length;
+        nuevaAsignada = tarea.orden_rotacion[nuevoIdx];
+        if (nuevaAsignada !== tarea.asignada_a) {
+          mensajeExtra = ` → ${tr("rotationNextUp", { name: nombreDe(nuevaAsignada) || "" })}`;
+        }
+      }
       await supabase.from("tareas").update({
-        proxima_fecha: avanzarFecha(tarea.proxima_fecha, tarea.frecuencia),
+        proxima_fecha: tarea.proxima_fecha ? avanzarFecha(tarea.proxima_fecha, tarea.frecuencia) : null,
         estado: "pendiente",
+        asignada_a: nuevaAsignada,
+        rotacion_idx: nuevoIdx,
       }).eq("id", tarea.id);
     } else {
       await supabase.from("tareas").update({ estado: "completada" }).eq("id", tarea.id);
@@ -154,7 +186,7 @@ export default function TareasPage() {
       tarea_id: tarea.id,
     });
     setCompletando(null);
-    setAviso(tr("taskCompletedMsg", { name: tarea.nombre }));
+    setAviso(tr("taskCompletedMsg", { name: tarea.nombre }) + mensajeExtra);
     setTimeout(() => setAviso(""), 3500);
     fetchData();
   }
@@ -177,6 +209,17 @@ export default function TareasPage() {
   }
   const ranking = [...reducidasPor.entries()].sort((a, b) => b[1] - a[1]);
   const nombreMesActual = `${t.months[parseInt(mesActual.slice(5)) - 1]} ${mesActual.slice(0, 4)}`;
+
+  // ── Historial de coles mes a mes (meses anteriores) ──
+  const porMesColes = new Map<string, Map<string, number>>();
+  for (const m of coles) {
+    const ym = m.created_at.slice(0, 7);
+    if (ym === mesActual) continue;
+    const mes = porMesColes.get(ym) || new Map<string, number>();
+    mes.set(m.usuario_nombre, (mes.get(m.usuario_nombre) || 0) - m.coles_delta);
+    porMesColes.set(ym, mes);
+  }
+  const historialColes = [...porMesColes.entries()].sort((a, b) => b[0].localeCompare(a[0]));
 
   const freqLabel: Record<Frecuencia, string> = {
     diaria: t.freqDaily, semanal: t.freqWeekly, mensual: t.freqMonthly, puntual: t.freqOnce,
@@ -202,6 +245,11 @@ export default function TareasPage() {
           <span className="bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">{tarea.categoria}</span>
           <span className="bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">{freqLabel[tarea.frecuencia]}</span>
           {asignada && <span className="bg-blue-50 text-blue-700 rounded-full px-2 py-0.5">{asignada}</span>}
+          {tarea.rotacion && (tarea.orden_rotacion || []).length > 1 && (
+            <span className="bg-purple-50 text-purple-700 rounded-full px-2 py-0.5">
+              {t.rotatingBadge} · {tr("rotationNextUp", { name: nombreDe(tarea.orden_rotacion[(tarea.rotacion_idx + 1) % tarea.orden_rotacion.length]) || "—" })}
+            </span>
+          )}
           {tarea.proxima_fecha && (
             <span className={`rounded-full px-2 py-0.5 ${atrasada ? "bg-red-50 text-red-600 font-semibold" : "bg-gray-100 text-gray-600"}`}>
               {atrasada ? `⚠ ${t.overdueBadge} · ` : ""}{tarea.proxima_fecha}
@@ -247,8 +295,9 @@ export default function TareasPage() {
       {aviso && <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-xl px-4 py-3">{aviso}</div>}
 
       {/* Tabs */}
-      <div className="flex gap-2">
+      <div className="flex gap-1.5">
         {([
+          { id: "activas", label: t.activeTab, badge: activas.filter(estaAtrasada).length },
           { id: "pendientes", label: t.pendingTab, badge: pendientes.length },
           { id: "completadas", label: t.completedTab, badge: 0 },
           { id: "coles", label: t.colesTab, badge: 0 },
@@ -256,13 +305,25 @@ export default function TareasPage() {
           <button
             key={tb.id}
             onClick={() => setTab(tb.id)}
-            className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-colors ${tab === tb.id ? "bg-black text-white" : "bg-gray-100 text-gray-600"}`}
+            className={`flex-1 py-2.5 rounded-xl font-medium text-xs transition-colors ${tab === tb.id ? "bg-black text-white" : "bg-gray-100 text-gray-600"}`}
           >
             {tb.label}
-            {tb.badge > 0 && <span className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">{tb.badge}</span>}
+            {tb.badge > 0 && <span className="ml-1.5 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{tb.badge}</span>}
           </button>
         ))}
       </div>
+
+      {tab === "activas" && (
+        <div className="space-y-3">
+          {activas.length === 0 && <p className="text-sm text-gray-400 text-center py-8">{t.noActiveTasks}</p>}
+          {[...activas].sort((a, b) => {
+            const aa = estaAtrasada(a) ? 0 : 1;
+            const bb = estaAtrasada(b) ? 0 : 1;
+            if (aa !== bb) return aa - bb;
+            return (a.proxima_fecha || "9999").localeCompare(b.proxima_fecha || "9999");
+          }).map((tarea) => <TareaCard key={tarea.id} tarea={tarea} />)}
+        </div>
+      )}
 
       {tab === "pendientes" && (
         <div className="space-y-3">
@@ -293,6 +354,33 @@ export default function TareasPage() {
                 <label className="block text-xs text-gray-500 mb-1">{t.nextDate}</label>
                 <input type="date" value={fFecha} onChange={(e) => setFFecha(e.target.value)} className={inputClass} />
               </div>
+              {fFrecuencia !== "puntual" && admins.length > 1 && (
+                <div className="bg-purple-50 border border-purple-100 rounded-xl p-3 space-y-2">
+                  <label className="flex items-center justify-between cursor-pointer">
+                    <span className="text-sm text-purple-900">{t.rotationToggle}</span>
+                    <input type="checkbox" checked={fRotacion} onChange={(e) => setFRotacion(e.target.checked)} className="w-5 h-5 accent-purple-700" />
+                  </label>
+                  {fRotacion && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] text-purple-700 mb-1">{t.rotationStartsWith}</label>
+                        <select value={fEmpieza} onChange={(e) => setFEmpieza(e.target.value)} className={inputClass}>
+                          {admins.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] text-purple-700 mb-1">{t.rotationCycles}</label>
+                        <input
+                          type="number" inputMode="numeric" min={1} max={8}
+                          value={fCiclos}
+                          onChange={(e) => setFCiclos(Math.max(1, parseInt(e.target.value) || 1))}
+                          className={inputClass}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
               <div>
                 <label className="block text-xs text-gray-500 mb-1">{t.difficulty}</label>
                 <div className="flex gap-2">
@@ -398,6 +486,35 @@ export default function TareasPage() {
               );
             })}
           </div>
+
+          {/* Historial mes a mes */}
+          {historialColes.length > 0 && (
+            <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-500">{t.colesHistoryTitle}</p>
+              {historialColes.map(([ym, porPersona]) => {
+                const filas = [...porPersona.entries()].sort((a, b) => b[1] - a[1]);
+                const max = Math.max(1, ...filas.map(([, n]) => n));
+                return (
+                  <div key={ym}>
+                    <p className="text-sm font-semibold text-gray-800 mb-1.5">
+                      {t.months[parseInt(ym.slice(5)) - 1]} {ym.slice(0, 4)}
+                    </p>
+                    {filas.map(([nombre, reducidas], idx) => (
+                      <div key={nombre} className="mb-1.5">
+                        <div className="flex justify-between items-baseline mb-0.5">
+                          <span className="text-xs text-gray-700">{idx === 0 && reducidas > 0 ? "🥬 " : ""}{nombre}</span>
+                          <span className="text-xs font-semibold text-emerald-600">−{reducidas}</span>
+                        </div>
+                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full bg-emerald-400" style={{ width: `${Math.round((reducidas / max) * 100)}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
             <p className="text-xs font-bold uppercase tracking-wider text-gray-500 px-4 pt-4 pb-2">{t.latestColesMoves}</p>
