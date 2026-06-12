@@ -62,7 +62,6 @@ export default function FeedbackWidget() {
   const [enviando, setEnviando] = useState(false);
   const [gracias, setGracias] = useState(false);
   const [lista, setLista] = useState<Feedback[]>([]);
-  const [mios, setMios] = useState<Feedback[]>([]);
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [soportaVoz, setSoportaVoz] = useState(false);
   const [grabando, setGrabando] = useState(false);
@@ -143,9 +142,8 @@ export default function FeedbackWidget() {
     setGracias(false);
     const { data } = await supabase.from("feedback").select("*").order("created_at", { ascending: false }).limit(30);
     const todos = (data as Feedback[]) || [];
-    setMios(todos.filter((f) => f.usuario_nombre === user?.nombre));
-    // En recibidos solo lo del resto del equipo: los propios viven en "Tus enviados"
-    if (esAdmin) setLista(todos.filter((f) => f.usuario_nombre !== user?.nombre));
+    // Una sola lista: los admins ven todo, los empleados solo lo suyo
+    setLista(esAdmin ? todos : todos.filter((f) => f.usuario_nombre === user?.nombre));
   }
 
   async function enviar() {
@@ -259,39 +257,29 @@ export default function FeedbackWidget() {
             </div>
             {gracias && <p className="text-sm text-emerald-600 text-center">✓ {t.feedbackThanks}</p>}
 
-            {/* Tus feedbacks: toca uno para editarlo si te faltó algo */}
-            {mios.length > 0 && (
+            {lista.length > 0 && (
               <div className="border-t border-gray-100 pt-3 space-y-2">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-gray-500">{t.myFeedbacks}</p>
-                  <p className="text-[10px] text-gray-400">{t.tapToEditFeedback}</p>
-                </div>
-                {mios.map((f) => (
-                  <button
-                    key={f.id}
-                    onClick={() => editarMio(f)}
-                    className={`w-full text-left rounded-lg px-3 py-2 border transition-colors ${editandoId === f.id ? "bg-purple-50 border-purple-200" : "bg-gray-50 border-transparent hover:border-gray-300"}`}
-                  >
-                    <p className="text-xs text-gray-800 line-clamp-2">{f.texto}</p>
-                    <p className="text-[10px] text-gray-400 mt-0.5">{f.created_at.slice(0, 10)}{f.pagina ? ` · ${f.pagina}` : ""}</p>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {esAdmin && (
-              <div className="border-t border-gray-100 pt-3 space-y-2">
-                <p className="text-xs font-bold uppercase tracking-wider text-gray-500">{t.feedbackListTitle}</p>
-                {lista.length === 0 && <p className="text-xs text-gray-400">{t.feedbackEmptyList}</p>}
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                  {esAdmin ? t.feedbackListTitle : t.myFeedbacks}
+                </p>
                 {lista.map((f) => (
-                  <div key={f.id} className="bg-gray-50 rounded-lg px-3 py-2 flex justify-between gap-2">
+                  <div key={f.id} className={`rounded-lg px-3 py-2 flex justify-between gap-2 ${editandoId === f.id ? "bg-purple-50 border border-purple-200" : "bg-gray-50"}`}>
                     <div className="min-w-0">
                       <p className="text-xs text-gray-800 whitespace-pre-wrap">{f.texto}</p>
                       <p className="text-[10px] text-gray-400 mt-1">
                         {f.usuario_nombre} · {f.created_at.slice(0, 10)}{f.pagina ? ` · ${f.pagina}` : ""}
                       </p>
                     </div>
-                    <button onClick={() => eliminar(f.id)} className="shrink-0 text-gray-300 hover:text-red-500 text-base leading-none">×</button>
+                    <div className="shrink-0 flex items-start gap-1.5">
+                      <button onClick={() => editarMio(f)} title={t.edit} className="text-gray-300 hover:text-black p-0.5">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M17 3a2.85 2.85 0 114 4L7.5 20.5 2 22l1.5-5.5z"/>
+                        </svg>
+                      </button>
+                      {esAdmin && (
+                        <button onClick={() => eliminar(f.id)} className="text-gray-300 hover:text-red-500 text-base leading-none">×</button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
