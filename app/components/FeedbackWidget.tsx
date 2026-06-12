@@ -10,11 +10,12 @@ type Reconocedor = {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
-  onresult: ((e: { resultIndex: number; results: { isFinal: boolean; 0: { transcript: string } }[] }) => void) | null;
+  onresult: ((e: { resultIndex: number; results: { length: number; [i: number]: { isFinal: boolean; 0: { transcript: string } } } }) => void) | null;
   onend: (() => void) | null;
   onerror: (() => void) | null;
   start: () => void;
   stop: () => void;
+  abort: () => void;
 };
 
 function crearReconocedor(): Reconocedor | null {
@@ -43,6 +44,9 @@ export default function FeedbackWidget() {
   const [soportaVoz, setSoportaVoz] = useState(false);
   const [grabando, setGrabando] = useState(false);
   const reconocedorRef = useRef<Reconocedor | null>(null);
+  // Safari a veces solo entrega resultados provisionales: los guardamos
+  // para no perder el dictado al parar
+  const provisionalRef = useRef("");
 
   useEffect(() => {
     setSoportaVoz(crearReconocedor() !== null);
@@ -51,9 +55,28 @@ export default function FeedbackWidget() {
   if (!user) return null;
   const esAdmin = user.rol === "admin";
 
+  function anadirDictado(dictado: string) {
+    if (!dictado.trim()) return;
+    setTexto((prev) => (prev ? prev.trimEnd() + " " : "") + dictado.trim());
+  }
+
+  function pararMicrofono() {
+    // No dependemos del navegador para apagar el estado: Safari a veces
+    // nunca dispara onend después de stop()
+    setGrabando(false);
+    if (provisionalRef.current.trim()) {
+      anadirDictado(provisionalRef.current);
+      provisionalRef.current = "";
+    }
+    const rec = reconocedorRef.current;
+    reconocedorRef.current = null;
+    try { rec?.stop(); } catch { /* ya parado */ }
+    try { rec?.abort(); } catch { /* no soportado */ }
+  }
+
   function toggleMicrofono() {
     if (grabando) {
-      reconocedorRef.current?.stop();
+      pararMicrofono();
       return;
     }
     const rec = crearReconocedor();
@@ -61,19 +84,34 @@ export default function FeedbackWidget() {
     // El idioma del teléfono de cada persona = su idioma nativo
     rec.lang = navigator.language || "es-ES";
     rec.continuous = true;
-    rec.interimResults = false;
+    rec.interimResults = true;
+    provisionalRef.current = "";
     rec.onresult = (e) => {
-      let dictado = "";
+      let definitivo = "";
+      let provisional = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) dictado += e.results[i][0].transcript;
+        const trozo = e.results[i][0].transcript;
+        if (e.results[i].isFinal) definitivo += trozo;
+        else provisional += trozo;
       }
-      if (dictado.trim()) setTexto((prev) => (prev ? prev.trimEnd() + " " : "") + dictado.trim());
+      if (definitivo.trim()) {
+        anadirDictado(definitivo);
+        provisionalRef.current = "";
+      } else {
+        provisionalRef.current = provisional;
+      }
     };
-    rec.onend = () => setGrabando(false);
-    rec.onerror = () => setGrabando(false);
+    rec.onend = () => {
+      if (reconocedorRef.current === rec) pararMicrofono();
+    };
+    rec.onerror = () => {
+      if (reconocedorRef.current === rec) pararMicrofono();
+    };
     reconocedorRef.current = rec;
-    rec.start();
-    setGrabando(true);
+    try {
+      rec.start();
+      setGrabando(true);
+    } catch { /* micrófono no disponible */ }
   }
 
   async function abrir() {
