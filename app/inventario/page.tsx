@@ -300,9 +300,14 @@ function InventarioInner() {
           {user?.rol === "admin" && cajas.length > 0 && (
             <Link
               href="/restock"
-              className="text-center text-sm font-medium text-gray-500 border border-dashed border-gray-300 rounded-2xl px-5 py-4 hover:border-black hover:text-black transition-colors"
+              className="flex items-center justify-center gap-2 text-sm font-semibold bg-black text-white rounded-2xl px-5 py-4 hover:bg-gray-900 transition-colors"
             >
-              📦 {t.restockTitle} →
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 6 2 18 2 18 9"/>
+                <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/>
+                <rect x="6" y="14" width="12" height="8"/>
+              </svg>
+              {t.restockTitle}
             </Link>
           )}
         </div>
