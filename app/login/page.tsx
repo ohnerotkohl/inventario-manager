@@ -74,14 +74,14 @@ export default function LoginPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="fixed inset-0 z-20 bg-black flex items-center justify-center">
         <div className="text-gray-500 text-sm">{t.loading}</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center px-6 gap-8">
+    <div className="fixed inset-0 z-20 bg-black flex flex-col items-center justify-center px-6 gap-8 overflow-y-auto">
       <div
         role="img"
         aria-label="Ohne Rotkohl"

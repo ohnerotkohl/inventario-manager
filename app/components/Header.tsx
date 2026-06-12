@@ -10,6 +10,9 @@ export default function Header() {
   const pathname = usePathname();
   const isPublic = pathname === "/login" || pathname === "/setup";
 
+  // El login es negro minimalista: sin header, sin logos repetidos
+  if (pathname === "/login") return null;
+
   return (
     <header className="bg-black px-4 py-3 flex items-center justify-between sticky top-0 z-10">
       <img
