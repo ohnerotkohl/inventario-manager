@@ -52,6 +52,13 @@ const ComprasIcon = () => (
   </svg>
 );
 
+const TareasIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 11l3 3L22 4"/>
+    <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+  </svg>
+);
+
 const FinanzasIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 12V7H5a2 2 0 010-4h14v4"/>
@@ -93,6 +100,7 @@ export default function Nav() {
     { href: "/sesion", label: t.session, Icon: SesionIcon },
     { href: "/balance", label: t.balance, Icon: BalanceIcon },
     { href: "/finanzas", label: t.finance, Icon: FinanzasIcon },
+    { href: "/tareas", label: t.tasks, Icon: TareasIcon },
     { href: "/estadisticas", label: t.stats, Icon: StatsIcon },
     { href: "/compras", label: t.purchases, Icon: ComprasIcon },
     { href: "/admin", label: t.team, Icon: AdminIcon },
@@ -108,14 +116,14 @@ export default function Nav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-10">
-      <div className="flex justify-around items-center max-w-2xl mx-auto">
+      <div className="flex justify-around items-center max-w-2xl mx-auto overflow-x-auto">
         {links.map(({ href, label, Icon }) => {
           const active = pathname === href;
           return (
             <Link
               key={href}
               href={href}
-              className={`flex flex-col items-center py-2 px-1.5 gap-0.5 text-[10px] transition-colors min-w-0 ${
+              className={`flex flex-col items-center py-2 px-1.5 gap-0.5 text-[10px] transition-colors shrink-0 ${
                 active ? "text-black font-semibold" : "text-gray-400"
               }`}
             >
