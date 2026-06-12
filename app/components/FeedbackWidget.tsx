@@ -173,7 +173,7 @@ export default function FeedbackWidget() {
         title={t.feedbackTitle}
         className="flex items-center gap-1 bg-white/10 hover:bg-white/20 active:scale-95 text-white text-xs font-bold px-2.5 py-1 rounded-lg transition-all"
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg className="icono-tornasol" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
         </svg>
         <span className="texto-tornasol">BETA</span>

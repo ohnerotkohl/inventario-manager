@@ -69,3 +69,17 @@ textarea {
   background-clip: text;
   color: transparent;
 }
+
+/* El icono (SVG de trazo) no admite máscara de texto: ciclamos su color
+   por la misma paleta y duración para que vaya en sintonía con BETA */
+@keyframes tornasol-color {
+  0% { color: #f0d848; }
+  25% { color: #e03c2b; }
+  50% { color: #8b5cf6; }
+  75% { color: #2eb87a; }
+  100% { color: #f0d848; }
+}
+
+.icono-tornasol {
+  animation: tornasol-color 5s ease-in-out infinite;
+}
