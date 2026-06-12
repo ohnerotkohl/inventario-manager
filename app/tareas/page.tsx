@@ -41,6 +41,17 @@ interface ColesMove {
 
 const COLES_MES = 100;
 
+const TrofeoIcon = ({ size = 14 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="inline -mt-0.5 mr-1 text-purple-600">
+    <path d="M6 9H4.5a2.5 2.5 0 010-5H6"/>
+    <path d="M18 9h1.5a2.5 2.5 0 000-5H18"/>
+    <path d="M4 22h16"/>
+    <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+    <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+    <path d="M18 2H6v7a6 6 0 0012 0V2z"/>
+  </svg>
+);
+
 function hoy(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -472,7 +483,7 @@ export default function TareasPage() {
                 <div key={nombre}>
                   <div className="flex justify-between items-baseline mb-1">
                     <span className="text-sm text-gray-800">
-                      {idx === 0 && reducidas > 0 ? "🥇 " : ""}{nombre}
+                      {idx === 0 && reducidas > 0 && <TrofeoIcon />}{nombre}
                     </span>
                     <span className="text-xs text-gray-500">
                       <span className="font-semibold text-purple-600">{tr("colesReduced", { n: reducidas })}</span>
@@ -502,7 +513,7 @@ export default function TareasPage() {
                     {filas.map(([nombre, reducidas], idx) => (
                       <div key={nombre} className="mb-1.5">
                         <div className="flex justify-between items-baseline mb-0.5">
-                          <span className="text-xs text-gray-700">{idx === 0 && reducidas > 0 ? "🥬 " : ""}{nombre}</span>
+                          <span className="text-xs text-gray-700">{idx === 0 && reducidas > 0 && <TrofeoIcon size={12} />}{nombre}</span>
                           <span className="text-xs font-semibold text-purple-600">−{reducidas}</span>
                         </div>
                         <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
