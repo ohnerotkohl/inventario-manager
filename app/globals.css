@@ -46,3 +46,16 @@ textarea {
   /* Evita que iOS haga zoom al enfocar un input con fuente <16px */
   font-size: 16px;
 }
+
+/* Botón BETA tornasol: gradiente animado en bucle (CSS puro, sin JS) */
+@keyframes tornasol {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.btn-tornasol {
+  background: linear-gradient(90deg, #f0d848, #e03c2b, #8b5cf6, #2eb87a, #f0d848);
+  background-size: 300% 100%;
+  animation: tornasol 5s ease-in-out infinite;
+}

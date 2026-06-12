@@ -143,7 +143,7 @@ export default function Nav() {
       {/* Panel "Más" */}
       {masAbierto && esAdmin && (
         <>
-          <div className="fixed inset-0 bg-black/20 z-10" onClick={() => setMasAbierto(false)} />
+          <div className="fixed inset-0 bg-black/50 z-10" onClick={() => setMasAbierto(false)} />
           <div className="fixed bottom-[52px] left-0 right-0 z-10">
             <div className="max-w-2xl mx-auto bg-white border border-gray-200 rounded-t-2xl shadow-lg">
               <div className="grid grid-cols-5 py-3">

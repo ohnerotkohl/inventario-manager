@@ -171,7 +171,7 @@ export default function FeedbackWidget() {
       <button
         onClick={() => (abierto ? setAbierto(false) : abrir())}
         title={t.feedbackTitle}
-        className="flex items-center gap-1 bg-white/10 hover:bg-white/20 active:scale-95 text-white text-xs font-bold px-2.5 py-1 rounded-lg transition-all"
+        className="btn-tornasol flex items-center gap-1 active:scale-95 text-black text-xs font-bold px-2.5 py-1 rounded-lg transition-transform"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
