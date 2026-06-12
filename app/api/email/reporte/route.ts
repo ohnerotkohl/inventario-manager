@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
     await transporter.sendMail({
       from: `"Ohne Rotkohl App" <${process.env.EMAIL_USER}>`,
       to: process.env.EMAIL_TO,
-      subject: `Reporte de sesión — ${mercado} — ${fechaFormateada}`,
+      subject: `Reporte de cierre — ${mercado} — ${fechaFormateada}`,
       html,
     });
     return NextResponse.json({ ok: true });
