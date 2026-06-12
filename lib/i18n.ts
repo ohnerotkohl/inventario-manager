@@ -229,7 +229,7 @@ const es = {
   saveWorkerToggle: "Guardar trabajador para próximos turnos",
   // Feedback (beta)
   feedbackTitle: "Feedback de la app",
-  feedbackHint: "Estamos en beta: si algo falla o se puede mejorar, escríbelo aquí o díctalo con el micrófono 🎤. Elige tu idioma y exprésate en el que te sea más natural — nosotros lo traducimos. Lo leemos todo 🙌",
+  feedbackHint: "Estamos en beta: si algo falla o se puede mejorar, escríbelo aquí o díctalo con el micrófono. Elige tu idioma y exprésate en el que te sea más natural: nosotros lo traducimos y lo leeremos todo.",
   feedbackPlaceholder: "Escribe tu feedback...",
   feedbackSend: "Enviar feedback",
   feedbackThanks: "¡Gracias! Feedback guardado",
@@ -453,7 +453,7 @@ const en: typeof es = {
   selectSavedWorker: "Pick a saved worker...",
   saveWorkerToggle: "Save worker for future shifts",
   feedbackTitle: "App feedback",
-  feedbackHint: "We're in beta: if something's broken or could be better, write it here or dictate it with the mic 🎤. Pick your language and express yourself in whichever feels most natural — we'll translate it. We read everything 🙌",
+  feedbackHint: "We're in beta: if something's broken or could be better, write it here or dictate it with the mic. Pick your language and express yourself in whichever feels most natural: we'll translate it and read every single one.",
   feedbackPlaceholder: "Write your feedback...",
   feedbackSend: "Send feedback",
   feedbackThanks: "Thanks! Feedback saved",

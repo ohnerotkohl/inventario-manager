@@ -109,6 +109,7 @@ function secciones(lang: "es" | "en"): Seccion[] {
           "Next to the mic, pick the language you'll speak in (EN, HI, ES, DE, IT, CA): use your native language, whatever feels natural. We translate it.",
           "Tap 'Send feedback'. Done: it goes straight to Marcello and Nuria.",
         ],
+        nota: "Your feedback automatically records which section of the app you were in when you sent it. So send it from the screen where you saw the problem: that way we know exactly what part you mean.",
         destacada: true,
       },
       {
@@ -224,6 +225,7 @@ function secciones(lang: "es" | "en"): Seccion[] {
         "Junto al micrófono, elige el idioma en el que vas a hablar (ES, EN, HI, DE, IT, CA): usa tu idioma nativo, el que te salga natural. Nosotros lo traducimos.",
         "Toca 'Enviar feedback'. Listo: le llega directo a Marcello y Nuria.",
       ],
+      nota: "El feedback guarda solo la sección de la app donde estás al enviarlo. Por eso, mándalo desde la pantalla donde viste el problema: así sabremos exactamente de qué parte hablas.",
       destacada: true,
     },
     {
