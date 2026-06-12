@@ -141,10 +141,14 @@ export default function Nav() {
   const esAdmin = user.rol === "admin";
   const links = esAdmin ? adminLinks : empleadoLinks;
   const enMas = masLinks.some((l) => l.href === pathname);
+  // Prueba dark mode: el Inicio es oscuro y el menú lo acompaña
+  const oscuro = pathname === "/";
 
   const itemClass = (active: boolean) =>
     `flex flex-col items-center py-2 px-1.5 gap-0.5 text-[10px] transition-colors min-w-0 ${
-      active ? "text-black font-semibold" : "text-gray-400"
+      active
+        ? oscuro ? "text-white font-semibold" : "text-black font-semibold"
+        : oscuro ? "text-gray-500" : "text-gray-400"
     }`;
 
   return (
@@ -154,7 +158,7 @@ export default function Nav() {
         <>
           <div className="fixed inset-0 bg-black/50 z-10" onClick={() => setMasAbierto(false)} />
           <div className="fixed bottom-[52px] left-0 right-0 z-10">
-            <div className="max-w-2xl mx-auto bg-white border border-gray-200 rounded-t-2xl shadow-lg">
+            <div className={`max-w-2xl mx-auto rounded-t-2xl shadow-lg border ${oscuro ? "bg-gray-900 border-gray-800" : "bg-white border-gray-200"}`}>
               <div className="grid grid-cols-3 gap-y-2 py-3">
                 {masLinks.map(({ href, label, Icon }) => {
                   const active = pathname === href;
@@ -171,7 +175,7 @@ export default function Nav() {
         </>
       )}
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-10">
+      <nav className={`fixed bottom-0 left-0 right-0 border-t z-10 ${oscuro ? "bg-[#131517] border-gray-800" : "bg-white border-gray-200"}`}>
         <div className="flex justify-around items-center max-w-2xl mx-auto">
           {links.map(({ href, label, Icon }) => {
             const active = pathname === href;

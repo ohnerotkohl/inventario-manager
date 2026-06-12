@@ -77,6 +77,12 @@ export default function Dashboard() {
   const [alertaAbierta, setAlertaAbierta] = useState<"out" | "stockBajo" | "sampleFalta" | "materiales" | "insumos" | null>(null);
   const [alertDetails, setAlertDetails] = useState<{ out: AlertDetail[]; stockBajo: AlertDetail[]; sampleFalta: AlertDetail[] }>({ out: [], stockBajo: [], sampleFalta: [] });
 
+  // Prueba dark mode: el fondo oscuro se activa solo mientras estás en Inicio
+  useEffect(() => {
+    document.body.classList.add("body-dark");
+    return () => document.body.classList.remove("body-dark");
+  }, []);
+
   useEffect(() => {
     if (user?.rol === "empleado") { router.replace("/sesion"); return; }
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -208,11 +214,11 @@ export default function Dashboard() {
     return (
       <div className="space-y-6">
         <div className="space-y-2 animate-pulse">
-          <div className="h-7 bg-gray-200 rounded-lg w-36" />
-          <div className="h-4 bg-gray-100 rounded-lg w-52" />
+          <div className="h-7 bg-gray-800 rounded-lg w-36" />
+          <div className="h-4 bg-gray-800/60 rounded-lg w-52" />
         </div>
         <SkeletonCard />
-        <div className="h-14 bg-gray-200 rounded-2xl animate-pulse" />
+        <div className="h-14 bg-gray-800 rounded-2xl animate-pulse" />
         <div className="grid grid-cols-2 gap-3">
           <SkeletonCard />
           <SkeletonCard />
@@ -229,66 +235,66 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">{t.dashboard}</h1>
-        <p className="text-gray-500 text-sm">{t.dashboardSubtitle}</p>
+        <h1 className="text-2xl font-bold text-gray-100">{t.dashboard}</h1>
+        <p className="text-gray-400 text-sm">{t.dashboardSubtitle}</p>
       </div>
 
       {/* Alertas */}
       {totalAlertas > 0 ? (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
-          <p className="font-semibold text-red-700 mb-3 flex items-center gap-2">
+        <div className="bg-red-950/40 border border-red-900/60 rounded-2xl p-4">
+          <p className="font-semibold text-red-400 mb-3 flex items-center gap-2">
             <AlertTriangle size={18} />
             {tr("activeAlerts", { n: totalAlertas })}
           </p>
           <div className="grid grid-cols-2 gap-2">
             {alertas.out > 0 && (
-              <button onClick={() => setAlertaAbierta("out")} className="bg-red-100 rounded-xl p-3 text-center hover:bg-red-200 transition-colors active:scale-95">
-                <p className="text-2xl font-bold text-red-600">{alertas.out}</p>
-                <p className="text-xs text-red-700">{t.soldOut}</p>
+              <button onClick={() => setAlertaAbierta("out")} className="bg-red-900/40 rounded-xl p-3 text-center hover:bg-red-900/60 transition-colors active:scale-95">
+                <p className="text-2xl font-bold text-red-400">{alertas.out}</p>
+                <p className="text-xs text-red-300">{t.soldOut}</p>
               </button>
             )}
             {alertas.stockBajo > 0 && (
-              <button onClick={() => setAlertaAbierta("stockBajo")} className="bg-yellow-100 rounded-xl p-3 text-center hover:bg-yellow-200 transition-colors active:scale-95">
-                <p className="text-2xl font-bold text-yellow-600">{alertas.stockBajo}</p>
-                <p className="text-xs text-yellow-700">{t.lowStock}</p>
+              <button onClick={() => setAlertaAbierta("stockBajo")} className="bg-yellow-900/30 rounded-xl p-3 text-center hover:bg-yellow-900/50 transition-colors active:scale-95">
+                <p className="text-2xl font-bold text-yellow-400">{alertas.stockBajo}</p>
+                <p className="text-xs text-yellow-300">{t.lowStock}</p>
               </button>
             )}
             {alertas.sampleFalta > 0 && (
-              <button onClick={() => setAlertaAbierta("sampleFalta")} className="bg-orange-100 rounded-xl p-3 text-center hover:bg-orange-200 transition-colors active:scale-95">
-                <p className="text-2xl font-bold text-orange-600">{alertas.sampleFalta}</p>
-                <p className="text-xs text-orange-700">{t.missingSamples}</p>
+              <button onClick={() => setAlertaAbierta("sampleFalta")} className="bg-orange-900/30 rounded-xl p-3 text-center hover:bg-orange-900/50 transition-colors active:scale-95">
+                <p className="text-2xl font-bold text-orange-400">{alertas.sampleFalta}</p>
+                <p className="text-xs text-orange-300">{t.missingSamples}</p>
               </button>
             )}
             {alertas.materiales > 0 && (
-              <button onClick={() => setAlertaAbierta("materiales")} className="bg-yellow-100 rounded-xl p-3 text-center hover:bg-yellow-200 transition-colors active:scale-95">
-                <p className="text-2xl font-bold text-yellow-600">{alertas.materiales}</p>
-                <p className="text-xs text-yellow-700">{t.boxMaterials}</p>
+              <button onClick={() => setAlertaAbierta("materiales")} className="bg-yellow-900/30 rounded-xl p-3 text-center hover:bg-yellow-900/50 transition-colors active:scale-95">
+                <p className="text-2xl font-bold text-yellow-400">{alertas.materiales}</p>
+                <p className="text-xs text-yellow-300">{t.boxMaterials}</p>
               </button>
             )}
             {alertas.insumos > 0 && (
-              <button onClick={() => setAlertaAbierta("insumos")} className="bg-blue-100 rounded-xl p-3 text-center hover:bg-blue-200 transition-colors active:scale-95">
-                <p className="text-2xl font-bold text-blue-600">{alertas.insumos}</p>
-                <p className="text-xs text-blue-700">{t.studioSupplies}</p>
+              <button onClick={() => setAlertaAbierta("insumos")} className="bg-blue-900/30 rounded-xl p-3 text-center hover:bg-blue-900/50 transition-colors active:scale-95">
+                <p className="text-2xl font-bold text-blue-400">{alertas.insumos}</p>
+                <p className="text-xs text-blue-300">{t.studioSupplies}</p>
               </button>
             )}
           </div>
         </div>
       ) : (
-        <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
-          <p className="text-green-700 font-semibold flex items-center justify-center gap-2">
+        <div className="bg-green-950/40 border border-green-900/60 rounded-2xl p-4 text-center">
+          <p className="text-green-400 font-semibold flex items-center justify-center gap-2">
             <CheckCircle size={18} />
             {t.allGood}
           </p>
-          <p className="text-green-600 text-sm">{t.noAlerts}</p>
+          <p className="text-green-500 text-sm">{t.noAlerts}</p>
         </div>
       )}
 
       {/* Lista de compras pendientes */}
       {(materialesPendientes.length > 0 || insumosPendientes.length > 0) && (
         <Link href="/compras" className="block">
-          <div className="bg-white border-2 border-red-200 rounded-2xl overflow-hidden hover:border-red-400 transition-colors">
-            <div className="bg-red-50 px-4 py-3 flex items-center justify-between">
-              <p className="font-bold text-red-700 flex items-center gap-2">
+          <div className="bg-gray-900 border-2 border-red-900/60 rounded-2xl overflow-hidden hover:border-red-700 transition-colors">
+            <div className="bg-red-950/50 px-4 py-3 flex items-center justify-between">
+              <p className="font-bold text-red-400 flex items-center gap-2">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="9" cy="21" r="1" />
                   <circle cx="20" cy="21" r="1" />
@@ -296,15 +302,15 @@ export default function Dashboard() {
                 </svg>
                 {t.pendingPurchase}
               </p>
-              <span className="text-xs text-red-600 font-semibold">{t.viewList} →</span>
+              <span className="text-xs text-red-400 font-semibold">{t.viewList} →</span>
             </div>
             {materialesPendientes.length > 0 && (
-              <div className="px-4 py-3 border-b border-gray-100">
-                <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">{t.boxMaterialsSection}</p>
+              <div className="px-4 py-3 border-b border-gray-800">
+                <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">{t.boxMaterialsSection}</p>
                 <ul className="space-y-1.5">
                   {materialesPendientes.map((m, i) => (
                     <li key={i} className="flex items-center justify-between text-sm">
-                      <span className="text-gray-900 font-medium flex items-center gap-2">
+                      <span className="text-gray-200 font-medium flex items-center gap-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
                         {m.nombre}
                       </span>
@@ -316,11 +322,11 @@ export default function Dashboard() {
             )}
             {insumosPendientes.length > 0 && (
               <div className="px-4 py-3">
-                <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">{t.studioSuppliesSection}</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">{t.studioSuppliesSection}</p>
                 <ul className="space-y-1.5">
                   {insumosPendientes.map((ins, i) => (
                     <li key={i} className="flex items-center justify-between text-sm">
-                      <span className="text-gray-900 font-medium flex items-center gap-2">
+                      <span className="text-gray-200 font-medium flex items-center gap-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
                         {ins.nombre}
                       </span>
@@ -337,7 +343,7 @@ export default function Dashboard() {
       {/* Acción rápida */}
       <Link
         href="/sesion"
-        className="flex items-center justify-center gap-3 bg-black text-white rounded-2xl p-4 font-semibold text-lg hover:bg-gray-900 transition-colors"
+        className="flex items-center justify-center gap-3 bg-white text-black rounded-2xl p-4 font-semibold text-lg hover:bg-gray-200 transition-colors"
       >
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
           <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
@@ -349,12 +355,12 @@ export default function Dashboard() {
 
       {/* Estado de cajas */}
       <div>
-        <h2 className="font-bold text-gray-700 mb-3">{t.boxStatus}</h2>
+        <h2 className="font-bold text-gray-300 mb-3">{t.boxStatus}</h2>
         <div className="grid grid-cols-2 gap-3">
           {cajas.map((c) => (
             <Link key={c.id} href={`/inventario?caja=${c.nombre.replace(/ /g, '-')}`}>
-              <div className="bg-white border border-gray-200 rounded-2xl p-4 hover:border-gray-400 transition-colors">
-                <p className="font-bold text-gray-900">{c.nombre}</p>
+              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 hover:border-gray-600 transition-colors">
+                <p className="font-bold text-gray-100">{c.nombre}</p>
                 <p className="text-xs text-gray-500 mb-3 leading-tight">{c.descripcion}</p>
                 {c.outCount > 0 && (
                   <p className="text-xs text-red-600 flex items-center gap-1.5">
@@ -385,12 +391,12 @@ export default function Dashboard() {
       {/* Últimas sesiones */}
       {ultimasSesiones.length > 0 && (
         <div>
-          <h2 className="font-bold text-gray-700 mb-3">{t.latestSessions}</h2>
-          <div className="bg-white border border-gray-200 rounded-2xl divide-y divide-gray-100">
+          <h2 className="font-bold text-gray-300 mb-3">{t.latestSessions}</h2>
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl divide-y divide-gray-800">
             {ultimasSesiones.map((s, i) => (
               <div key={i} className="flex items-center justify-between px-4 py-3">
                 <div>
-                  <p className="font-medium text-sm text-gray-900">{s.nombre}</p>
+                  <p className="font-medium text-sm text-gray-100">{s.nombre}</p>
                   <p className="text-xs text-gray-500">{s.trabajador}</p>
                 </div>
                 <p className="text-xs text-gray-400">
@@ -404,19 +410,19 @@ export default function Dashboard() {
 
       {/* Comisiones */}
       <div>
-        <h2 className="font-bold text-gray-700 mb-3">{t.commissionsSection}</h2>
-        <div className="bg-white border border-gray-200 rounded-2xl divide-y divide-gray-100 overflow-hidden">
+        <h2 className="font-bold text-gray-300 mb-3">{t.commissionsSection}</h2>
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl divide-y divide-gray-800 overflow-hidden">
           {comisiones.length === 0 ? (
-            <p className="px-4 py-4 text-sm text-gray-400 text-center">{t.noCommissions}</p>
+            <p className="px-4 py-4 text-sm text-gray-500 text-center">{t.noCommissions}</p>
           ) : comisiones.map((c) => (
             <div key={c.id} className="flex items-start gap-3 px-4 py-3">
               <button
                 onClick={() => deleteComision(c.id)}
-                className="mt-0.5 w-5 h-5 rounded-md border-2 border-gray-300 flex-shrink-0 flex items-center justify-center hover:border-green-500 hover:bg-green-50 transition-colors"
+                className="mt-0.5 w-5 h-5 rounded-md border-2 border-gray-600 flex-shrink-0 flex items-center justify-center hover:border-green-500 hover:bg-green-900/30 transition-colors"
                 title={t.markDone}
               />
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-gray-900">{c.texto}</p>
+                <p className="text-sm text-gray-200">{c.texto}</p>
                 <p className="text-xs text-gray-400 mt-0.5">
                   {c.mercado} · {new Date(c.fecha + "T12:00:00").toLocaleDateString("es-DE", { day: "numeric", month: "short" })}
                 </p>
@@ -428,10 +434,10 @@ export default function Dashboard() {
 
       {/* Ideas */}
       <div className="pb-6">
-        <h2 className="font-bold text-gray-700 mb-3">{t.ideasSection}</h2>
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl divide-y divide-amber-100 overflow-hidden">
+        <h2 className="font-bold text-gray-300 mb-3">{t.ideasSection}</h2>
+        <div className="bg-amber-950/30 border border-amber-900/50 rounded-2xl divide-y divide-amber-900/40 overflow-hidden">
           {ideas.length === 0 ? (
-            <p className="px-4 py-4 text-sm text-amber-600 text-center">{t.noIdeas}</p>
+            <p className="px-4 py-4 text-sm text-amber-500 text-center">{t.noIdeas}</p>
           ) : ideas.map((idea) => (
             <div key={idea.id} className="px-4 py-3">
               {editingIdeaId === idea.id ? (
@@ -440,7 +446,7 @@ export default function Dashboard() {
                     value={editingIdeaText}
                     onChange={(e) => setEditingIdeaText(e.target.value)}
                     rows={3}
-                    className="w-full border border-amber-300 bg-white rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500 resize-none"
+                    className="w-full border border-amber-800 bg-gray-900 !text-gray-100 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500 resize-none"
                     autoFocus
                   />
                   <div className="flex gap-2">
@@ -452,7 +458,7 @@ export default function Dashboard() {
                     </button>
                     <button
                       onClick={() => setEditingIdeaId(null)}
-                      className="px-3 py-1.5 rounded-lg text-xs text-gray-500 bg-gray-100"
+                      className="px-3 py-1.5 rounded-lg text-xs text-gray-400 bg-gray-800"
                     >
                       {t.cancel}
                     </button>
@@ -461,15 +467,15 @@ export default function Dashboard() {
               ) : (
                 <div className="flex items-start gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-amber-900">{idea.texto}</p>
-                    <p className="text-xs text-amber-600 mt-0.5">
+                    <p className="text-sm text-amber-100">{idea.texto}</p>
+                    <p className="text-xs text-amber-500 mt-0.5">
                       {idea.mercado} · {new Date(idea.fecha + "T12:00:00").toLocaleDateString("es-DE", { day: "numeric", month: "short" })}
                     </p>
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
                     <button
                       onClick={() => { setEditingIdeaId(idea.id); setEditingIdeaText(idea.texto); }}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-amber-100 text-amber-500 transition-colors"
+                      className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-amber-900/40 text-amber-500 transition-colors"
                     >
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -477,7 +483,7 @@ export default function Dashboard() {
                     </button>
                     <button
                       onClick={() => deleteIdea(idea.id)}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-100 text-gray-300 hover:text-red-400 transition-colors"
+                      className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-900/40 text-gray-500 hover:text-red-400 transition-colors"
                     >
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
@@ -494,11 +500,11 @@ export default function Dashboard() {
       {/* Bottom sheet detalle de alerta */}
       {alertaAbierta && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end" onClick={() => setAlertaAbierta(null)}>
-          <div className="bg-white rounded-t-3xl w-full max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+          <div className="bg-gray-900 rounded-t-3xl w-full max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
             {/* Header */}
-            <div className="p-5 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+            <div className="p-5 border-b border-gray-800 flex items-center justify-between flex-shrink-0">
               <div>
-                <h3 className="font-bold text-gray-900 text-lg">
+                <h3 className="font-bold text-gray-100 text-lg">
                   {alertaAbierta === "out" && t.soldOut}
                   {alertaAbierta === "stockBajo" && t.lowStock}
                   {alertaAbierta === "sampleFalta" && t.missingSamples}
@@ -513,7 +519,7 @@ export default function Dashboard() {
                   {alertaAbierta === "insumos" && `${insumosPendientes.length} items`}
                 </p>
               </div>
-              <button onClick={() => setAlertaAbierta(null)} className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 text-xl font-bold">×</button>
+              <button onClick={() => setAlertaAbierta(null)} className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-800 text-gray-400 hover:bg-gray-700 text-xl font-bold">×</button>
             </div>
 
             {/* Lista */}
@@ -521,12 +527,12 @@ export default function Dashboard() {
 
               {/* Sold Out */}
               {alertaAbierta === "out" && (
-                <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                <div className="bg-gray-950/60 border border-gray-800 rounded-2xl overflow-hidden">
                   {alertDetails.out.map((d, idx) => (
-                    <div key={idx} className={`flex items-center gap-3 px-4 py-3 ${idx < alertDetails.out.length - 1 ? "border-b border-gray-100" : ""}`}>
+                    <div key={idx} className={`flex items-center gap-3 px-4 py-3 ${idx < alertDetails.out.length - 1 ? "border-b border-gray-800" : ""}`}>
                       <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
-                      <p className="flex-1 text-sm font-medium text-gray-900">{d.nombre}</p>
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${d.talla === "A4" ? "bg-yellow-100 text-yellow-700" : "bg-blue-100 text-blue-700"}`}>{d.talla}</span>
+                      <p className="flex-1 text-sm font-medium text-gray-200">{d.nombre}</p>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${d.talla === "A4" ? "bg-yellow-900/40 text-yellow-300" : "bg-blue-900/40 text-blue-300"}`}>{d.talla}</span>
                       <span className="text-xs text-gray-400 flex-shrink-0">{d.caja}</span>
                     </div>
                   ))}
@@ -535,12 +541,12 @@ export default function Dashboard() {
 
               {/* Stock bajo */}
               {alertaAbierta === "stockBajo" && (
-                <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                <div className="bg-gray-950/60 border border-gray-800 rounded-2xl overflow-hidden">
                   {alertDetails.stockBajo.map((d, idx) => (
-                    <div key={idx} className={`flex items-center gap-3 px-4 py-3 ${idx < alertDetails.stockBajo.length - 1 ? "border-b border-gray-100" : ""}`}>
-                      <span className={`text-xs font-bold px-2 py-1 rounded-lg min-w-[28px] text-center ${d.cantidad === 1 ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"}`}>{d.cantidad}</span>
-                      <p className="flex-1 text-sm font-medium text-gray-900">{d.nombre}</p>
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${d.talla === "A4" ? "bg-yellow-100 text-yellow-700" : "bg-blue-100 text-blue-700"}`}>{d.talla}</span>
+                    <div key={idx} className={`flex items-center gap-3 px-4 py-3 ${idx < alertDetails.stockBajo.length - 1 ? "border-b border-gray-800" : ""}`}>
+                      <span className={`text-xs font-bold px-2 py-1 rounded-lg min-w-[28px] text-center ${d.cantidad === 1 ? "bg-red-900/40 text-red-300" : "bg-yellow-900/40 text-yellow-300"}`}>{d.cantidad}</span>
+                      <p className="flex-1 text-sm font-medium text-gray-200">{d.nombre}</p>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${d.talla === "A4" ? "bg-yellow-900/40 text-yellow-300" : "bg-blue-900/40 text-blue-300"}`}>{d.talla}</span>
                       <span className="text-xs text-gray-400 flex-shrink-0">{d.caja}</span>
                     </div>
                   ))}
@@ -563,16 +569,16 @@ export default function Dashboard() {
                   }
                 }
                 return (
-                  <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                  <div className="bg-gray-950/60 border border-gray-800 rounded-2xl overflow-hidden">
                     {grouped.map((d, idx) => (
-                      <div key={idx} className={`flex items-center gap-3 px-4 py-3 ${idx < grouped.length - 1 ? "border-b border-gray-100" : ""}`}>
+                      <div key={idx} className={`flex items-center gap-3 px-4 py-3 ${idx < grouped.length - 1 ? "border-b border-gray-800" : ""}`}>
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-orange-400 flex-shrink-0">
                           <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
                         </svg>
-                        <p className="flex-1 text-sm font-medium text-gray-900">{d.nombre}</p>
+                        <p className="flex-1 text-sm font-medium text-gray-200">{d.nombre}</p>
                         <div className="flex gap-1 flex-shrink-0">
-                          {d.a4 && <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-yellow-100 text-yellow-700">A4</span>}
-                          {d.a3 && <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-blue-100 text-blue-700">A3</span>}
+                          {d.a4 && <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-yellow-900/40 text-yellow-300">A4</span>}
+                          {d.a3 && <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-blue-900/40 text-blue-300">A3</span>}
                         </div>
                         <span className="text-xs text-gray-400 flex-shrink-0">{d.caja}</span>
                       </div>
@@ -583,11 +589,11 @@ export default function Dashboard() {
 
               {/* Materiales de caja */}
               {alertaAbierta === "materiales" && (
-                <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                <div className="bg-gray-950/60 border border-gray-800 rounded-2xl overflow-hidden">
                   {materialesPendientes.map((m, idx) => (
-                    <div key={idx} className={`flex items-center gap-3 px-4 py-3 ${idx < materialesPendientes.length - 1 ? "border-b border-gray-100" : ""}`}>
+                    <div key={idx} className={`flex items-center gap-3 px-4 py-3 ${idx < materialesPendientes.length - 1 ? "border-b border-gray-800" : ""}`}>
                       <span className="w-2 h-2 rounded-full bg-yellow-500 flex-shrink-0" />
-                      <p className="flex-1 text-sm font-medium text-gray-900">{m.nombre}</p>
+                      <p className="flex-1 text-sm font-medium text-gray-200">{m.nombre}</p>
                       {m.detalle && <span className="text-xs text-gray-400 flex-shrink-0">{m.detalle}</span>}
                     </div>
                   ))}
@@ -596,11 +602,11 @@ export default function Dashboard() {
 
               {/* Insumos estudio */}
               {alertaAbierta === "insumos" && (
-                <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                <div className="bg-gray-950/60 border border-gray-800 rounded-2xl overflow-hidden">
                   {insumosPendientes.map((ins, idx) => (
-                    <div key={idx} className={`flex items-center gap-3 px-4 py-3 ${idx < insumosPendientes.length - 1 ? "border-b border-gray-100" : ""}`}>
+                    <div key={idx} className={`flex items-center gap-3 px-4 py-3 ${idx < insumosPendientes.length - 1 ? "border-b border-gray-800" : ""}`}>
                       <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
-                      <p className="flex-1 text-sm font-medium text-gray-900">{ins.nombre}</p>
+                      <p className="flex-1 text-sm font-medium text-gray-200">{ins.nombre}</p>
                       {ins.detalle && <span className="text-xs text-gray-400 flex-shrink-0">{ins.detalle}</span>}
                     </div>
                   ))}

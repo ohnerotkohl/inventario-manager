@@ -99,3 +99,11 @@ textarea {
   -webkit-mask-position: center;
   mask-position: center;
 }
+
+/* Prueba dark mode (solo el Dashboard la activa): mismo patrón de
+   puntitos flotantes, en gris oscuro elegante */
+body.body-dark {
+  background-color: #131517;
+  background-image: radial-gradient(circle, #2c3035 1px, transparent 1px);
+  color: #e5e7eb;
+}
