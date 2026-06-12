@@ -475,12 +475,12 @@ export default function TareasPage() {
                       {idx === 0 && reducidas > 0 ? "🥇 " : ""}{nombre}
                     </span>
                     <span className="text-xs text-gray-500">
-                      <span className="font-semibold text-emerald-600">{tr("colesReduced", { n: reducidas })}</span>
+                      <span className="font-semibold text-purple-600">{tr("colesReduced", { n: reducidas })}</span>
                       {" · "}{tr("colesLeft", { n: restantes })}
                     </span>
                   </div>
                   <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
+                    <div className="h-full rounded-full bg-purple-500" style={{ width: `${pct}%` }} />
                   </div>
                 </div>
               );
@@ -503,10 +503,10 @@ export default function TareasPage() {
                       <div key={nombre} className="mb-1.5">
                         <div className="flex justify-between items-baseline mb-0.5">
                           <span className="text-xs text-gray-700">{idx === 0 && reducidas > 0 ? "🥬 " : ""}{nombre}</span>
-                          <span className="text-xs font-semibold text-emerald-600">−{reducidas}</span>
+                          <span className="text-xs font-semibold text-purple-600">−{reducidas}</span>
                         </div>
                         <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full bg-emerald-400" style={{ width: `${Math.round((reducidas / max) * 100)}%` }} />
+                          <div className="h-full rounded-full bg-purple-400" style={{ width: `${Math.round((reducidas / max) * 100)}%` }} />
                         </div>
                       </div>
                     ))}
