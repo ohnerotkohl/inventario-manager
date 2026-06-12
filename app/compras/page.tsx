@@ -26,6 +26,12 @@ export default function ComprasPage() {
   const [saved, setSaved] = useState(false);
   const pendingSaves = useRef<{ [id: string]: number }>({});
   const [dirtyCount, setDirtyCount] = useState(0);
+  const [nuevoAbierto, setNuevoAbierto] = useState(false);
+  const [nNombre, setNNombre] = useState("");
+  const [nUnidad, setNUnidad] = useState("unidades");
+  const [nCantidad, setNCantidad] = useState(0);
+  const [nMinimo, setNMinimo] = useState(1);
+  const [nCreando, setNCreando] = useState(false);
 
   useEffect(() => {
     if (user?.rol === "empleado") { router.replace("/sesion"); return; }
@@ -48,6 +54,29 @@ export default function ComprasPage() {
   async function toggleMaterial(id: string, current: boolean) {
     await supabase.from("materiales_caja").update({ necesita_restock: !current }).eq("id", id);
     setMateriales((prev) => prev.map((m) => (m.id === id ? { ...m, necesita_restock: !current } : m)));
+  }
+
+  async function crearInsumo() {
+    if (!nNombre.trim() || nCreando) return;
+    setNCreando(true);
+    const { error } = await supabase.from("insumos_estudio").insert({
+      nombre: nNombre.trim(),
+      unidad: nUnidad.trim() || "unidades",
+      cantidad: nCantidad,
+      stock_minimo: nMinimo,
+      necesita_compra: nCantidad <= nMinimo,
+    });
+    setNCreando(false);
+    if (error) { alert(t.purchasesSaveError); return; }
+    setNNombre(""); setNUnidad("unidades"); setNCantidad(0); setNMinimo(1);
+    setNuevoAbierto(false);
+    fetchData();
+  }
+
+  async function eliminarInsumo(ins: InsumoEstudio) {
+    if (!confirm(tr("deleteSupplyConfirm", { name: ins.nombre }))) return;
+    await supabase.from("insumos_estudio").delete().eq("id", ins.id);
+    setInsumos((prev) => prev.filter((i) => i.id !== ins.id));
   }
 
   function updateCantidad(id: string, cantidad: number) {
@@ -159,7 +188,7 @@ export default function ComprasPage() {
               return (
                 <div
                   key={ins.id}
-                  className={`grid grid-cols-[1fr_100px] gap-3 px-4 py-3 items-center ${idx < insumos.length - 1 ? "border-b border-gray-100" : ""}`}
+                  className={`grid grid-cols-[1fr_100px_auto] gap-2 px-4 py-3 items-center ${idx < insumos.length - 1 ? "border-b border-gray-100" : ""}`}
                 >
                   <div>
                     <p className={`text-sm ${falta ? "font-semibold text-red-600" : "text-gray-800"}`}>
@@ -177,10 +206,66 @@ export default function ComprasPage() {
                     onChange={(e) => updateCantidad(ins.id, parseInt(e.target.value) || 0)}
                     className="w-full text-center text-sm border border-gray-200 rounded-lg py-2 focus:outline-none focus:border-black"
                   />
+                  <button onClick={() => eliminarInsumo(ins)} className="text-gray-300 hover:text-red-500 text-lg leading-none px-1">×</button>
                 </div>
               );
             })}
           </div>
+
+          {/* Añadir insumo nuevo a la despensa */}
+          {nuevoAbierto ? (
+            <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-3">
+              <input
+                type="text" value={nNombre} onChange={(e) => setNNombre(e.target.value)}
+                placeholder={t.supplyNamePlaceholder} autoFocus
+                className="w-full text-sm border border-gray-200 rounded-lg py-2 px-3 focus:outline-none focus:border-black"
+              />
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">{t.unitLabel}</label>
+                  <input
+                    type="text" value={nUnidad} onChange={(e) => setNUnidad(e.target.value)}
+                    className="w-full text-sm border border-gray-200 rounded-lg py-2 px-3 focus:outline-none focus:border-black"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">{t.currentQtyLabel}</label>
+                  <input
+                    type="number" inputMode="numeric" min={0} value={nCantidad}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => setNCantidad(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-full text-center text-sm border border-gray-200 rounded-lg py-2 focus:outline-none focus:border-black"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">{t.minStockLabel}</label>
+                  <input
+                    type="number" inputMode="numeric" min={0} value={nMinimo}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => setNMinimo(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-full text-center text-sm border border-gray-200 rounded-lg py-2 focus:outline-none focus:border-black"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={crearInsumo}
+                  disabled={!nNombre.trim() || nCreando}
+                  className="flex-1 py-2.5 rounded-xl bg-black text-white font-medium text-sm disabled:bg-gray-200 disabled:text-gray-400"
+                >
+                  {nCreando ? t.saving : t.save}
+                </button>
+                <button onClick={() => setNuevoAbierto(false)} className="px-4 text-sm text-gray-400">{t.cancel}</button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setNuevoAbierto(true)}
+              className="w-full text-left text-sm text-gray-400 border border-dashed border-gray-300 rounded-2xl px-4 py-3 hover:border-black hover:text-black transition-colors"
+            >
+              {t.addSupply}
+            </button>
+          )}
         </div>
       )}
 

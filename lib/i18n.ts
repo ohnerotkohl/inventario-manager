@@ -4,7 +4,7 @@ export const LANG_KEY = "or_lang";
 const es = {
   // Nav
   home: "Inicio", stock: "Stock", restock: "Restock", session: "Sesión",
-  stats: "Stats", purchases: "Compras", team: "Equipo",
+  stats: "Stats", purchases: "Despensa", team: "Equipo",
   // Header
   inventoryManager: "Inventario Manager",
   // Common
@@ -106,7 +106,7 @@ const es = {
   topPosters: "Top pósters", noSessions: "No hay sesiones registradas",
   months: ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"],
   // Purchases
-  purchasesTitle: "Compras", purchasesSubtitle: "Qué hay que comprar y cuánto",
+  purchasesTitle: "Despensa", purchasesSubtitle: "Supplies del estudio: qué hay y qué toca comprar",
   studioSuppliesTab: "Insumos estudio", boxMaterialsTab: "Materiales de cajas",
   updateStockDesc: "Actualiza cuánto queda de cada insumo. Si baja del mínimo, se marca como Comprar automáticamente.",
   remainingMin: "queda {qty} {unit} · mín. {min}",
@@ -220,11 +220,18 @@ const es = {
   noUpcomingShifts: "No hay turnos próximos",
   deleteShiftConfirm: "¿Eliminar el turno de {name} del {date}?",
   emailSentBadge: "email enviado", emailNotSentBadge: "sin enviar",
+  cancelNotifyConfirm: "¿Avisar a {name} por correo de que su turno del {date} queda cancelado? (También borrará el evento de su calendario)",
+  cancelEmailSent: "✓ Aviso de cancelación enviado a {email}",
+  // Despensa
+  addSupply: "+ Añadir insumo",
+  supplyNamePlaceholder: "Nombre (ej. Sobres de envío A4)",
+  unitLabel: "Unidad", minStockLabel: "Mínimo", currentQtyLabel: "Cantidad",
+  deleteSupplyConfirm: "¿Eliminar \"{name}\" de la despensa?",
 };
 
 const en: typeof es = {
   home: "Home", stock: "Stock", restock: "Restock", session: "Session",
-  stats: "Stats", purchases: "Purchases", team: "Team",
+  stats: "Stats", purchases: "Pantry", team: "Team",
   inventoryManager: "Inventory Manager",
   loading: "Loading...", save: "Save", cancel: "Cancel",
   saving: "Saving...", saved: "✓ Saved", edit: "Edit",
@@ -315,7 +322,7 @@ const en: typeof es = {
   salesByMonth: "Sales by month", byMarket: "By market", bySeries: "By series",
   topPosters: "Top posters", noSessions: "No sessions recorded",
   months: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
-  purchasesTitle: "Purchases", purchasesSubtitle: "What needs to be bought and how much",
+  purchasesTitle: "Pantry", purchasesSubtitle: "Studio supplies: what's in stock and what to buy",
   studioSuppliesTab: "Studio supplies", boxMaterialsTab: "Box materials",
   updateStockDesc: "Update how much of each supply is left. When it drops below the minimum, it's marked as Buy automatically.",
   remainingMin: "{qty} {unit} left · min. {min}",
@@ -422,6 +429,12 @@ const en: typeof es = {
   noUpcomingShifts: "No upcoming shifts",
   deleteShiftConfirm: "Delete {name}'s shift on {date}?",
   emailSentBadge: "email sent", emailNotSentBadge: "not sent",
+  cancelNotifyConfirm: "Notify {name} by email that their shift on {date} is cancelled? (It will also remove the event from their calendar)",
+  cancelEmailSent: "✓ Cancellation notice sent to {email}",
+  addSupply: "+ Add supply",
+  supplyNamePlaceholder: "Name (e.g. Shipping envelopes A4)",
+  unitLabel: "Unit", minStockLabel: "Minimum", currentQtyLabel: "Quantity",
+  deleteSupplyConfirm: "Remove \"{name}\" from the pantry?",
 };
 
 export const translations: Record<Lang, typeof es> = { es, en };

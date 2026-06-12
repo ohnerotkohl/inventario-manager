@@ -159,6 +159,33 @@ export default function TurnosPage() {
 
   async function eliminar(turno: Turno) {
     if (!confirm(tr("deleteShiftConfirm", { name: turno.empleado_nombre, date: diaDe(turno) }))) return;
+    // Si el turno es futuro y ya se le había avisado, ofrecer enviar la cancelación
+    const esFuturo = turno.fecha_fin >= new Date().toISOString();
+    if (esFuturo && turno.email && turno.email_enviado) {
+      if (confirm(tr("cancelNotifyConfirm", { name: turno.empleado_nombre, date: diaDe(turno) }))) {
+        try {
+          const res = await fetch("/api/email/turno", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: turno.id,
+              nombre: turno.empleado_nombre,
+              email: turno.email,
+              fecha_inicio: turno.fecha_inicio,
+              fecha_fin: turno.fecha_fin,
+              descripcion: turno.descripcion,
+              cancelar: true,
+            }),
+          });
+          setAviso(res.ok
+            ? { texto: tr("cancelEmailSent", { email: turno.email }), error: false }
+            : { texto: t.shiftEmailFailed, error: true });
+          setTimeout(() => setAviso(null), 5000);
+        } catch {
+          setAviso({ texto: t.shiftEmailFailed, error: true });
+        }
+      }
+    }
     await supabase.from("turnos").delete().eq("id", turno.id);
     fetchData();
   }
