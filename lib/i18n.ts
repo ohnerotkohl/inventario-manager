@@ -237,6 +237,7 @@ const es = {
   deleteFeedbackConfirm: "¿Eliminar este feedback?",
   dictate: "Dictar por voz",
   listening: "Escuchando... toca para parar",
+  dictateIn: "Idioma en el que vas a hablar",
   // Despensa
   addSupply: "+ Añadir insumo",
   supplyNamePlaceholder: "Nombre (ej. Sobres de envío A4)",
@@ -459,6 +460,7 @@ const en: typeof es = {
   deleteFeedbackConfirm: "Delete this feedback?",
   dictate: "Dictate by voice",
   listening: "Listening... tap to stop",
+  dictateIn: "Language you'll speak in",
   addSupply: "+ Add supply",
   supplyNamePlaceholder: "Name (e.g. Shipping envelopes A4)",
   unitLabel: "Unit", minStockLabel: "Minimum", currentQtyLabel: "Quantity",

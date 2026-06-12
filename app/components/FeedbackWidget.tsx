@@ -24,6 +24,27 @@ function crearReconocedor(): Reconocedor | null {
   return SR ? new SR() : null;
 }
 
+// Idiomas del equipo para el dictado (el reconocedor necesita saber
+// qué idioma va a escuchar; el del teléfono no siempre coincide)
+const IDIOMAS_DICTADO = [
+  { code: "es-ES", label: "ES" },
+  { code: "en-US", label: "EN" },
+  { code: "de-DE", label: "DE" },
+  { code: "hi-IN", label: "HI" },
+  { code: "it-IT", label: "IT" },
+  { code: "ca-ES", label: "CA" },
+];
+
+const DICTADO_LANG_KEY = "or_dictado_lang";
+
+function idiomaInicial(): string {
+  const guardado = typeof window !== "undefined" ? localStorage.getItem(DICTADO_LANG_KEY) : null;
+  if (guardado && IDIOMAS_DICTADO.some((i) => i.code === guardado)) return guardado;
+  const navegador = (typeof navigator !== "undefined" ? navigator.language : "es") || "es";
+  const match = IDIOMAS_DICTADO.find((i) => i.code.slice(0, 2) === navegador.slice(0, 2).toLowerCase());
+  return match?.code || "es-ES";
+}
+
 interface Feedback {
   id: string;
   usuario_nombre: string;
@@ -43,6 +64,7 @@ export default function FeedbackWidget() {
   const [lista, setLista] = useState<Feedback[]>([]);
   const [soportaVoz, setSoportaVoz] = useState(false);
   const [grabando, setGrabando] = useState(false);
+  const [idiomaDictado, setIdiomaDictado] = useState(idiomaInicial);
   const reconocedorRef = useRef<Reconocedor | null>(null);
   // Safari a veces solo entrega resultados provisionales: los guardamos
   // para no perder el dictado al parar
@@ -81,8 +103,8 @@ export default function FeedbackWidget() {
     }
     const rec = crearReconocedor();
     if (!rec) return;
-    // El idioma del teléfono de cada persona = su idioma nativo
-    rec.lang = navigator.language || "es-ES";
+    // El idioma que la persona eligió junto al micrófono
+    rec.lang = idiomaDictado;
     rec.continuous = true;
     rec.interimResults = true;
     provisionalRef.current = "";
@@ -181,6 +203,20 @@ export default function FeedbackWidget() {
               >
                 {enviando ? t.sending : t.feedbackSend}
               </button>
+              {soportaVoz && (
+                <select
+                  value={idiomaDictado}
+                  onChange={(e) => {
+                    setIdiomaDictado(e.target.value);
+                    localStorage.setItem(DICTADO_LANG_KEY, e.target.value);
+                  }}
+                  disabled={grabando}
+                  title={t.dictateIn}
+                  className="shrink-0 text-xs font-bold text-gray-600 bg-gray-100 rounded-xl px-2 focus:outline-none disabled:opacity-50"
+                >
+                  {IDIOMAS_DICTADO.map((i) => <option key={i.code} value={i.code}>{i.label}</option>)}
+                </select>
+              )}
               {soportaVoz && (
                 <button
                   onClick={toggleMicrofono}
