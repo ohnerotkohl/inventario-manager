@@ -9,19 +9,28 @@ export interface Usuario {
 
 const SESSION_KEY = "or_session";
 const PIN_SALT = "ohne_rotkohl_2024";
+// Subir este número cierra la sesión de TODOS los dispositivos en su
+// próxima visita (obliga a volver a entrar con el PIN)
+const SESSION_VERSION = 2;
 
 export function getSession(): Usuario | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(SESSION_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed._v !== SESSION_VERSION) {
+      localStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+    return parsed;
   } catch {
     return null;
   }
 }
 
 export function setSession(user: Usuario) {
-  localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ ...user, _v: SESSION_VERSION }));
 }
 
 export function clearSession() {
