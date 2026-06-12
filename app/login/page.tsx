@@ -82,10 +82,10 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center px-6 gap-8">
-      <img
-        src="https://cdn.shopify.com/s/files/1/0955/8471/5077/files/logo-Blanco.png?v=1776366740"
-        alt="Ohne Rotkohl"
-        className="h-8"
+      <div
+        role="img"
+        aria-label="Ohne Rotkohl"
+        className="logo-tornasol h-10 w-72 max-w-[85vw]"
       />
 
       {!selected ? (

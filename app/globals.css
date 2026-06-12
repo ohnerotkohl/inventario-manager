@@ -83,3 +83,19 @@ textarea {
 .icono-tornasol {
   animation: tornasol-color 5s ease-in-out infinite;
 }
+
+/* Logo del login con el tornasol enmascarado dentro de sus letras:
+   el PNG (con transparencia) actúa de máscara y el gradiente lo rellena */
+.logo-tornasol {
+  background: linear-gradient(90deg, #f0d848, #e03c2b, #8b5cf6, #2eb87a, #f0d848);
+  background-size: 300% 100%;
+  animation: tornasol 5s ease-in-out infinite;
+  -webkit-mask-image: url("https://cdn.shopify.com/s/files/1/0955/8471/5077/files/logo-Blanco.png?v=1776366740");
+  mask-image: url("https://cdn.shopify.com/s/files/1/0955/8471/5077/files/logo-Blanco.png?v=1776366740");
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  mask-position: center;
+}

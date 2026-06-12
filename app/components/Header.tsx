@@ -28,7 +28,7 @@ export default function Header() {
           {lang === "es" ? "EN" : "ES"}
         </button>
 
-        {!isPublic && user ? (
+        {!isPublic && user && (
           <button
             onClick={logout}
             className="text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-1.5"
@@ -40,8 +40,6 @@ export default function Header() {
               <line x1="21" y1="12" x2="9" y2="12"/>
             </svg>
           </button>
-        ) : (
-          <span className="text-xs text-gray-400 uppercase tracking-widest">{t.inventoryManager}</span>
         )}
       </div>
     </header>
