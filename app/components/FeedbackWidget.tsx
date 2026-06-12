@@ -1,9 +1,27 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "./AuthProvider";
 import { useLang } from "./LangProvider";
+
+// Reconocimiento de voz del navegador (Chrome/Android y Safari/iOS)
+type Reconocedor = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onresult: ((e: { resultIndex: number; results: { isFinal: boolean; 0: { transcript: string } }[] }) => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+function crearReconocedor(): Reconocedor | null {
+  const w = window as unknown as { SpeechRecognition?: new () => Reconocedor; webkitSpeechRecognition?: new () => Reconocedor };
+  const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
+  return SR ? new SR() : null;
+}
 
 interface Feedback {
   id: string;
@@ -22,9 +40,41 @@ export default function FeedbackWidget() {
   const [enviando, setEnviando] = useState(false);
   const [gracias, setGracias] = useState(false);
   const [lista, setLista] = useState<Feedback[]>([]);
+  const [soportaVoz, setSoportaVoz] = useState(false);
+  const [grabando, setGrabando] = useState(false);
+  const reconocedorRef = useRef<Reconocedor | null>(null);
+
+  useEffect(() => {
+    setSoportaVoz(crearReconocedor() !== null);
+  }, []);
 
   if (!user) return null;
   const esAdmin = user.rol === "admin";
+
+  function toggleMicrofono() {
+    if (grabando) {
+      reconocedorRef.current?.stop();
+      return;
+    }
+    const rec = crearReconocedor();
+    if (!rec) return;
+    // El idioma del teléfono de cada persona = su idioma nativo
+    rec.lang = navigator.language || "es-ES";
+    rec.continuous = true;
+    rec.interimResults = false;
+    rec.onresult = (e) => {
+      let dictado = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) dictado += e.results[i][0].transcript;
+      }
+      if (dictado.trim()) setTexto((prev) => (prev ? prev.trimEnd() + " " : "") + dictado.trim());
+    };
+    rec.onend = () => setGrabando(false);
+    rec.onerror = () => setGrabando(false);
+    reconocedorRef.current = rec;
+    rec.start();
+    setGrabando(true);
+  }
 
   async function abrir() {
     setAbierto(true);
@@ -84,13 +134,32 @@ export default function FeedbackWidget() {
               rows={3}
               className="w-full text-sm border border-gray-200 rounded-lg py-2 px-3 focus:outline-none focus:border-black resize-none"
             />
-            <button
-              onClick={enviar}
-              disabled={!texto.trim() || enviando}
-              className="w-full py-2.5 rounded-xl bg-black text-white font-medium text-sm disabled:bg-gray-200 disabled:text-gray-400"
-            >
-              {enviando ? t.sending : t.feedbackSend}
-            </button>
+            {grabando && <p className="text-xs text-red-600 animate-pulse">● {t.listening}</p>}
+            <div className="flex gap-2">
+              <button
+                onClick={enviar}
+                disabled={!texto.trim() || enviando}
+                className="flex-1 py-2.5 rounded-xl bg-black text-white font-medium text-sm disabled:bg-gray-200 disabled:text-gray-400"
+              >
+                {enviando ? t.sending : t.feedbackSend}
+              </button>
+              {soportaVoz && (
+                <button
+                  onClick={toggleMicrofono}
+                  title={grabando ? t.listening : t.dictate}
+                  className={`shrink-0 w-11 rounded-xl flex items-center justify-center transition-colors ${
+                    grabando ? "bg-red-500 text-white animate-pulse" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
+                    <path d="M19 10v2a7 7 0 01-14 0v-2"/>
+                    <line x1="12" y1="19" x2="12" y2="23"/>
+                    <line x1="8" y1="23" x2="16" y2="23"/>
+                  </svg>
+                </button>
+              )}
+            </div>
             {gracias && <p className="text-sm text-emerald-600 text-center">✓ {t.feedbackThanks}</p>}
 
             {esAdmin && (

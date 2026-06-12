@@ -235,6 +235,8 @@ const es = {
   feedbackListTitle: "Feedback recibido",
   feedbackEmptyList: "No hay feedback aún",
   deleteFeedbackConfirm: "¿Eliminar este feedback?",
+  dictate: "Dictar por voz",
+  listening: "Escuchando... toca para parar",
   // Despensa
   addSupply: "+ Añadir insumo",
   supplyNamePlaceholder: "Nombre (ej. Sobres de envío A4)",
@@ -455,6 +457,8 @@ const en: typeof es = {
   feedbackListTitle: "Feedback received",
   feedbackEmptyList: "No feedback yet",
   deleteFeedbackConfirm: "Delete this feedback?",
+  dictate: "Dictate by voice",
+  listening: "Listening... tap to stop",
   addSupply: "+ Add supply",
   supplyNamePlaceholder: "Name (e.g. Shipping envelopes A4)",
   unitLabel: "Unit", minStockLabel: "Minimum", currentQtyLabel: "Quantity",
