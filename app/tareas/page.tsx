@@ -41,6 +41,12 @@ interface ColesMove {
 
 const COLES_MES = 100;
 
+// Cada nivel de coles tiene su propio tornasol (1 verde-azul, 2 morado-rosa,
+// 3 naranja-rojo, 4 dorado)
+function colesTornasol(n: number): string {
+  return `coles-tornasol-${Math.min(4, Math.max(1, n))}`;
+}
+
 function hoy(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -237,8 +243,8 @@ export default function TareasPage() {
             <p className="text-sm font-semibold text-gray-900">{tarea.nombre}</p>
             {tarea.descripcion && <p className="text-xs text-gray-500 mt-0.5">{tarea.descripcion}</p>}
           </div>
-          <span className="shrink-0 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
-            {tr("colesN", { n: tarea.puntos_coles })}
+          <span className="shrink-0 text-xs font-bold bg-gray-900 rounded-full px-2.5 py-0.5">
+            <span className={colesTornasol(tarea.puntos_coles)}>{tr("colesN", { n: tarea.puntos_coles })}</span>
           </span>
         </div>
         <div className="flex flex-wrap gap-1.5 text-[10px]">
@@ -452,7 +458,9 @@ export default function TareasPage() {
                 <p className="text-sm text-gray-500 line-through">{tarea.nombre}</p>
                 <p className="text-[11px] text-gray-400">{t.completedOn} · {tarea.updated_at.slice(0, 10)}</p>
               </div>
-              <span className="shrink-0 text-xs text-emerald-600 font-semibold">{tr("colesN", { n: tarea.puntos_coles })}</span>
+              <span className="shrink-0 text-xs font-bold bg-gray-900 rounded-full px-2.5 py-0.5">
+                <span className={colesTornasol(tarea.puntos_coles)}>{tr("colesN", { n: tarea.puntos_coles })}</span>
+              </span>
             </div>
           ))}
         </div>
@@ -524,9 +532,13 @@ export default function TareasPage() {
                   <p className="text-xs text-gray-700 truncate">{m.motivo}</p>
                   <p className="text-[10px] text-gray-400">{m.usuario_nombre} · {m.created_at.slice(0, 10)}</p>
                 </div>
-                <span className={`shrink-0 text-xs font-bold ${m.coles_delta < 0 ? "text-emerald-600" : "text-gray-500"}`}>
-                  {m.coles_delta}
-                </span>
+                {m.coles_delta < 0 ? (
+                  <span className="shrink-0 text-xs font-bold bg-gray-900 rounded-full px-2.5 py-0.5">
+                    <span className={colesTornasol(-m.coles_delta)}>{m.coles_delta}</span>
+                  </span>
+                ) : (
+                  <span className="shrink-0 text-xs font-bold text-gray-500">+{m.coles_delta}</span>
+                )}
               </div>
             ))}
           </div>
