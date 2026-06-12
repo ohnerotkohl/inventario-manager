@@ -14,7 +14,7 @@ const es = {
   activate: "Activar", sending: "Enviando...", sent: "✓ Enviado",
   employee: "Empleado", admin: "Admin", name: "Nombre", poster: "Póster", ok: "OK",
   // Login
-  whoAreYou: "¿Quién eres?", changeUser: "← Cambiar usuario",
+  whoAreYou: "Select your name in the list", changeUser: "← Cambiar usuario",
   enterPin: "Introduce tu PIN", wrongPin: "PIN incorrecto", enter: "Entrar →",
   // Setup
   createFirstAdmin: "Crear primer admin",
@@ -260,7 +260,7 @@ const en: typeof es = {
   delete: "Delete", confirm: "Confirm", deactivate: "Deactivate",
   activate: "Activate", sending: "Sending...", sent: "✓ Sent",
   employee: "Employee", admin: "Admin", name: "Name", poster: "Poster", ok: "OK",
-  whoAreYou: "Who are you?", changeUser: "← Change user",
+  whoAreYou: "Select your name in the list", changeUser: "← Change user",
   enterPin: "Enter your PIN", wrongPin: "Wrong PIN", enter: "Enter →",
   createFirstAdmin: "Create first admin",
   initialSetupOnly: "For initial setup only",
