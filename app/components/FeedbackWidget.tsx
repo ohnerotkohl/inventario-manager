@@ -144,7 +144,8 @@ export default function FeedbackWidget() {
     const { data } = await supabase.from("feedback").select("*").order("created_at", { ascending: false }).limit(30);
     const todos = (data as Feedback[]) || [];
     setMios(todos.filter((f) => f.usuario_nombre === user?.nombre));
-    if (esAdmin) setLista(todos);
+    // En recibidos solo lo del resto del equipo: los propios viven en "Tus enviados"
+    if (esAdmin) setLista(todos.filter((f) => f.usuario_nombre !== user?.nombre));
   }
 
   async function enviar() {
