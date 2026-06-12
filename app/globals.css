@@ -59,3 +59,13 @@ textarea {
   background-size: 300% 100%;
   animation: tornasol 5s ease-in-out infinite;
 }
+
+/* Tornasol enmascarado dentro del texto (el cajón queda neutro) */
+.texto-tornasol {
+  background: linear-gradient(90deg, #f0d848, #e03c2b, #8b5cf6, #2eb87a, #f0d848);
+  background-size: 300% 100%;
+  animation: tornasol 5s ease-in-out infinite;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
