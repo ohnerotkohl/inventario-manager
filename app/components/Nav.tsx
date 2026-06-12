@@ -5,6 +5,13 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "./AuthProvider";
 import { useLang } from "./LangProvider";
 
+const GuiaIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/>
+    <path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>
+  </svg>
+);
+
 const MasIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <rect x="3" y="3" width="7" height="7" rx="1"/>
@@ -121,12 +128,14 @@ export default function Nav() {
     { href: "/estadisticas", label: t.stats, Icon: StatsIcon },
     { href: "/compras", label: t.purchases, Icon: ComprasIcon },
     { href: "/admin", label: t.team, Icon: AdminIcon },
+    { href: "/guia", label: t.guide, Icon: GuiaIcon },
   ];
 
   const empleadoLinks = [
     { href: "/sesion", label: t.session, Icon: SesionIcon },
     { href: "/balance", label: t.balance, Icon: BalanceIcon },
     { href: "/inventario", label: t.stock, Icon: StockIcon },
+    { href: "/guia", label: t.guide, Icon: GuiaIcon },
   ];
 
   const esAdmin = user.rol === "admin";
@@ -146,7 +155,7 @@ export default function Nav() {
           <div className="fixed inset-0 bg-black/50 z-10" onClick={() => setMasAbierto(false)} />
           <div className="fixed bottom-[52px] left-0 right-0 z-10">
             <div className="max-w-2xl mx-auto bg-white border border-gray-200 rounded-t-2xl shadow-lg">
-              <div className="grid grid-cols-5 py-3">
+              <div className="grid grid-cols-3 gap-y-2 py-3">
                 {masLinks.map(({ href, label, Icon }) => {
                   const active = pathname === href;
                   return (
