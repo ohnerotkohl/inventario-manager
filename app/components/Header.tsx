@@ -2,6 +2,7 @@
 import { usePathname } from "next/navigation";
 import { useAuth } from "./AuthProvider";
 import { useLang } from "./LangProvider";
+import FeedbackWidget from "./FeedbackWidget";
 
 export default function Header() {
   const { user, logout } = useAuth();
@@ -17,6 +18,8 @@ export default function Header() {
         className="h-7"
       />
       <div className="flex items-center gap-3">
+        {/* Feedback de la beta */}
+        {!isPublic && <FeedbackWidget />}
         {/* Language toggle */}
         <button
           onClick={() => setLang(lang === "es" ? "en" : "es")}

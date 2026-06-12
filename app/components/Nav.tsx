@@ -20,14 +20,6 @@ const StockIcon = () => (
   </svg>
 );
 
-const RestockIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="6 9 6 2 18 2 18 9"/>
-    <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/>
-    <rect x="6" y="14" width="12" height="8"/>
-  </svg>
-);
-
 const SesionIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
@@ -102,10 +94,10 @@ export default function Nav() {
 
   if (!user || pathname === "/login") return null;
 
+  // Restock vive dentro de Stock (/inventario) para que el menú quepa en el celular
   const adminLinks = [
     { href: "/", label: t.home, Icon: HomeIcon },
     { href: "/inventario", label: t.stock, Icon: StockIcon },
-    { href: "/restock", label: t.restock, Icon: RestockIcon },
     { href: "/sesion", label: t.session, Icon: SesionIcon },
     { href: "/balance", label: t.balance, Icon: BalanceIcon },
     { href: "/finanzas", label: t.finance, Icon: FinanzasIcon },
@@ -133,7 +125,7 @@ export default function Nav() {
             <Link
               key={href}
               href={href}
-              className={`flex flex-col items-center py-2 px-1.5 gap-0.5 text-[10px] transition-colors shrink-0 ${
+              className={`flex flex-col items-center py-2 px-1 gap-0.5 text-[10px] transition-colors shrink-0 ${
                 active ? "text-black font-semibold" : "text-gray-400"
               }`}
             >

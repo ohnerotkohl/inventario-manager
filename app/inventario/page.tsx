@@ -1,6 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 import { useEffect, useState, useCallback, Suspense } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Caja, Serie, Poster, Inventario } from "@/lib/types";
@@ -295,6 +296,15 @@ function InventarioInner() {
             );
           })}
           {cajas.length === 0 && <SkeletonPage />}
+          {/* Restock vive aquí dentro para liberar espacio en el menú inferior */}
+          {user?.rol === "admin" && cajas.length > 0 && (
+            <Link
+              href="/restock"
+              className="text-center text-sm font-medium text-gray-500 border border-dashed border-gray-300 rounded-2xl px-5 py-4 hover:border-black hover:text-black transition-colors"
+            >
+              📦 {t.restockTitle} →
+            </Link>
+          )}
         </div>
       </div>
     );

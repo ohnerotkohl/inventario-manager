@@ -31,6 +31,7 @@ export default function TurnosPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [turnos, setTurnos] = useState<Turno[]>([]);
+  const [trabajadores, setTrabajadores] = useState<{ id: string; nombre: string; email: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [mesVista, setMesVista] = useState(hoy().slice(0, 7));
   const [diaSel, setDiaSel] = useState<string | null>(null);
@@ -45,6 +46,7 @@ export default function TurnosPage() {
   const [fEmail, setFEmail] = useState("");
   const [fDesc, setFDesc] = useState("");
   const [fNotificar, setFNotificar] = useState(true);
+  const [fGuardarTrabajador, setFGuardarTrabajador] = useState(true);
   const [guardando, setGuardando] = useState(false);
 
   useEffect(() => {
@@ -53,8 +55,12 @@ export default function TurnosPage() {
   }, [user]);
 
   async function fetchData() {
-    const { data } = await supabase.from("turnos").select("*").order("fecha_inicio", { ascending: false });
-    setTurnos((data as Turno[]) || []);
+    const [tRes, wRes] = await Promise.all([
+      supabase.from("turnos").select("*").order("fecha_inicio", { ascending: false }),
+      supabase.from("trabajadores").select("*").order("nombre"),
+    ]);
+    setTurnos((tRes.data as Turno[]) || []);
+    setTrabajadores(wRes.data || []);
     setLoading(false);
   }
 
@@ -132,6 +138,13 @@ export default function TurnosPage() {
       estado: "pendiente",
     }).select().single();
     if (error || !data) { setGuardando(false); alert(t.saveError); return; }
+    // Guardar el perfil del trabajador para reutilizarlo en próximos turnos
+    if (fGuardarTrabajador && fEmail.trim()) {
+      await supabase.from("trabajadores").upsert(
+        { nombre: fNombre.trim(), email: fEmail.trim().toLowerCase() },
+        { onConflict: "email" }
+      );
+    }
     let texto = t.shiftSaved;
     let esError = false;
     if (fNotificar && fEmail.trim()) {
@@ -279,6 +292,22 @@ export default function TurnosPage() {
               <input type="time" value={fFin} onChange={(e) => setFFin(e.target.value)} className={inputClass} />
             </div>
           </div>
+          {trabajadores.length > 0 && (
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">{t.savedWorkers}</label>
+              <select
+                value=""
+                onChange={(e) => {
+                  const w = trabajadores.find((tr) => tr.id === e.target.value);
+                  if (w) { setFNombre(w.nombre); setFEmail(w.email); }
+                }}
+                className={inputClass}
+              >
+                <option value="">{t.selectSavedWorker}</option>
+                {trabajadores.map((w) => <option key={w.id} value={w.id}>{w.nombre} — {w.email}</option>)}
+              </select>
+            </div>
+          )}
           <div>
             <label className="block text-xs text-gray-500 mb-1">{t.workerName}</label>
             <input type="text" value={fNombre} onChange={(e) => setFNombre(e.target.value)} className={inputClass} />
@@ -294,6 +323,10 @@ export default function TurnosPage() {
           <label className="flex items-center justify-between cursor-pointer">
             <span className="text-sm text-gray-600">{t.notifyByEmail}</span>
             <input type="checkbox" checked={fNotificar} onChange={(e) => setFNotificar(e.target.checked)} className="w-5 h-5 accent-black" />
+          </label>
+          <label className="flex items-center justify-between cursor-pointer">
+            <span className="text-sm text-gray-600">{t.saveWorkerToggle}</span>
+            <input type="checkbox" checked={fGuardarTrabajador} onChange={(e) => setFGuardarTrabajador(e.target.checked)} className="w-5 h-5 accent-black" />
           </label>
           <div className="flex gap-2">
             <button
