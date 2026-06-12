@@ -112,11 +112,11 @@ export default function Nav() {
     { href: "/inventario", label: t.stock, Icon: StockIcon },
     { href: "/sesion", label: t.session, Icon: SesionIcon },
     { href: "/balance", label: t.balance, Icon: BalanceIcon },
-    { href: "/finanzas", label: t.finance, Icon: FinanzasIcon },
     { href: "/tareas", label: t.tasks, Icon: TareasIcon },
   ];
 
   const masLinks = [
+    { href: "/finanzas", label: t.finance, Icon: FinanzasIcon },
     { href: "/turnos", label: t.shifts, Icon: TurnosIcon },
     { href: "/estadisticas", label: t.stats, Icon: StatsIcon },
     { href: "/compras", label: t.purchases, Icon: ComprasIcon },
@@ -146,7 +146,7 @@ export default function Nav() {
           <div className="fixed inset-0 bg-black/20 z-10" onClick={() => setMasAbierto(false)} />
           <div className="fixed bottom-[52px] left-0 right-0 z-10">
             <div className="max-w-2xl mx-auto bg-white border border-gray-200 rounded-t-2xl shadow-lg">
-              <div className="grid grid-cols-4 py-3">
+              <div className="grid grid-cols-5 py-3">
                 {masLinks.map(({ href, label, Icon }) => {
                   const active = pathname === href;
                   return (
