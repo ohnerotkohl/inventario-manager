@@ -62,6 +62,8 @@ export default function FeedbackWidget() {
   const [enviando, setEnviando] = useState(false);
   const [gracias, setGracias] = useState(false);
   const [lista, setLista] = useState<Feedback[]>([]);
+  const [mios, setMios] = useState<Feedback[]>([]);
+  const [editandoId, setEditandoId] = useState<string | null>(null);
   const [soportaVoz, setSoportaVoz] = useState(false);
   const [grabando, setGrabando] = useState(false);
   const [idiomaDictado, setIdiomaDictado] = useState(idiomaInicial);
@@ -139,25 +141,39 @@ export default function FeedbackWidget() {
   async function abrir() {
     setAbierto(true);
     setGracias(false);
-    if (esAdmin) {
-      const { data } = await supabase.from("feedback").select("*").order("created_at", { ascending: false }).limit(30);
-      setLista((data as Feedback[]) || []);
-    }
+    const { data } = await supabase.from("feedback").select("*").order("created_at", { ascending: false }).limit(30);
+    const todos = (data as Feedback[]) || [];
+    setMios(todos.filter((f) => f.usuario_nombre === user?.nombre));
+    if (esAdmin) setLista(todos);
   }
 
   async function enviar() {
     if (!texto.trim() || enviando) return;
     setEnviando(true);
-    const { error } = await supabase.from("feedback").insert({
-      usuario_nombre: user?.nombre || "—",
-      texto: texto.trim(),
-      pagina: pathname,
-    });
+    const { error } = editandoId
+      ? await supabase.from("feedback").update({ texto: texto.trim() }).eq("id", editandoId)
+      : await supabase.from("feedback").insert({
+          usuario_nombre: user?.nombre || "—",
+          texto: texto.trim(),
+          pagina: pathname,
+        });
     setEnviando(false);
     if (error) return;
     setTexto("");
+    setEditandoId(null);
     setGracias(true);
-    if (esAdmin) abrir();
+    abrir();
+  }
+
+  function editarMio(f: Feedback) {
+    setTexto(f.texto);
+    setEditandoId(f.id);
+    setGracias(false);
+  }
+
+  function cancelarEdicion() {
+    setTexto("");
+    setEditandoId(null);
   }
 
   async function eliminar(id: string) {
@@ -195,13 +211,19 @@ export default function FeedbackWidget() {
               className="w-full text-sm border border-gray-200 rounded-lg py-2 px-3 focus:outline-none focus:border-black resize-none"
             />
             {grabando && <p className="text-xs text-red-600 animate-pulse">● {t.listening}</p>}
+            {editandoId && (
+              <div className="flex items-center justify-between bg-purple-50 border border-purple-200 rounded-lg px-3 py-1.5">
+                <span className="text-[11px] text-purple-700">{t.editingFeedback}</span>
+                <button onClick={cancelarEdicion} className="text-[11px] text-gray-400 underline">{t.cancel}</button>
+              </div>
+            )}
             <div className="flex gap-2">
               <button
                 onClick={enviar}
                 disabled={!texto.trim() || enviando}
                 className="flex-1 py-2.5 rounded-xl bg-black text-white font-medium text-sm disabled:bg-gray-200 disabled:text-gray-400"
               >
-                {enviando ? t.sending : t.feedbackSend}
+                {enviando ? t.sending : editandoId ? t.saveChanges : t.feedbackSend}
               </button>
               {soportaVoz && (
                 <select
@@ -235,6 +257,26 @@ export default function FeedbackWidget() {
               )}
             </div>
             {gracias && <p className="text-sm text-emerald-600 text-center">✓ {t.feedbackThanks}</p>}
+
+            {/* Tus feedbacks: toca uno para editarlo si te faltó algo */}
+            {mios.length > 0 && (
+              <div className="border-t border-gray-100 pt-3 space-y-2">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-gray-500">{t.myFeedbacks}</p>
+                  <p className="text-[10px] text-gray-400">{t.tapToEditFeedback}</p>
+                </div>
+                {mios.map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => editarMio(f)}
+                    className={`w-full text-left rounded-lg px-3 py-2 border transition-colors ${editandoId === f.id ? "bg-purple-50 border-purple-200" : "bg-gray-50 border-transparent hover:border-gray-300"}`}
+                  >
+                    <p className="text-xs text-gray-800 line-clamp-2">{f.texto}</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">{f.created_at.slice(0, 10)}{f.pagina ? ` · ${f.pagina}` : ""}</p>
+                  </button>
+                ))}
+              </div>
+            )}
 
             {esAdmin && (
               <div className="border-t border-gray-100 pt-3 space-y-2">
