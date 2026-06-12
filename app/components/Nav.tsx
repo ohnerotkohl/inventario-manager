@@ -1,8 +1,18 @@
 "use client";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "./AuthProvider";
 import { useLang } from "./LangProvider";
+
+const MasIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="7" height="7" rx="1"/>
+    <rect x="14" y="3" width="7" height="7" rx="1"/>
+    <rect x="3" y="14" width="7" height="7" rx="1"/>
+    <rect x="14" y="14" width="7" height="7" rx="1"/>
+  </svg>
+);
 
 const HomeIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -91,10 +101,12 @@ export default function Nav() {
   const pathname = usePathname();
   const { user } = useAuth();
   const { t } = useLang();
+  const [masAbierto, setMasAbierto] = useState(false);
 
   if (!user || pathname === "/login") return null;
 
-  // Restock vive dentro de Stock (/inventario) para que el menú quepa en el celular
+  // Abajo solo lo esencial del día a día; el resto vive en el panel "Más"
+  // (Restock vive dentro de Stock /inventario)
   const adminLinks = [
     { href: "/", label: t.home, Icon: HomeIcon },
     { href: "/inventario", label: t.stock, Icon: StockIcon },
@@ -102,6 +114,9 @@ export default function Nav() {
     { href: "/balance", label: t.balance, Icon: BalanceIcon },
     { href: "/finanzas", label: t.finance, Icon: FinanzasIcon },
     { href: "/tareas", label: t.tasks, Icon: TareasIcon },
+  ];
+
+  const masLinks = [
     { href: "/turnos", label: t.shifts, Icon: TurnosIcon },
     { href: "/estadisticas", label: t.stats, Icon: StatsIcon },
     { href: "/compras", label: t.purchases, Icon: ComprasIcon },
@@ -114,27 +129,58 @@ export default function Nav() {
     { href: "/inventario", label: t.stock, Icon: StockIcon },
   ];
 
-  const links = user.rol === "admin" ? adminLinks : empleadoLinks;
+  const esAdmin = user.rol === "admin";
+  const links = esAdmin ? adminLinks : empleadoLinks;
+  const enMas = masLinks.some((l) => l.href === pathname);
+
+  const itemClass = (active: boolean) =>
+    `flex flex-col items-center py-2 px-1.5 gap-0.5 text-[10px] transition-colors min-w-0 ${
+      active ? "text-black font-semibold" : "text-gray-400"
+    }`;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-10">
-      <div className="flex justify-around items-center max-w-2xl mx-auto overflow-x-auto">
-        {links.map(({ href, label, Icon }) => {
-          const active = pathname === href;
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={`flex flex-col items-center py-2 px-1 gap-0.5 text-[10px] transition-colors shrink-0 ${
-                active ? "text-black font-semibold" : "text-gray-400"
-              }`}
-            >
-              <Icon />
-              {label}
-            </Link>
-          );
-        })}
-      </div>
-    </nav>
+    <>
+      {/* Panel "Más" */}
+      {masAbierto && esAdmin && (
+        <>
+          <div className="fixed inset-0 bg-black/20 z-10" onClick={() => setMasAbierto(false)} />
+          <div className="fixed bottom-[52px] left-0 right-0 z-10">
+            <div className="max-w-2xl mx-auto bg-white border border-gray-200 rounded-t-2xl shadow-lg">
+              <div className="grid grid-cols-4 py-3">
+                {masLinks.map(({ href, label, Icon }) => {
+                  const active = pathname === href;
+                  return (
+                    <Link key={href} href={href} onClick={() => setMasAbierto(false)} className={itemClass(active)}>
+                      <Icon />
+                      {label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-10">
+        <div className="flex justify-around items-center max-w-2xl mx-auto">
+          {links.map(({ href, label, Icon }) => {
+            const active = pathname === href;
+            return (
+              <Link key={href} href={href} onClick={() => setMasAbierto(false)} className={itemClass(active)}>
+                <Icon />
+                {label}
+              </Link>
+            );
+          })}
+          {esAdmin && (
+            <button onClick={() => setMasAbierto(!masAbierto)} className={itemClass(enMas || masAbierto)}>
+              <MasIcon />
+              {t.more}
+            </button>
+          )}
+        </div>
+      </nav>
+    </>
   );
 }

@@ -4,7 +4,7 @@ export const LANG_KEY = "or_lang";
 const es = {
   // Nav
   home: "Inicio", stock: "Stock", restock: "Restock", session: "Sesión",
-  stats: "Stats", purchases: "Despensa", team: "Equipo",
+  stats: "Stats", purchases: "Despensa", team: "Equipo", more: "Más",
   // Header
   inventoryManager: "Inventario Manager",
   // Common
@@ -247,7 +247,7 @@ const es = {
 
 const en: typeof es = {
   home: "Home", stock: "Stock", restock: "Restock", session: "Session",
-  stats: "Stats", purchases: "Pantry", team: "Team",
+  stats: "Stats", purchases: "Pantry", team: "Team", more: "More",
   inventoryManager: "Inventory Manager",
   loading: "Loading...", save: "Save", cancel: "Cancel",
   saving: "Saving...", saved: "✓ Saved", edit: "Edit",
