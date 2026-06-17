@@ -98,6 +98,8 @@ export default function SesionPage() {
   const [posters, setPosters] = useState<PosterConSeries[]>([]);
   const [inventario, setInventario] = useState<Inventario[]>([]);
   const [ventas, setVentas] = useState<{ [key: string]: number }>({});
+  // Samples faltantes marcados durante el cierre (por poster_id)
+  const [samplesFaltantes, setSamplesFaltantes] = useState<Set<string>>(new Set());
   const [cajas, setCajas] = useState<{ id: string; nombre: string }[]>([]);
   const [nuevoMercado, setNuevoMercado] = useState(false);
   const [nuevoNombre, setNuevoNombre] = useState("");
@@ -266,6 +268,13 @@ export default function SesionPage() {
     setInventario(invRes.data || []);
     setSeries(seriesRes.data || []);
 
+    // Reflejar los samples que ya estaban marcados como faltantes
+    const samplesIniciales = new Set<string>();
+    for (const inv of (invRes.data || [])) {
+      if (inv.sample_falta) samplesIniciales.add(inv.poster_id);
+    }
+    setSamplesFaltantes(samplesIniciales);
+
     if (modoEdicion && sesionId) {
       const [ventasRes, sesionRes] = await Promise.all([
         supabase.from("ventas").select("poster_id, talla, cantidad").eq("sesion_id", sesionId),
@@ -289,6 +298,15 @@ export default function SesionPage() {
     if (!mercadoId || !trabajador.trim()) return;
     cargarPosters();
     setStep("ventas");
+  }
+
+  function toggleSample(posterId: string) {
+    setSamplesFaltantes((prev) => {
+      const next = new Set(prev);
+      if (next.has(posterId)) next.delete(posterId);
+      else next.add(posterId);
+      return next;
+    });
   }
 
   function openReview() {
@@ -513,6 +531,20 @@ export default function SesionPage() {
       insertExtras.push(supabase.from("ideas").insert({ texto: ideas.trim(), fecha, mercado: mercadoNombreGuardar }));
     }
     if (insertExtras.length > 0) await Promise.all(insertExtras);
+
+    // Aplicar samples faltantes marcados durante el cierre (a las tallas del póster)
+    if (mercado) {
+      const sampleUpdates: PromiseLike<unknown>[] = [];
+      for (const inv of inventario) {
+        const debeFaltar = samplesFaltantes.has(inv.poster_id);
+        if (inv.sample_falta !== debeFaltar) {
+          sampleUpdates.push(
+            supabase.from("inventario").update({ sample_falta: debeFaltar }).eq("id", inv.id).then(() => { return; })
+          );
+        }
+      }
+      if (sampleUpdates.length > 0) await Promise.all(sampleUpdates);
+    }
 
     const reporte = await generarReporte(reportSesionId);
 
@@ -1192,7 +1224,19 @@ export default function SesionPage() {
                           key={p.id}
                           className={`grid grid-cols-[1fr_80px_80px] gap-2 px-4 py-3 items-center ${idx < sp.length - 1 ? "border-b border-gray-100" : ""}`}
                         >
-                          <span className="text-sm text-gray-900 font-medium">{p.nombre}</span>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-sm text-gray-900 font-medium truncate">{p.nombre}</span>
+                            <button
+                              type="button"
+                              onClick={() => toggleSample(p.id)}
+                              title={t.missingSampleTitle}
+                              className={`shrink-0 p-1 rounded-md transition-colors ${samplesFaltantes.has(p.id) ? "bg-orange-400 text-white" : "bg-gray-100 text-gray-400"}`}
+                            >
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                              </svg>
+                            </button>
+                          </div>
                           {p.tiene_a4 ? (
                             <div className="flex flex-col items-center">
                               <input
