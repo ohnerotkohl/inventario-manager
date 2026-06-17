@@ -208,6 +208,13 @@ export default function TareasPage() {
     fetchData();
   }
 
+  // Eliminar un movimiento del historial de coles (devuelve esas coles al marcador)
+  async function eliminarMovimiento(m: ColesMove) {
+    if (!confirm(t.deleteMoveConfirm)) return;
+    await supabase.from("coles_log").delete().eq("id", m.id);
+    fetchData();
+  }
+
   // Deshacer una tarea completada por error: vuelve a pendiente y devuelve las coles
   async function deshacerCompletada(tarea: Tarea) {
     if (!confirm(tr("undoTaskConfirm", { name: tarea.nombre }))) return;
@@ -560,9 +567,20 @@ export default function TareasPage() {
                   <p className="text-xs text-gray-700 truncate">{m.motivo}</p>
                   <p className="text-[10px] text-gray-400">{m.usuario_nombre} · {m.created_at.slice(0, 10)}</p>
                 </div>
-                <span className={`shrink-0 text-xs font-bold ${m.coles_delta < 0 ? "text-purple-600" : "text-gray-500"}`}>
-                  {m.coles_delta}
-                </span>
+                <div className="shrink-0 flex items-center gap-2">
+                  <span className={`text-xs font-bold ${m.coles_delta < 0 ? "text-purple-600" : "text-gray-500"}`}>
+                    {m.coles_delta}
+                  </span>
+                  <button
+                    onClick={() => eliminarMovimiento(m)}
+                    title={t.delete}
+                    className="text-gray-300 hover:text-red-500 transition-colors p-0.5"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
             ))}
           </div>
