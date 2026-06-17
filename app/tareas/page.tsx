@@ -565,6 +565,17 @@ export default function TareasPage() {
             <div>
               <p className="text-sm font-bold text-gray-900">{tr("colesMonthTitle", { month: nombreMesActual })}</p>
               <p className="text-xs text-gray-400 mt-1">{t.colesExplain}</p>
+              {/* Leyenda de cómo se asignan las coles */}
+              <div className="mt-3 bg-gray-50 rounded-xl p-3 space-y-1.5">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">{t.colesRuleTitle}</p>
+                {[{ n: "−1", d: t.colesRule1 }, { n: "−2", d: t.colesRule2 }, { n: "−3 / −4", d: t.colesRule34 }].map((r) => (
+                  <div key={r.n} className="flex gap-2 text-xs">
+                    <span className="shrink-0 w-12 font-bold text-purple-600">{r.n}</span>
+                    <span className="text-gray-600">{r.d}</span>
+                  </div>
+                ))}
+                <p className="text-[11px] text-gray-400 pt-1">{t.colesRuleNote}</p>
+              </div>
             </div>
             {ranking.map(([nombre, reducidas]) => {
               const restantes = Math.max(0, COLES_MES - reducidas);
