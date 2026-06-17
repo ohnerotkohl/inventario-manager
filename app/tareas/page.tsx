@@ -208,6 +208,23 @@ export default function TareasPage() {
     fetchData();
   }
 
+  // Deshacer una tarea completada por error: vuelve a pendiente y devuelve las coles
+  async function deshacerCompletada(tarea: Tarea) {
+    if (!confirm(tr("undoTaskConfirm", { name: tarea.nombre }))) return;
+    // Borrar el último movimiento de coles de esta tarea (le devuelve las coles a quien la completó)
+    const { data: ultimoMov } = await supabase
+      .from("coles_log")
+      .select("id")
+      .eq("tarea_id", tarea.id)
+      .lt("coles_delta", 0)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (ultimoMov) await supabase.from("coles_log").delete().eq("id", ultimoMov.id);
+    await supabase.from("tareas").update({ estado: "pendiente" }).eq("id", tarea.id);
+    fetchData();
+  }
+
   // ── Coles del mes actual ──
   const mesActual = hoy().slice(0, 7);
   const movsMes = coles.filter((c) => c.created_at.slice(0, 7) === mesActual);
@@ -459,7 +476,19 @@ export default function TareasPage() {
                 <p className="text-sm text-gray-500 line-through">{tarea.nombre}</p>
                 <p className="text-[11px] text-gray-400">{t.completedOn} · {tarea.updated_at.slice(0, 10)}</p>
               </div>
-              <span className="shrink-0 text-xs font-semibold text-purple-600">{tr("colesN", { n: tarea.puntos_coles })}</span>
+              <div className="shrink-0 flex items-center gap-2">
+                <span className="text-xs font-semibold text-purple-600">{tr("colesN", { n: tarea.puntos_coles })}</span>
+                <button
+                  onClick={() => deshacerCompletada(tarea)}
+                  title={t.undoCompleted}
+                  className="flex items-center gap-1 text-[11px] text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-lg px-2 py-1 transition-colors"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 8"/>
+                  </svg>
+                  {t.undoCompleted}
+                </button>
+              </div>
             </div>
           ))}
         </div>

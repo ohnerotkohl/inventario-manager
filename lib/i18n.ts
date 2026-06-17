@@ -203,6 +203,8 @@ const es = {
   deleteTaskConfirm: "¿Eliminar la tarea \"{name}\"?",
   overdueBadge: "Atrasada", urgentBadge: "Urgente",
   completedOn: "Completada",
+  undoCompleted: "Deshacer",
+  undoTaskConfirm: "¿Deshacer \"{name}\"? Volverá a tareas pendientes y se devolverán las coles.",
   // Turnos
   shifts: "Turnos",
   shiftsSubtitle: "Calendario y asignación de turnos",
@@ -436,6 +438,8 @@ const en: typeof es = {
   deleteTaskConfirm: "Delete task \"{name}\"?",
   overdueBadge: "Overdue", urgentBadge: "Urgent",
   completedOn: "Completed",
+  undoCompleted: "Undo",
+  undoTaskConfirm: "Undo \"{name}\"? It goes back to pending tasks and the coles are refunded.",
   shifts: "Shifts",
   shiftsSubtitle: "Calendar and shift assignment",
   assignShift: "Assign shift",
