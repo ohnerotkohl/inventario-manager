@@ -157,6 +157,7 @@ const es = {
   includedMarkets: "Mercados incluidos: {list}",
   noPersonalMarkets: "No tienes mercados personales asignados",
   balancesCount: "{n} balance(s) registrado(s)",
+  personalHistory: "Historial de balances",
   // Finanzas: gastos del estudio e históricos
   expensesTab: "Gastos",
   studioExpenses: "Gastos del estudio",
@@ -391,6 +392,7 @@ const en: typeof es = {
   includedMarkets: "Markets included: {list}",
   noPersonalMarkets: "You have no personal markets assigned",
   balancesCount: "{n} balance(s) recorded",
+  personalHistory: "Balance history",
   expensesTab: "Expenses",
   studioExpenses: "Studio expenses",
   addStudioExpense: "+ Add expense",

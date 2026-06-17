@@ -67,6 +67,7 @@ export default function FinanzasPage() {
   const [gastos, setGastos] = useState<Gasto[]>([]);
   const [historicos, setHistoricos] = useState<IngresoHistorico[]>([]);
   const [loading, setLoading] = useState(true);
+  const [balanceAbierto, setBalanceAbierto] = useState<string | null>(null);
 
   // Formulario de gasto
   const [gConcepto, setGConcepto] = useState("");
@@ -326,6 +327,51 @@ export default function FinanzasPage() {
                   </p>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Historial detallado de balances — solo en Personal */}
+          {tab === "personal" && balancesVista.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-500">{t.personalHistory}</p>
+              {balancesVista.map((b) => {
+                const open = balanceAbierto === b.id;
+                return (
+                  <div key={b.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                    <button onClick={() => setBalanceAbierto(open ? null : b.id)} className="w-full flex items-center justify-between px-4 py-3 text-left">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">{b.mercado_nombre}</p>
+                        <p className="text-xs text-gray-500">{b.fecha} · {b.trabajador}</p>
+                      </div>
+                      <p className={`text-base font-bold ${b.neto >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        {b.neto >= 0 ? "+" : ""}{eur(b.neto)}
+                      </p>
+                    </button>
+                    {open && (
+                      <div className="border-t border-gray-100 px-4 py-3 space-y-1 text-sm">
+                        <div className="flex justify-between"><span className="text-gray-500">{t.sumupCard}</span><span>{eur(b.venta_sumup)}</span></div>
+                        <div className="flex justify-between"><span className="text-gray-500">{t.cashInPocket}</span><span>{eur(b.venta_efectivo)}</span></div>
+                        <div className="flex justify-between"><span className="text-gray-500">{t.paypalLabel}</span><span>{eur(b.venta_paypal)}</span></div>
+                        <div className="flex justify-between font-medium"><span className="text-gray-600">{t.totalSalesLabel}</span><span className="text-green-600">{eur(b.total_ventas)}</span></div>
+                        <div className="border-t border-gray-100 my-1" />
+                        {(b.gastos || []).map((g, i) => (
+                          <div key={i} className="flex justify-between"><span className="text-gray-500">{g.nombre || "—"}{g.efectivo ? ` (${t.paidCash})` : ""}</span><span>{eur(g.monto)}</span></div>
+                        ))}
+                        {b.turno_costo > 0 && (
+                          <div className="flex justify-between"><span className="text-gray-500">{tr("shiftCostExpense", { h: b.turno_horas, r: b.turno_tarifa })}</span><span>{eur(b.turno_costo)}</span></div>
+                        )}
+                        {b.iva_aplicado && (
+                          <div className="flex justify-between"><span className="text-gray-500">{t.vatExpense}</span><span>{eur(b.iva_monto)}</span></div>
+                        )}
+                        <div className="flex justify-between font-medium"><span className="text-gray-600">{t.totalExpensesLabel}</span><span className="text-red-600">{eur(b.total_gastos)}</span></div>
+                        {b.float_inicial > 0 && (
+                          <div className="flex justify-between"><span className="text-gray-400">{t.balanceFloat}</span><span className="text-gray-400">{eur(b.float_inicial)}</span></div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </>
