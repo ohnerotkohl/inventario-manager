@@ -307,13 +307,42 @@ export default function SesionPage() {
     });
   }
 
-  function toggleSoldOut(posterId: string) {
+  function toggleSoldOut(key: string) {
     setSoldOut((prev) => {
       const next = new Set(prev);
-      if (next.has(posterId)) next.delete(posterId);
-      else next.add(posterId);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
+  }
+
+  // Botones de sold out (rojo) y falta sample (naranja) para una talla concreta
+  function FlagsTalla({ posterId, talla }: { posterId: string; talla: "A4" | "A3" }) {
+    const key = `${posterId}-${talla}`;
+    return (
+      <div className="flex gap-1 mt-1">
+        <button
+          type="button"
+          onClick={() => toggleSoldOut(key)}
+          title={`${t.soldOutTitle} ${talla}`}
+          className={`p-1 rounded-md transition-colors ${soldOut.has(key) ? "bg-red-500 text-white" : "bg-gray-100 text-gray-400"}`}
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><line x1="4.9" y1="4.9" x2="19.1" y2="19.1"/>
+          </svg>
+        </button>
+        <button
+          type="button"
+          onClick={() => toggleSample(key)}
+          title={`${t.missingSampleTitle} ${talla}`}
+          className={`p-1 rounded-md transition-colors ${samplesFaltantes.has(key) ? "bg-orange-400 text-white" : "bg-gray-100 text-gray-400"}`}
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+          </svg>
+        </button>
+      </div>
+    );
   }
 
   function openReview() {
@@ -543,10 +572,11 @@ export default function SesionPage() {
     if (mercado) {
       const flagUpdates: PromiseLike<unknown>[] = [];
       for (const inv of inventario) {
+        const key = `${inv.poster_id}-${inv.talla}`;
         const update: { sample_falta?: boolean; out?: boolean } = {};
-        if (samplesFaltantes.has(inv.poster_id) && !inv.sample_falta) update.sample_falta = true;
+        if (samplesFaltantes.has(key) && !inv.sample_falta) update.sample_falta = true;
         // sold out: aditivo — fuerza true en lo marcado; el resto lo decide la lógica de ventas
-        if (soldOut.has(inv.poster_id) && !inv.out) update.out = true;
+        if (soldOut.has(key) && !inv.out) update.out = true;
         if (Object.keys(update).length > 0) {
           flagUpdates.push(
             supabase.from("inventario").update(update).eq("id", inv.id).then(() => { return; })
@@ -1234,29 +1264,7 @@ export default function SesionPage() {
                           key={p.id}
                           className={`grid grid-cols-[1fr_80px_80px] gap-2 px-4 py-3 items-center ${idx < sp.length - 1 ? "border-b border-gray-100" : ""}`}
                         >
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <span className="text-sm text-gray-900 font-medium truncate">{p.nombre}</span>
-                            <button
-                              type="button"
-                              onClick={() => toggleSoldOut(p.id)}
-                              title={t.soldOutTitle}
-                              className={`shrink-0 p-1 rounded-md transition-colors ${soldOut.has(p.id) ? "bg-red-500 text-white" : "bg-gray-100 text-gray-400"}`}
-                            >
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <circle cx="12" cy="12" r="10"/><line x1="4.9" y1="4.9" x2="19.1" y2="19.1"/>
-                              </svg>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => toggleSample(p.id)}
-                              title={t.missingSampleTitle}
-                              className={`shrink-0 p-1 rounded-md transition-colors ${samplesFaltantes.has(p.id) ? "bg-orange-400 text-white" : "bg-gray-100 text-gray-400"}`}
-                            >
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
-                              </svg>
-                            </button>
-                          </div>
+                          <span className="text-sm text-gray-900 font-medium min-w-0 truncate">{p.nombre}</span>
                           {p.tiene_a4 ? (
                             <div className="flex flex-col items-center">
                               <input
@@ -1273,6 +1281,7 @@ export default function SesionPage() {
                                 className="w-16 text-center text-sm text-gray-900 border border-gray-300 rounded-lg py-1 focus:outline-none focus:border-black"
                               />
                               {invA4 && <span className="text-xs text-gray-600 font-medium">/{invA4.cantidad}</span>}
+                              <FlagsTalla posterId={p.id} talla="A4" />
                             </div>
                           ) : <div />}
                           {p.tiene_a3 ? (
@@ -1291,6 +1300,7 @@ export default function SesionPage() {
                                 className="w-16 text-center text-sm text-gray-900 border border-gray-300 rounded-lg py-1 focus:outline-none focus:border-black"
                               />
                               {invA3 && <span className="text-xs text-gray-600 font-medium">/{invA3.cantidad}</span>}
+                              <FlagsTalla posterId={p.id} talla="A3" />
                             </div>
                           ) : <div />}
                         </div>
