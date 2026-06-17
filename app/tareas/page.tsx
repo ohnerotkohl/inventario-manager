@@ -501,14 +501,14 @@ export default function TareasPage() {
               <p className="text-sm font-bold text-gray-900">{tr("colesMonthTitle", { month: nombreMesActual })}</p>
               <p className="text-xs text-gray-400 mt-1">{t.colesExplain}</p>
             </div>
-            {ranking.map(([nombre, reducidas], idx) => {
+            {ranking.map(([nombre, reducidas]) => {
               const restantes = Math.max(0, COLES_MES - reducidas);
               const pct = Math.min(100, Math.round((reducidas / COLES_MES) * 100));
               return (
                 <div key={nombre}>
                   <div className="flex justify-between items-baseline mb-1">
                     <span className="text-sm text-gray-800">
-                      {idx === 0 && reducidas > 0 && <TrofeoIcon />}{nombre}
+                      {reducidas > 0 && reducidas === ranking[0][1] && <TrofeoIcon />}{nombre}
                     </span>
                     <span className="text-xs text-gray-500">
                       <span className="font-semibold text-purple-600">{tr("colesReduced", { n: reducidas })}</span>
@@ -535,10 +535,10 @@ export default function TareasPage() {
                     <p className="text-sm font-semibold text-gray-800 mb-1.5">
                       {t.months[parseInt(ym.slice(5)) - 1]} {ym.slice(0, 4)}
                     </p>
-                    {filas.map(([nombre, reducidas], idx) => (
+                    {filas.map(([nombre, reducidas]) => (
                       <div key={nombre} className="mb-1.5">
                         <div className="flex justify-between items-baseline mb-0.5">
-                          <span className="text-xs text-gray-700">{idx === 0 && reducidas > 0 && <TrofeoIcon size={12} />}{nombre}</span>
+                          <span className="text-xs text-gray-700">{reducidas > 0 && reducidas === filas[0][1] && <TrofeoIcon size={12} />}{nombre}</span>
                           <span className="text-xs font-semibold text-purple-600">−{reducidas}</span>
                         </div>
                         <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
