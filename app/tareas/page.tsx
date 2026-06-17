@@ -432,12 +432,8 @@ export default function TareasPage() {
           )}
 
           {activas.length === 0 && <p className="text-sm text-gray-400 text-center py-8">{t.noActiveTasks}</p>}
-          {[...activas].sort((a, b) => {
-            const aa = estaAtrasada(a) ? 0 : 1;
-            const bb = estaAtrasada(b) ? 0 : 1;
-            if (aa !== bb) return aa - bb;
-            return (a.proxima_fecha || "9999").localeCompare(b.proxima_fecha || "9999");
-          }).map((tarea) => <TareaCard key={tarea.id} tarea={tarea} />)}
+          {/* Lo más nuevo arriba, para no perder de vista lo recién añadido */}
+          {[...activas].sort((a, b) => b.created_at.localeCompare(a.created_at)).map((tarea) => <TareaCard key={tarea.id} tarea={tarea} />)}
         </div>
       )}
 
