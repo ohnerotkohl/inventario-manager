@@ -98,8 +98,9 @@ export default function SesionPage() {
   const [posters, setPosters] = useState<PosterConSeries[]>([]);
   const [inventario, setInventario] = useState<Inventario[]>([]);
   const [ventas, setVentas] = useState<{ [key: string]: number }>({});
-  // Samples faltantes marcados durante el cierre (por poster_id)
+  // Marcados durante el cierre, por poster_id
   const [samplesFaltantes, setSamplesFaltantes] = useState<Set<string>>(new Set());
+  const [soldOut, setSoldOut] = useState<Set<string>>(new Set());
   const [cajas, setCajas] = useState<{ id: string; nombre: string }[]>([]);
   const [nuevoMercado, setNuevoMercado] = useState(false);
   const [nuevoNombre, setNuevoNombre] = useState("");
@@ -268,12 +269,9 @@ export default function SesionPage() {
     setInventario(invRes.data || []);
     setSeries(seriesRes.data || []);
 
-    // Reflejar los samples que ya estaban marcados como faltantes
-    const samplesIniciales = new Set<string>();
-    for (const inv of (invRes.data || [])) {
-      if (inv.sample_falta) samplesIniciales.add(inv.poster_id);
-    }
-    setSamplesFaltantes(samplesIniciales);
+    // Empiezan vacíos: marcas lo que pasó en este turno (sold out / falta sample)
+    setSamplesFaltantes(new Set());
+    setSoldOut(new Set());
 
     if (modoEdicion && sesionId) {
       const [ventasRes, sesionRes] = await Promise.all([
@@ -302,6 +300,15 @@ export default function SesionPage() {
 
   function toggleSample(posterId: string) {
     setSamplesFaltantes((prev) => {
+      const next = new Set(prev);
+      if (next.has(posterId)) next.delete(posterId);
+      else next.add(posterId);
+      return next;
+    });
+  }
+
+  function toggleSoldOut(posterId: string) {
+    setSoldOut((prev) => {
       const next = new Set(prev);
       if (next.has(posterId)) next.delete(posterId);
       else next.add(posterId);
@@ -532,18 +539,21 @@ export default function SesionPage() {
     }
     if (insertExtras.length > 0) await Promise.all(insertExtras);
 
-    // Aplicar samples faltantes marcados durante el cierre (a las tallas del póster)
+    // Aplicar lo marcado durante el cierre (sold out / falta sample, por póster)
     if (mercado) {
-      const sampleUpdates: PromiseLike<unknown>[] = [];
+      const flagUpdates: PromiseLike<unknown>[] = [];
       for (const inv of inventario) {
-        const debeFaltar = samplesFaltantes.has(inv.poster_id);
-        if (inv.sample_falta !== debeFaltar) {
-          sampleUpdates.push(
-            supabase.from("inventario").update({ sample_falta: debeFaltar }).eq("id", inv.id).then(() => { return; })
+        const update: { sample_falta?: boolean; out?: boolean } = {};
+        if (samplesFaltantes.has(inv.poster_id) && !inv.sample_falta) update.sample_falta = true;
+        // sold out: aditivo — fuerza true en lo marcado; el resto lo decide la lógica de ventas
+        if (soldOut.has(inv.poster_id) && !inv.out) update.out = true;
+        if (Object.keys(update).length > 0) {
+          flagUpdates.push(
+            supabase.from("inventario").update(update).eq("id", inv.id).then(() => { return; })
           );
         }
       }
-      if (sampleUpdates.length > 0) await Promise.all(sampleUpdates);
+      if (flagUpdates.length > 0) await Promise.all(flagUpdates);
     }
 
     const reporte = await generarReporte(reportSesionId);
@@ -1224,8 +1234,18 @@ export default function SesionPage() {
                           key={p.id}
                           className={`grid grid-cols-[1fr_80px_80px] gap-2 px-4 py-3 items-center ${idx < sp.length - 1 ? "border-b border-gray-100" : ""}`}
                         >
-                          <div className="flex items-center gap-2 min-w-0">
+                          <div className="flex items-center gap-1.5 min-w-0">
                             <span className="text-sm text-gray-900 font-medium truncate">{p.nombre}</span>
+                            <button
+                              type="button"
+                              onClick={() => toggleSoldOut(p.id)}
+                              title={t.soldOutTitle}
+                              className={`shrink-0 p-1 rounded-md transition-colors ${soldOut.has(p.id) ? "bg-red-500 text-white" : "bg-gray-100 text-gray-400"}`}
+                            >
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="10"/><line x1="4.9" y1="4.9" x2="19.1" y2="19.1"/>
+                              </svg>
+                            </button>
                             <button
                               type="button"
                               onClick={() => toggleSample(p.id)}
