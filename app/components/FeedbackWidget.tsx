@@ -197,7 +197,7 @@ export default function FeedbackWidget() {
 
       {abierto && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setAbierto(false)} />
+          <div className="fixed inset-0 z-40 bg-black/50 fade-in" onClick={() => setAbierto(false)} />
           <div className="fixed top-14 left-2 right-2 sm:left-auto sm:right-4 sm:w-96 bg-white border border-gray-200 rounded-2xl shadow-xl z-50 p-4 space-y-3 max-h-[70vh] overflow-y-auto">
             <div>
               <p className="text-sm font-bold text-gray-900">{t.feedbackTitle}</p>

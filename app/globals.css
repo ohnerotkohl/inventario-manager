@@ -107,3 +107,12 @@ body.body-dark {
   background-image: radial-gradient(circle, #2c3035 1px, transparent 1px);
   color: #e5e7eb;
 }
+
+/* Velo de entrada para el panel de feedback (negro 50% que aparece) */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.fade-in {
+  animation: fadeIn 0.25s ease-out;
+}
