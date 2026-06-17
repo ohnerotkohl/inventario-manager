@@ -84,6 +84,7 @@ export default function TareasPage() {
   const [fEmpieza, setFEmpieza] = useState("");
   const [fCiclos, setFCiclos] = useState(2);
   const [creando, setCreando] = useState(false);
+  const [editandoId, setEditandoId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.rol === "empleado") { router.replace("/sesion"); return; }
@@ -133,7 +134,7 @@ export default function TareasPage() {
       const resto = admins.filter((a) => a.id !== primero).map((a) => a.id);
       orden = [primero, ...resto].flatMap((id) => Array(Math.max(1, fCiclos)).fill(id));
     }
-    const { error } = await supabase.from("tareas").insert({
+    const campos = {
       nombre: fNombre.trim(),
       descripcion: fDescripcion.trim() || null,
       categoria: fCategoria,
@@ -142,19 +143,43 @@ export default function TareasPage() {
       proxima_fecha: fFecha || null,
       dificultad: fDificultad,
       puntos_coles: fColes,
-      estado: "pendiente",
       rotacion: rotacionActiva,
       orden_rotacion: orden,
-      rotacion_idx: 0,
-      creada_por: user?.id || null,
-    });
+    };
+    const { error } = editandoId
+      ? await supabase.from("tareas").update(campos).eq("id", editandoId)
+      : await supabase.from("tareas").insert({ ...campos, estado: "pendiente", rotacion_idx: 0, creada_por: user?.id || null });
     setCreando(false);
     if (error) { alert(t.saveError); return; }
     setFNombre(""); setFDescripcion(""); setFCategoria("Otra"); setFAsignada("");
     setFFrecuencia("puntual"); setFFecha(""); setDificultad("media");
     setFRotacion(false); setFEmpieza(""); setFCiclos(2);
-    setFormAbierto(false);
+    setFormAbierto(false); setEditandoId(null);
     fetchData();
+  }
+
+  // Abrir el formulario con los datos de una tarea para editarla
+  function abrirEdicion(tarea: Tarea) {
+    setFNombre(tarea.nombre);
+    setFDescripcion(tarea.descripcion || "");
+    setFCategoria(tarea.categoria);
+    setFAsignada(tarea.asignada_a || "");
+    setFFrecuencia(tarea.frecuencia);
+    setFFecha(tarea.proxima_fecha || "");
+    setFDificultad(tarea.dificultad);
+    setFColes(tarea.puntos_coles);
+    if (tarea.rotacion && (tarea.orden_rotacion || []).length > 0) {
+      setFRotacion(true);
+      setFEmpieza(tarea.orden_rotacion[0]);
+      let c = 0;
+      for (const id of tarea.orden_rotacion) { if (id === tarea.orden_rotacion[0]) c++; else break; }
+      setFCiclos(c);
+    } else {
+      setFRotacion(false); setFEmpieza(""); setFCiclos(2);
+    }
+    setEditandoId(tarea.id);
+    setFormAbierto(true);
+    setTab("activas");
   }
 
   function avanzarFecha(fecha: string, frecuencia: Frecuencia): string {
@@ -180,8 +205,11 @@ export default function TareasPage() {
           mensajeExtra = ` → ${tr("rotationNextUp", { name: nombreDe(nuevaAsignada) || "" })}`;
         }
       }
+      const nuevaFecha = tarea.proxima_fecha ? avanzarFecha(tarea.proxima_fecha, tarea.frecuencia) : null;
+      // Deja claro que la tarea recurrente NO desaparece: vuelve en la fecha indicada
+      mensajeExtra = (nuevaFecha ? ` · ${tr("comesBack", { date: nuevaFecha })}` : "") + mensajeExtra;
       await supabase.from("tareas").update({
-        proxima_fecha: tarea.proxima_fecha ? avanzarFecha(tarea.proxima_fecha, tarea.frecuencia) : null,
+        proxima_fecha: nuevaFecha,
         estado: "pendiente",
         asignada_a: nuevaAsignada,
         rotacion_idx: nuevoIdx,
@@ -306,12 +334,17 @@ export default function TareasPage() {
             <button onClick={() => setCompletando(null)} className="shrink-0 text-gray-400 text-xs px-2">{t.cancel}</button>
           </div>
         ) : (
-          <div className="flex gap-2 pt-1">
+          <div className="flex gap-2 pt-1 items-center">
             <button
               onClick={() => { setCompletando(tarea.id); setQuien(user?.id || admins[0]?.id || ""); }}
               className="flex-1 bg-emerald-600 text-white text-xs font-medium rounded-lg py-2"
             >
               {t.completeBtn}
+            </button>
+            <button onClick={() => abrirEdicion(tarea)} title={t.editTask} className="shrink-0 text-gray-400 hover:text-black p-1.5">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
             </button>
             <button onClick={() => eliminarTarea(tarea)} className="shrink-0 text-gray-300 hover:text-red-500 px-2 text-lg leading-none">×</button>
           </div>
@@ -353,6 +386,7 @@ export default function TareasPage() {
           {/* Nueva tarea */}
           {formAbierto ? (
             <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-3">
+              {editandoId && <p className="text-xs font-bold uppercase tracking-wider text-gray-500">{t.editTask}</p>}
               <input type="text" value={fNombre} onChange={(e) => setFNombre(e.target.value)} placeholder={t.taskName} className={inputClass} autoFocus />
               <input type="text" value={fDescripcion} onChange={(e) => setFDescripcion(e.target.value)} placeholder={t.taskDescription} className={inputClass} />
               <div className="grid grid-cols-2 gap-3">
@@ -441,14 +475,21 @@ export default function TareasPage() {
                   disabled={!fNombre.trim() || creando}
                   className="flex-1 py-2.5 rounded-xl bg-black text-white font-medium text-sm disabled:bg-gray-200 disabled:text-gray-400"
                 >
-                  {creando ? t.saving : t.createTask}
+                  {creando ? t.saving : editandoId ? t.saveTask : t.createTask}
                 </button>
-                <button onClick={() => setFormAbierto(false)} className="px-4 text-sm text-gray-400">{t.cancel}</button>
+                <button onClick={() => { setFormAbierto(false); setEditandoId(null); }} className="px-4 text-sm text-gray-400">{t.cancel}</button>
               </div>
             </div>
           ) : (
             <button
-              onClick={() => setFormAbierto(true)}
+              onClick={() => {
+                // Nueva tarea desde cero: limpiar cualquier rastro de edición
+                setEditandoId(null);
+                setFNombre(""); setFDescripcion(""); setFCategoria("Otra"); setFAsignada("");
+                setFFrecuencia("puntual"); setFFecha(""); setDificultad("media");
+                setFRotacion(false); setFEmpieza(""); setFCiclos(2);
+                setFormAbierto(true);
+              }}
               className="w-full py-3 rounded-xl bg-emerald-600 text-white font-medium text-sm hover:bg-emerald-700 transition-colors"
             >
               {t.newTask}

@@ -206,6 +206,8 @@ const es = {
   undoCompleted: "Deshacer",
   undoTaskConfirm: "¿Deshacer \"{name}\"? Volverá a tareas pendientes y se devolverán las coles.",
   deleteMoveConfirm: "¿Eliminar este movimiento? Se devolverán las coles al marcador.",
+  comesBack: "vuelve el {date}",
+  editTask: "Editar tarea", saveTask: "Guardar cambios",
   // Turnos
   shifts: "Turnos",
   shiftsSubtitle: "Calendario y asignación de turnos",
@@ -442,6 +444,8 @@ const en: typeof es = {
   undoCompleted: "Undo",
   undoTaskConfirm: "Undo \"{name}\"? It goes back to pending tasks and the coles are refunded.",
   deleteMoveConfirm: "Delete this movement? The coles will be refunded to the scoreboard.",
+  comesBack: "comes back on {date}",
+  editTask: "Edit task", saveTask: "Save changes",
   shifts: "Shifts",
   shiftsSubtitle: "Calendar and shift assignment",
   assignShift: "Assign shift",
