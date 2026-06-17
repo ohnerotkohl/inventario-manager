@@ -70,6 +70,7 @@ export default function TareasPage() {
   const [completando, setCompletando] = useState<string | null>(null);
   const [quien, setQuien] = useState("");
   const [aviso, setAviso] = useState("");
+  const [completadaAbierta, setCompletadaAbierta] = useState<string | null>(null);
 
   // Formulario nueva tarea
   const [fNombre, setFNombre] = useState("");
@@ -116,6 +117,16 @@ export default function TareasPage() {
 
   function estaAtrasada(tarea: Tarea): boolean {
     return !!tarea.proxima_fecha && tarea.proxima_fecha < hoy() && tarea.estado !== "completada";
+  }
+
+  // Recientes arriba, atrasadas al final (en Activas y Puntuales)
+  function ordenarTareas(lista: Tarea[]): Tarea[] {
+    return [...lista].sort((a, b) => {
+      const aAtras = estaAtrasada(a) ? 1 : 0;
+      const bAtras = estaAtrasada(b) ? 1 : 0;
+      if (aAtras !== bAtras) return aAtras - bAtras;
+      return b.created_at.localeCompare(a.created_at);
+    });
   }
 
   function setDificultad(d: Dificultad) {
@@ -498,47 +509,53 @@ export default function TareasPage() {
 
           {activas.length === 0 && <p className="text-sm text-gray-400 text-center py-8">{t.noActiveTasks}</p>}
           {/* Lo más nuevo arriba, para no perder de vista lo recién añadido */}
-          {[...activas].sort((a, b) => b.created_at.localeCompare(a.created_at)).map((tarea) => <TareaCard key={tarea.id} tarea={tarea} />)}
+          {ordenarTareas(activas).map((tarea) => <TareaCard key={tarea.id} tarea={tarea} />)}
         </div>
       )}
 
       {tab === "pendientes" && (
         <div className="space-y-3">
           {pendientes.length === 0 && <p className="text-sm text-gray-400 text-center py-8">{t.noTasks}</p>}
-          {/* Atrasadas primero, luego por fecha límite */}
-          {[...pendientes].sort((a, b) => {
-            const aa = estaAtrasada(a) ? 0 : 1;
-            const bb = estaAtrasada(b) ? 0 : 1;
-            if (aa !== bb) return aa - bb;
-            return (a.proxima_fecha || "9999").localeCompare(b.proxima_fecha || "9999");
-          }).map((tarea) => <TareaCard key={tarea.id} tarea={tarea} />)}
+          {ordenarTareas(pendientes).map((tarea) => <TareaCard key={tarea.id} tarea={tarea} />)}
         </div>
       )}
 
       {tab === "completadas" && (
         <div className="space-y-2">
           {completadas.length === 0 && <p className="text-sm text-gray-400 text-center py-8">{t.noCompletedTasks}</p>}
-          {completadas.map((tarea) => (
-            <div key={tarea.id} className="bg-white border border-gray-200 rounded-2xl px-4 py-3 flex items-center justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-sm text-gray-500 line-through">{tarea.nombre}</p>
-                <p className="text-[11px] text-gray-400">{t.completedOn} · {tarea.updated_at.slice(0, 10)}</p>
+          {completadas.map((tarea) => {
+            const open = completadaAbierta === tarea.id;
+            return (
+              <div key={tarea.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                <div className="px-4 py-3 flex items-center justify-between gap-2">
+                  <button onClick={() => setCompletadaAbierta(open ? null : tarea.id)} className="min-w-0 text-left flex-1">
+                    <p className="text-sm text-gray-500 line-through">{tarea.nombre}</p>
+                    <p className="text-[11px] text-gray-400">{t.completedOn} · {tarea.updated_at.slice(0, 10)}</p>
+                  </button>
+                  <div className="shrink-0 flex items-center gap-2">
+                    <span className="text-xs font-semibold text-purple-600">{tr("colesN", { n: tarea.puntos_coles })}</span>
+                    <button
+                      onClick={() => deshacerCompletada(tarea)}
+                      title={t.undoCompleted}
+                      className="flex items-center gap-1 text-[11px] text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-lg px-2 py-1 transition-colors"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 8"/>
+                      </svg>
+                      {t.undoCompleted}
+                    </button>
+                  </div>
+                </div>
+                {open && (
+                  <div className="border-t border-gray-100 px-4 py-3">
+                    {tarea.descripcion
+                      ? <p className="text-xs text-gray-600 whitespace-pre-wrap">{tarea.descripcion}</p>
+                      : <p className="text-xs text-gray-300 italic">{t.noDescription}</p>}
+                  </div>
+                )}
               </div>
-              <div className="shrink-0 flex items-center gap-2">
-                <span className="text-xs font-semibold text-purple-600">{tr("colesN", { n: tarea.puntos_coles })}</span>
-                <button
-                  onClick={() => deshacerCompletada(tarea)}
-                  title={t.undoCompleted}
-                  className="flex items-center gap-1 text-[11px] text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-lg px-2 py-1 transition-colors"
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 8"/>
-                  </svg>
-                  {t.undoCompleted}
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
