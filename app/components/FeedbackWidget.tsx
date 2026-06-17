@@ -31,6 +31,7 @@ const IDIOMAS_DICTADO = [
   { code: "en-US", label: "EN" },
   { code: "de-DE", label: "DE" },
   { code: "hi-IN", label: "HI" },
+  { code: "te-IN", label: "TE" },
   { code: "it-IT", label: "IT" },
   { code: "ca-ES", label: "CA" },
 ];
