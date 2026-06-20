@@ -20,6 +20,13 @@ const PrintsIcon = () => (
   </svg>
 );
 
+const NovedadesIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
+    <path d="M13.73 21a2 2 0 01-3.46 0"/>
+  </svg>
+);
+
 const MasIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <rect x="3" y="3" width="7" height="7" rx="1"/>
@@ -137,6 +144,7 @@ export default function Nav() {
     { href: "/compras", label: t.purchases, Icon: ComprasIcon },
     { href: "/prints", label: t.prints, Icon: PrintsIcon },
     { href: "/admin", label: t.team, Icon: AdminIcon },
+    { href: "/novedades", label: t.news, Icon: NovedadesIcon },
     { href: "/guia", label: t.guide, Icon: GuiaIcon },
   ];
 

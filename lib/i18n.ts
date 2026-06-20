@@ -273,6 +273,22 @@ const es = {
   noPrints: "Aún no hay prints registrados",
   recentEntries: "Últimas entradas",
   totalPrints: "{n} prints en total",
+  // Novedades
+  news: "Novedades",
+  newsTitle: "Novedades de la app",
+  newsSubtitle: "Lo que se ha mejorado y actualizado",
+  addNews: "+ Añadir novedad",
+  newsTitlePh: "Título (ej. Balance por mercado)",
+  newsDescPh: "Descripción de qué cambió",
+  newsRequestedBy: "Pedido por (opcional)",
+  saveNews: "Guardar novedad",
+  notifyTeam: "Notificar a los admins",
+  notifying: "Enviando...",
+  notifiedOk: "✓ Aviso enviado a los admins",
+  noNews: "Aún no hay novedades",
+  newBadge: "nuevo",
+  pendingNotify: "{n} sin notificar",
+  deleteNewsConfirm: "¿Eliminar esta novedad?",
 };
 
 const en: typeof es = {
@@ -524,6 +540,21 @@ const en: typeof es = {
   noPrints: "No prints registered yet",
   recentEntries: "Recent entries",
   totalPrints: "{n} prints in total",
+  news: "What's new",
+  newsTitle: "What's new",
+  newsSubtitle: "What's been improved and updated",
+  addNews: "+ Add update",
+  newsTitlePh: "Title (e.g. Balance per market)",
+  newsDescPh: "Description of what changed",
+  newsRequestedBy: "Requested by (optional)",
+  saveNews: "Save update",
+  notifyTeam: "Notify the admins",
+  notifying: "Sending...",
+  notifiedOk: "✓ Notice sent to the admins",
+  noNews: "No updates yet",
+  newBadge: "new",
+  pendingNotify: "{n} not notified",
+  deleteNewsConfirm: "Delete this update?",
 };
 
 export const translations: Record<Lang, typeof es> = { es, en };
