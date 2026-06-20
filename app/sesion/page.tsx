@@ -1484,6 +1484,37 @@ export default function SesionPage() {
                 );
               })()}
 
+              {/* Sold out / Falta sample marcados durante el cierre */}
+              {(soldOut.size > 0 || samplesFaltantes.size > 0) && (() => {
+                const desc = (key: string) => {
+                  const talla = key.slice(-2);
+                  const pid = key.slice(0, -3);
+                  return `${posters.find((p) => p.id === pid)?.nombre || "—"} ${talla}`;
+                };
+                const outs = [...soldOut].map(desc).sort();
+                const samples = [...samplesFaltantes].map(desc).sort();
+                return (
+                  <div className="space-y-2">
+                    {outs.length > 0 && (
+                      <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+                        <p className="text-xs font-bold uppercase tracking-widest text-red-500 mb-2">{t.soldOutTitle}</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {outs.map((x) => <span key={x} className="text-xs bg-red-100 text-red-700 rounded-full px-2 py-0.5">{x}</span>)}
+                        </div>
+                      </div>
+                    )}
+                    {samples.length > 0 && (
+                      <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4">
+                        <p className="text-xs font-bold uppercase tracking-widest text-orange-500 mb-2">{t.missingSampleTitle}</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {samples.map((x) => <span key={x} className="text-xs bg-orange-100 text-orange-700 rounded-full px-2 py-0.5">{x}</span>)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* Materiales */}
               {materiales.length > 0 && (
                 <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
