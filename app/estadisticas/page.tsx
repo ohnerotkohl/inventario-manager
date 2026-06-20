@@ -82,6 +82,8 @@ export default function EstadisticasPage() {
   const [saveMinsOk, setSaveMinsOk] = useState(false);
   const [saveMinsError, setSaveMinsError] = useState("");
   const [mercadoChartMode, setMercadoChartMode] = useState<"semana" | "mes">("semana");
+  // Balance económico por mercado (de la tabla balances), respetando el periodo
+  const [balanceMercado, setBalanceMercado] = useState<Record<string, { ingresos: number; gastos: number; neto: number; contabilidad: string; n: number }>>({});
 
   useEffect(() => {
     if (user?.rol === "empleado") { router.replace("/sesion"); return; }
@@ -107,6 +109,29 @@ export default function EstadisticasPage() {
     const { data } = await supabase
       .from("ventas")
       .select("cantidad, talla, poster_id, sesion_id, posters(nombre, series(nombre, color)), sesiones(id, fecha, trabajador, mercados(nombre))");
+
+    // Balance económico por mercado (tabla balances) con la contabilidad de cada mercado
+    const [balRes, mercContabRes] = await Promise.all([
+      supabase.from("balances").select("mercado_nombre, total_ventas, total_gastos, neto, fecha"),
+      supabase.from("mercados").select("nombre, contabilidad"),
+    ]);
+    const contabPorNombre: Record<string, string> = {};
+    for (const m of (mercContabRes.data || [])) contabPorNombre[m.nombre] = m.contabilidad || "negocio";
+    const balMap: Record<string, { ingresos: number; gastos: number; neto: number; contabilidad: string; n: number }> = {};
+    for (const b of (balRes.data || [])) {
+      if (periodo !== "todo") {
+        const desdeB = new Date();
+        desdeB.setDate(desdeB.getDate() - parseInt(periodo));
+        if (new Date(b.fecha + "T12:00:00") < desdeB) continue;
+      }
+      const k = b.mercado_nombre;
+      if (!balMap[k]) balMap[k] = { ingresos: 0, gastos: 0, neto: 0, contabilidad: contabPorNombre[k] || "negocio", n: 0 };
+      balMap[k].ingresos += Number(b.total_ventas);
+      balMap[k].gastos += Number(b.total_gastos);
+      balMap[k].neto += Number(b.neto);
+      balMap[k].n += 1;
+    }
+    setBalanceMercado(balMap);
 
     type VentaRow = {
       cantidad: number;
@@ -778,6 +803,54 @@ export default function EstadisticasPage() {
                     <p className="text-xs text-gray-400 mt-1">promedio/sesión</p>
                   </div>
                 </div>
+
+                {/* Balance económico del mercado (con privacidad) */}
+                {(() => {
+                  const bal = balanceMercado[m.mercado];
+                  const contab = bal?.contabilidad || "negocio";
+                  const propio = (user?.nombre || "").toLowerCase();
+                  const puedeVer = contab === "negocio" || contab === propio;
+                  const dueno = contab === "marcello" ? "Marcello" : contab === "nuria" ? "Nuria" : null;
+                  if (!puedeVer) {
+                    return (
+                      <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 flex items-center justify-center gap-2 text-gray-400">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+                        </svg>
+                        <span className="text-sm">Balance privado de {dueno}</span>
+                      </div>
+                    );
+                  }
+                  if (!bal || bal.n === 0) {
+                    return (
+                      <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 text-center">
+                        <p className="text-sm text-gray-400">Sin balances registrados en este periodo</p>
+                      </div>
+                    );
+                  }
+                  const eur = (n: number) => n.toFixed(2) + " €";
+                  return (
+                    <div className="bg-white border border-gray-200 rounded-2xl p-4">
+                      <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Balance económico</p>
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div className="bg-green-50 rounded-xl p-3 text-center">
+                          <p className="text-lg font-bold text-green-600">{eur(bal.ingresos)}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">Ingresos</p>
+                        </div>
+                        <div className="bg-red-50 rounded-xl p-3 text-center">
+                          <p className="text-lg font-bold text-red-600">{eur(bal.gastos)}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">Gastos</p>
+                        </div>
+                      </div>
+                      <div className="border-2 border-black rounded-xl p-3 flex justify-between items-center">
+                        <span className="text-sm font-bold text-gray-900">Neto ({bal.n} {bal.n === 1 ? "balance" : "balances"})</span>
+                        <span className={`text-xl font-bold ${bal.neto >= 0 ? "text-green-600" : "text-red-600"}`}>
+                          {bal.neto >= 0 ? "+" : ""}{eur(bal.neto)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Gráfica de evolución */}
                 {(() => {
