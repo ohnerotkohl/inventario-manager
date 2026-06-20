@@ -261,6 +261,18 @@ const es = {
   supplyNamePlaceholder: "Nombre (ej. Sobres de envío A4)",
   unitLabel: "Unidad", minStockLabel: "Mínimo", currentQtyLabel: "Cantidad",
   deleteSupplyConfirm: "¿Eliminar \"{name}\" de la despensa?",
+  // Prints del estudio
+  prints: "Prints",
+  printsTitle: "Prints del estudio",
+  printsSubtitle: "Stock de prints que hay para reponer las cajas",
+  registerEntry: "+ Registrar entrada",
+  entryDesign: "Diseño", entrySize: "Talla", entryQty: "Cantidad", entryOrigin: "Origen",
+  originWorkshop: "Taller", originExternal: "Mandado a imprimir",
+  saveEntry: "Registrar entrada",
+  selectDesign: "Selecciona un diseño...",
+  noPrints: "Aún no hay prints registrados",
+  recentEntries: "Últimas entradas",
+  totalPrints: "{n} prints en total",
 };
 
 const en: typeof es = {
@@ -501,6 +513,17 @@ const en: typeof es = {
   supplyNamePlaceholder: "Name (e.g. Shipping envelopes A4)",
   unitLabel: "Unit", minStockLabel: "Minimum", currentQtyLabel: "Quantity",
   deleteSupplyConfirm: "Remove \"{name}\" from the pantry?",
+  prints: "Prints",
+  printsTitle: "Studio prints",
+  printsSubtitle: "Stock of prints available to restock the boxes",
+  registerEntry: "+ Register entry",
+  entryDesign: "Design", entrySize: "Size", entryQty: "Quantity", entryOrigin: "Origin",
+  originWorkshop: "Workshop", originExternal: "Sent to print",
+  saveEntry: "Register entry",
+  selectDesign: "Select a design...",
+  noPrints: "No prints registered yet",
+  recentEntries: "Recent entries",
+  totalPrints: "{n} prints in total",
 };
 
 export const translations: Record<Lang, typeof es> = { es, en };

@@ -12,6 +12,14 @@ const GuiaIcon = () => (
   </svg>
 );
 
+const PrintsIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="6 9 6 2 18 2 18 9"/>
+    <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/>
+    <rect x="6" y="14" width="12" height="8"/>
+  </svg>
+);
+
 const MasIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <rect x="3" y="3" width="7" height="7" rx="1"/>
@@ -127,6 +135,7 @@ export default function Nav() {
     { href: "/turnos", label: t.shifts, Icon: TurnosIcon },
     { href: "/estadisticas", label: t.stats, Icon: StatsIcon },
     { href: "/compras", label: t.purchases, Icon: ComprasIcon },
+    { href: "/prints", label: t.prints, Icon: PrintsIcon },
     { href: "/admin", label: t.team, Icon: AdminIcon },
     { href: "/guia", label: t.guide, Icon: GuiaIcon },
   ];
