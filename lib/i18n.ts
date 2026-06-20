@@ -98,7 +98,7 @@ const es = {
   noHistory: "No hay historial de restock aún", restockManager: "Encargado del restock",
   whichBox: "¿Qué caja vas a reponer?", continueBtn: "Continuar →",
   writeUnitsToAdd: "Escribe cuántas unidades nuevas añades. El stock actual se muestra en gris.",
-  currentStock: "stock: {n}", unitsOf: "{total} unidades de {designs} diseños",
+  currentStock: "stock: {n}", warehouseStock: "almacén: {n}", unitsOf: "{total} unidades de {designs} diseños",
   // Stats
   statsTitle: "Estadísticas", statsSubtitle: "Ventas y rendimiento",
   summary: "Resumen", days30: "30 días", months3: "3 meses", year1: "1 año", all: "Todo",
@@ -378,7 +378,7 @@ const en: typeof es = {
   noHistory: "No restock history yet", restockManager: "Restock manager",
   whichBox: "Which box are you restocking?", continueBtn: "Continue →",
   writeUnitsToAdd: "Enter how many new units you're adding. Current stock is shown in gray.",
-  currentStock: "stock: {n}", unitsOf: "{total} units across {designs} designs",
+  currentStock: "stock: {n}", warehouseStock: "warehouse: {n}", unitsOf: "{total} units across {designs} designs",
   statsTitle: "Statistics", statsSubtitle: "Sales & performance",
   summary: "Summary", days30: "30 days", months3: "3 months", year1: "1 year", all: "All",
   noSales: "No sales recorded yet", postersSold: "posters sold",

@@ -58,6 +58,8 @@ export default function RestockPage() {
   const [series, setSeries] = useState<Serie[]>([]);
   const [posters, setPosters] = useState<PosterConStock[]>([]);
   const [cantidades, setCantidades] = useState<{ [key: string]: number }>({});
+  // Stock del almacén central de prints, por `poster_id-talla`
+  const [almacenPrints, setAlmacenPrints] = useState<{ [key: string]: number }>({});
   const [trabajador, setTrabajador] = useState("");
   const [loading, setLoading] = useState(false);
   const [guardando, setGuardando] = useState(false);
@@ -233,14 +235,22 @@ export default function RestockPage() {
     if (!cajaId) return;
     setLoading(true);
 
-    const [postersRes, invRes, seriesRes] = await Promise.all([
+    const [postersRes, invRes, seriesRes, printsRes] = await Promise.all([
       supabase.from("posters").select("*, series(*)").eq("activo", true),
       supabase.from("inventario").select("*").eq("caja_id", cajaId),
       supabase.from("series").select("*"),
+      supabase.from("prints_estudio").select("poster_id, talla, cantidad"),
     ]);
 
     const inv: Inventario[] = invRes.data || [];
     setSeries(seriesRes.data || []);
+
+    // Stock del almacén central de prints (para verlo al reponer)
+    const printMap: { [key: string]: number } = {};
+    for (const p of (printsRes.data || []) as { poster_id: string; talla: string; cantidad: number }[]) {
+      printMap[`${p.poster_id}-${p.talla}`] = p.cantidad;
+    }
+    setAlmacenPrints(printMap);
 
     const postersConStock: PosterConStock[] = (postersRes.data || []).map((p: Poster & { series?: Serie }) => {
       const a4 = inv.find((i) => i.poster_id === p.id && i.talla === "A4");
@@ -333,6 +343,31 @@ export default function RestockPage() {
       if (lineas.length > 0) {
         const { error: lineasErr } = await supabase.from("restock_lineas").insert(lineas);
         if (lineasErr) throw new Error(`Error guardando líneas: ${lineasErr.message}`);
+      }
+
+      // B2: descontar del almacén central de prints lo que se acaba de reponer.
+      // Va aparte y no rompe el restock si falla: reponer la caja es lo crítico.
+      try {
+        const { data: printsActuales } = await supabase
+          .from("prints_estudio")
+          .select("id, poster_id, talla, cantidad");
+        const printMap: { [k: string]: { id: string; cantidad: number } } = {};
+        for (const p of (printsActuales || []) as { id: string; poster_id: string; talla: string; cantidad: number }[]) {
+          printMap[`${p.poster_id}-${p.talla}`] = { id: p.id, cantidad: p.cantidad };
+        }
+        const descuentos = [];
+        for (const l of lineas) {
+          const existente = printMap[`${l.poster_id}-${l.talla}`];
+          if (existente) {
+            const nueva = Math.max(0, existente.cantidad - l.cantidad);
+            descuentos.push(
+              supabase.from("prints_estudio").update({ cantidad: nueva, updated_at: new Date().toISOString() }).eq("id", existente.id)
+            );
+          }
+        }
+        if (descuentos.length > 0) await Promise.all(descuentos);
+      } catch (e) {
+        console.error("No se pudo descontar del almacén de prints:", e);
       }
 
       setGuardando(false);
@@ -872,6 +907,9 @@ export default function RestockPage() {
                           className="w-16 text-center text-sm border border-gray-200 rounded-lg py-1.5 focus:outline-none focus:border-black"
                         />
                         <span className="text-xs text-gray-400">{tr("currentStock", { n: p.a4Stock })}</span>
+                        {almacenPrints[`${p.id}-A4`] !== undefined && (
+                          <span className="text-[10px] text-purple-500">{tr("warehouseStock", { n: almacenPrints[`${p.id}-A4`] })}</span>
+                        )}
                       </div>
                     ) : <div />}
                     {p.tiene_a3 ? (
@@ -889,6 +927,9 @@ export default function RestockPage() {
                           className="w-16 text-center text-sm border border-gray-200 rounded-lg py-1.5 focus:outline-none focus:border-black"
                         />
                         <span className="text-xs text-gray-400">{tr("currentStock", { n: p.a3Stock })}</span>
+                        {almacenPrints[`${p.id}-A3`] !== undefined && (
+                          <span className="text-[10px] text-purple-500">{tr("warehouseStock", { n: almacenPrints[`${p.id}-A3`] })}</span>
+                        )}
                       </div>
                     ) : <div />}
                   </div>
