@@ -195,9 +195,17 @@ export default function TareasPage() {
 
   function avanzarFecha(fecha: string, frecuencia: Frecuencia): string {
     const d = new Date(fecha + "T12:00:00");
-    if (frecuencia === "diaria") d.setDate(d.getDate() + 1);
-    if (frecuencia === "semanal") d.setDate(d.getDate() + 7);
-    if (frecuencia === "mensual") d.setMonth(d.getMonth() + 1);
+    const hoyD = new Date(hoy() + "T12:00:00");
+    const paso = () => {
+      if (frecuencia === "diaria") d.setDate(d.getDate() + 1);
+      else if (frecuencia === "semanal") d.setDate(d.getDate() + 7);
+      else if (frecuencia === "mensual") d.setMonth(d.getMonth() + 1);
+    };
+    paso();
+    // Si la tarea venía atrasada, seguir avanzando hasta una fecha futura
+    // (antes sumaba 1 período desde la fecha vieja y podía quedar en el pasado → seguía "atrasada")
+    let guardas = 0;
+    while (d <= hoyD && guardas < 400) { paso(); guardas++; }
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }
 
