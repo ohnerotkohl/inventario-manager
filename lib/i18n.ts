@@ -99,6 +99,8 @@ const es = {
   whichBox: "¿Qué caja vas a reponer?", continueBtn: "Continuar →",
   writeUnitsToAdd: "Escribe cuántas unidades nuevas añades. El stock actual se muestra en gris.",
   currentStock: "stock: {n}", warehouseStock: "almacén: {n}", unitsOf: "{total} unidades de {designs} diseños",
+  deleteRestockConfirm: "¿Eliminar este restock? Se revertirá el stock de la caja y las unidades volverán al almacén de prints.",
+  deleteRestock: "Eliminar restock",
   // Stats
   statsTitle: "Estadísticas", statsSubtitle: "Ventas y rendimiento",
   summary: "Resumen", days30: "30 días", months3: "3 meses", year1: "1 año", all: "Todo",
@@ -379,6 +381,8 @@ const en: typeof es = {
   whichBox: "Which box are you restocking?", continueBtn: "Continue →",
   writeUnitsToAdd: "Enter how many new units you're adding. Current stock is shown in gray.",
   currentStock: "stock: {n}", warehouseStock: "warehouse: {n}", unitsOf: "{total} units across {designs} designs",
+  deleteRestockConfirm: "Delete this restock? The box stock will be reverted and the units returned to the prints warehouse.",
+  deleteRestock: "Delete restock",
   statsTitle: "Statistics", statsSubtitle: "Sales & performance",
   summary: "Summary", days30: "30 days", months3: "3 months", year1: "1 year", all: "All",
   noSales: "No sales recorded yet", postersSold: "posters sold",

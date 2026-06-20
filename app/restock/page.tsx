@@ -39,12 +39,13 @@ type TabPrincipal = "restock" | "historial";
 interface RestockHistorial {
   id: string;
   fecha: string;
+  cajaId: string;
   caja: string;
   trabajador: string;
   totalA4: number;
   totalA3: number;
   total: number;
-  lineas: { nombre: string; talla: string; cantidad: number }[];
+  lineas: { nombre: string; posterId: string; talla: string; cantidad: number }[];
 }
 
 export default function RestockPage() {
@@ -65,6 +66,7 @@ export default function RestockPage() {
   const [guardando, setGuardando] = useState(false);
   const [historial, setHistorial] = useState<RestockHistorial[]>([]);
   const [historialAbierto, setHistorialAbierto] = useState<string | null>(null);
+  const [eliminandoRestock, setEliminandoRestock] = useState<string | null>(null);
   const [loadingHistorial, setLoadingHistorial] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -204,7 +206,7 @@ export default function RestockPage() {
     setLoadingHistorial(true);
     const { data } = await supabase
       .from("restocks")
-      .select("id, fecha, caja_id, trabajador, cajas(nombre), restock_lineas(cantidad, talla, posters(nombre))")
+      .select("id, fecha, caja_id, trabajador, cajas(nombre), restock_lineas(poster_id, cantidad, talla, posters(nombre))")
       .order("fecha", { ascending: false });
 
     type RestockRow = {
@@ -213,22 +215,65 @@ export default function RestockPage() {
       caja_id: string;
       trabajador: string;
       cajas: { nombre: string } | null;
-      restock_lineas: { cantidad: number; talla: string; posters: { nombre: string } | null }[];
+      restock_lineas: { poster_id: string; cantidad: number; talla: string; posters: { nombre: string } | null }[];
     };
 
     const rows = (data || []) as unknown as RestockRow[];
     setHistorial(rows.map((r) => ({
       id: r.id,
       fecha: r.fecha,
+      cajaId: r.caja_id,
       caja: r.cajas?.nombre || "—",
       trabajador: r.trabajador || "—",
       totalA4: r.restock_lineas.filter((l) => l.talla === "A4").reduce((a, l) => a + l.cantidad, 0),
       totalA3: r.restock_lineas.filter((l) => l.talla === "A3").reduce((a, l) => a + l.cantidad, 0),
       total: r.restock_lineas.reduce((a, l) => a + l.cantidad, 0),
-      lineas: r.restock_lineas.map((l) => ({ nombre: l.posters?.nombre || "—", talla: l.talla, cantidad: l.cantidad }))
+      lineas: r.restock_lineas.map((l) => ({ nombre: l.posters?.nombre || "—", posterId: l.poster_id, talla: l.talla, cantidad: l.cantidad }))
         .sort((a, b) => b.cantidad - a.cantidad),
     })));
     setLoadingHistorial(false);
+  }
+
+  // Eliminar un restock: revierte el stock de la caja (resta) y devuelve las
+  // unidades al almacén de prints (suma), antes de borrar el registro
+  async function eliminarRestock(r: RestockHistorial) {
+    if (!confirm(t.deleteRestockConfirm)) return;
+    setEliminandoRestock(r.id);
+    try {
+      const [invRes, printsRes] = await Promise.all([
+        supabase.from("inventario").select("id, poster_id, talla, cantidad").eq("caja_id", r.cajaId),
+        supabase.from("prints_estudio").select("id, poster_id, talla, cantidad"),
+      ]);
+      const invMap: { [k: string]: { id: string; cantidad: number } } = {};
+      for (const i of (invRes.data || []) as { id: string; poster_id: string; talla: string; cantidad: number }[]) {
+        invMap[`${i.poster_id}-${i.talla}`] = { id: i.id, cantidad: i.cantidad };
+      }
+      const printMap: { [k: string]: { id: string; cantidad: number } } = {};
+      for (const p of (printsRes.data || []) as { id: string; poster_id: string; talla: string; cantidad: number }[]) {
+        printMap[`${p.poster_id}-${p.talla}`] = { id: p.id, cantidad: p.cantidad };
+      }
+      const ops: PromiseLike<unknown>[] = [];
+      for (const l of r.lineas) {
+        const inv = invMap[`${l.posterId}-${l.talla}`];
+        if (inv) {
+          const nuevo = Math.max(0, inv.cantidad - l.cantidad);
+          ops.push(supabase.from("inventario").update({ cantidad: nuevo, out: nuevo === 0 }).eq("id", inv.id));
+        }
+        const pr = printMap[`${l.posterId}-${l.talla}`];
+        if (pr) {
+          ops.push(supabase.from("prints_estudio").update({ cantidad: pr.cantidad + l.cantidad, updated_at: new Date().toISOString() }).eq("id", pr.id));
+        } else {
+          ops.push(supabase.from("prints_estudio").insert({ poster_id: l.posterId, talla: l.talla, cantidad: l.cantidad }));
+        }
+      }
+      await Promise.all(ops);
+      await supabase.from("restock_lineas").delete().eq("restock_id", r.id);
+      await supabase.from("restocks").delete().eq("id", r.id);
+    } catch (e) {
+      console.error("Error eliminando restock:", e);
+    }
+    setEliminandoRestock(null);
+    fetchHistorial();
   }
 
   async function cargarPosters() {
@@ -597,6 +642,16 @@ export default function RestockPage() {
                         </>
                       ))}
                     </div>
+                    <button
+                      onClick={() => eliminarRestock(r)}
+                      disabled={eliminandoRestock === r.id}
+                      className="mt-4 w-full flex items-center justify-center gap-2 border border-red-200 text-red-600 hover:bg-red-50 rounded-xl py-2.5 text-sm font-medium transition-colors disabled:opacity-50"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
+                      </svg>
+                      {eliminandoRestock === r.id ? t.saving : t.deleteRestock}
+                    </button>
                   </div>
                 )}
               </div>
