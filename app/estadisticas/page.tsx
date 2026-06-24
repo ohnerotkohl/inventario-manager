@@ -56,6 +56,28 @@ interface SesionHistorial {
 
 type Tab = "resumen" | "mercados" | "historial";
 
+// Balance económico detallado de un mercado
+interface MercadoFin {
+  contabilidad: string;
+  ingresos: number;
+  gastos: number;
+  neto: number;
+  n: number;
+  porMes: Record<string, { ingresos: number; gastos: number; neto: number }>;
+  gastosDetalle: { fecha: string; concepto: string; monto: number }[];
+}
+
+// Los ingresos históricos guardan el mercado como texto libre
+function mercadoDeEvento(evento: string): string {
+  const e = evento.toLowerCase();
+  if (e.includes("raw")) return "RAW";
+  if (e.includes("mauer")) return "Mauerpark";
+  if (e.startsWith("box")) return "Boxhagener Platz";
+  if (e.startsWith("hack")) return "Hackescher Markt";
+  if (e.includes("kollwitz")) return "Kollwitzplatz";
+  return evento.trim();
+}
+
 export default function EstadisticasPage() {
   const router = useRouter();
   const { user } = useAuth();
@@ -82,8 +104,9 @@ export default function EstadisticasPage() {
   const [saveMinsOk, setSaveMinsOk] = useState(false);
   const [saveMinsError, setSaveMinsError] = useState("");
   const [mercadoChartMode, setMercadoChartMode] = useState<"semana" | "mes">("semana");
-  // Balance económico por mercado (de la tabla balances), respetando el periodo
-  const [balanceMercado, setBalanceMercado] = useState<Record<string, { ingresos: number; gastos: number; neto: number; contabilidad: string; n: number }>>({});
+  // Balance económico detallado por mercado (balances + ingresos históricos), respetando el periodo
+  const [balanceMercado, setBalanceMercado] = useState<Record<string, MercadoFin>>({});
+  const [gastoMercadoAbierto, setGastoMercadoAbierto] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.rol === "empleado") { router.replace("/sesion"); return; }
@@ -110,26 +133,49 @@ export default function EstadisticasPage() {
       .from("ventas")
       .select("cantidad, talla, poster_id, sesion_id, posters(nombre, series(nombre, color)), sesiones(id, fecha, trabajador, mercados(nombre))");
 
-    // Balance económico por mercado (tabla balances) con la contabilidad de cada mercado
-    const [balRes, mercContabRes] = await Promise.all([
-      supabase.from("balances").select("mercado_nombre, total_ventas, total_gastos, neto, fecha"),
+    // Balance económico detallado por mercado: balances (con desglose de gastos)
+    // + ingresos históricos, agrupado por mes, respetando el periodo
+    const [balRes, mercContabRes, histRes] = await Promise.all([
+      supabase.from("balances").select("mercado_nombre, fecha, total_ventas, total_gastos, neto, gastos, turno_costo, iva_aplicado, iva_monto"),
       supabase.from("mercados").select("nombre, contabilidad"),
+      supabase.from("ingresos_historicos").select("evento, fecha, total"),
     ]);
     const contabPorNombre: Record<string, string> = {};
     for (const m of (mercContabRes.data || [])) contabPorNombre[m.nombre] = m.contabilidad || "negocio";
-    const balMap: Record<string, { ingresos: number; gastos: number; neto: number; contabilidad: string; n: number }> = {};
+
+    const desdeP = periodo !== "todo" ? new Date() : null;
+    if (desdeP) desdeP.setDate(desdeP.getDate() - parseInt(periodo));
+    const enPeriodo = (fecha: string) => !desdeP || new Date(fecha + "T12:00:00") >= desdeP;
+
+    const balMap: Record<string, MercadoFin> = {};
+    const getM = (nombre: string): MercadoFin => {
+      if (!balMap[nombre]) balMap[nombre] = { contabilidad: contabPorNombre[nombre] || "negocio", ingresos: 0, gastos: 0, neto: 0, n: 0, porMes: {}, gastosDetalle: [] };
+      return balMap[nombre];
+    };
+    const addMes = (m: MercadoFin, ym: string, ing: number, gas: number) => {
+      const e = m.porMes[ym] || { ingresos: 0, gastos: 0, neto: 0 };
+      e.ingresos += ing; e.gastos += gas; e.neto += (ing - gas);
+      m.porMes[ym] = e;
+    };
+    type GastoItem = { nombre: string; monto: number };
     for (const b of (balRes.data || [])) {
-      if (periodo !== "todo") {
-        const desdeB = new Date();
-        desdeB.setDate(desdeB.getDate() - parseInt(periodo));
-        if (new Date(b.fecha + "T12:00:00") < desdeB) continue;
+      if (!enPeriodo(b.fecha)) continue;
+      const m = getM(b.mercado_nombre);
+      const ing = Number(b.total_ventas), gas = Number(b.total_gastos);
+      m.ingresos += ing; m.gastos += gas; m.neto += Number(b.neto); m.n += 1;
+      addMes(m, b.fecha.slice(0, 7), ing, gas);
+      for (const g of ((b.gastos as GastoItem[]) || [])) {
+        if (Number(g.monto) > 0) m.gastosDetalle.push({ fecha: b.fecha, concepto: g.nombre || "—", monto: Number(g.monto) });
       }
-      const k = b.mercado_nombre;
-      if (!balMap[k]) balMap[k] = { ingresos: 0, gastos: 0, neto: 0, contabilidad: contabPorNombre[k] || "negocio", n: 0 };
-      balMap[k].ingresos += Number(b.total_ventas);
-      balMap[k].gastos += Number(b.total_gastos);
-      balMap[k].neto += Number(b.neto);
-      balMap[k].n += 1;
+      if (Number(b.turno_costo) > 0) m.gastosDetalle.push({ fecha: b.fecha, concepto: "Turno", monto: Number(b.turno_costo) });
+      if (b.iva_aplicado && Number(b.iva_monto) > 0) m.gastosDetalle.push({ fecha: b.fecha, concepto: "IVA 19%", monto: Number(b.iva_monto) });
+    }
+    for (const h of (histRes.data || [])) {
+      if (!enPeriodo(h.fecha)) continue;
+      const m = getM(mercadoDeEvento(h.evento));
+      const ing = Number(h.total);
+      m.ingresos += ing; m.neto += ing; m.n += 1;
+      addMes(m, h.fecha.slice(0, 7), ing, 0);
     }
     setBalanceMercado(balMap);
 
@@ -829,24 +875,90 @@ export default function EstadisticasPage() {
                     );
                   }
                   const eur = (n: number) => n.toFixed(2) + " €";
+                  const margen = bal.ingresos > 0 ? bal.neto / bal.ingresos : 0;
+                  const salud = bal.neto < 0
+                    ? { label: t.healthLoss, bg: "bg-red-50", border: "border-red-200", text: "text-red-600", dot: "bg-red-500" }
+                    : margen >= 0.30
+                      ? { label: t.healthHealthy, bg: "bg-green-50", border: "border-green-200", text: "text-green-600", dot: "bg-green-500" }
+                      : { label: t.healthTight, bg: "bg-yellow-50", border: "border-yellow-200", text: "text-yellow-700", dot: "bg-yellow-500" };
+                  const meses = Object.entries(bal.porMes).sort((a, b) => b[0].localeCompare(a[0]));
+                  const nombreMes = (ym: string) => `${t.months[parseInt(ym.slice(5)) - 1]} ${ym.slice(0, 4)}`;
+                  // Detalle de gastos agrupado por concepto
+                  const porConcepto = new Map<string, { total: number; items: { fecha: string; monto: number }[] }>();
+                  for (const g of bal.gastosDetalle) {
+                    const e = porConcepto.get(g.concepto) || { total: 0, items: [] };
+                    e.total += g.monto; e.items.push({ fecha: g.fecha, monto: g.monto });
+                    porConcepto.set(g.concepto, e);
+                  }
+                  const conceptos = [...porConcepto.entries()].sort((a, b) => b[1].total - a[1].total);
                   return (
-                    <div className="bg-white border border-gray-200 rounded-2xl p-4">
-                      <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Balance económico</p>
-                      <div className="grid grid-cols-2 gap-3 mb-3">
-                        <div className="bg-green-50 rounded-xl p-3 text-center">
-                          <p className="text-lg font-bold text-green-600">{eur(bal.ingresos)}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">Ingresos</p>
+                    <div className="space-y-3">
+                      {/* Salud + resumen */}
+                      <div className={`rounded-2xl p-4 border-2 ${salud.bg} ${salud.border}`}>
+                        <div className="flex items-center justify-between mb-3">
+                          <span className={`flex items-center gap-2 text-sm font-bold ${salud.text}`}>
+                            <span className={`w-2.5 h-2.5 rounded-full ${salud.dot}`} />{salud.label}
+                          </span>
+                          <span className={`text-sm font-bold ${salud.text}`}>{t.marginLabel}: {(margen * 100).toFixed(0)}%</span>
                         </div>
-                        <div className="bg-red-50 rounded-xl p-3 text-center">
-                          <p className="text-lg font-bold text-red-600">{eur(bal.gastos)}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">Gastos</p>
+                        <div className="grid grid-cols-3 gap-2 text-center">
+                          <div><p className="text-base font-bold text-green-600">{eur(bal.ingresos)}</p><p className="text-[11px] text-gray-500">{t.incomeLabel}</p></div>
+                          <div><p className="text-base font-bold text-red-600">{eur(bal.gastos)}</p><p className="text-[11px] text-gray-500">{t.expensesShort}</p></div>
+                          <div><p className={`text-base font-bold ${bal.neto >= 0 ? "text-gray-900" : "text-red-600"}`}>{bal.neto >= 0 ? "+" : ""}{eur(bal.neto)}</p><p className="text-[11px] text-gray-500">{t.netLabel}</p></div>
                         </div>
                       </div>
-                      <div className="border-2 border-black rounded-xl p-3 flex justify-between items-center">
-                        <span className="text-sm font-bold text-gray-900">Neto ({bal.n} {bal.n === 1 ? "balance" : "balances"})</span>
-                        <span className={`text-xl font-bold ${bal.neto >= 0 ? "text-green-600" : "text-red-600"}`}>
-                          {bal.neto >= 0 ? "+" : ""}{eur(bal.neto)}
-                        </span>
+
+                      {/* Balance mes a mes */}
+                      {meses.length > 0 && (
+                        <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-2.5">
+                          <p className="text-xs font-bold uppercase tracking-widest text-gray-400">{t.byMonthBalance}</p>
+                          {meses.map(([ym, v]) => {
+                            const mg = v.ingresos > 0 ? v.neto / v.ingresos : 0;
+                            const col = v.neto < 0 ? "text-red-600" : mg >= 0.30 ? "text-green-600" : "text-yellow-700";
+                            return (
+                              <div key={ym} className="flex items-center justify-between border-b border-gray-50 last:border-0 pb-2 last:pb-0">
+                                <div>
+                                  <p className="text-sm text-gray-800 capitalize">{nombreMes(ym)}</p>
+                                  <p className="text-[11px] text-gray-400">{eur(v.ingresos)} {t.incomeLabel.toLowerCase()} · {eur(v.gastos)} {t.expensesShort.toLowerCase()}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className={`text-sm font-bold ${col}`}>{v.neto >= 0 ? "+" : ""}{eur(v.neto)}</p>
+                                  <p className="text-[11px] text-gray-400">{(mg * 100).toFixed(0)}% margen</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Detalle de gastos por categoría (desplegable a cada gasto) */}
+                      <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-1">
+                        <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">{t.expenseDetail}</p>
+                        {conceptos.length === 0 && <p className="text-sm text-gray-400">{t.noExpenseDetail}</p>}
+                        {conceptos.map(([concepto, info]) => {
+                          const k = `${m.mercado}-${concepto}`;
+                          const open = gastoMercadoAbierto === k;
+                          return (
+                            <div key={concepto} className="border-b border-gray-50 last:border-0">
+                              <button onClick={() => setGastoMercadoAbierto(open ? null : k)} className="w-full flex items-center justify-between py-2 text-left">
+                                <span className="flex items-center gap-1.5 text-sm text-gray-700">
+                                  <span className="text-gray-300 text-xs">{open ? "▾" : "▸"}</span>{concepto}
+                                  <span className="text-[10px] text-gray-400">({info.items.length})</span>
+                                </span>
+                                <span className="text-sm font-semibold text-red-600">{eur(info.total)}</span>
+                              </button>
+                              {open && (
+                                <div className="pl-5 pb-2 space-y-1">
+                                  {info.items.sort((a, b) => b.fecha.localeCompare(a.fecha)).map((it, idx) => (
+                                    <div key={idx} className="flex justify-between text-xs text-gray-500">
+                                      <span>{it.fecha}</span><span>{eur(it.monto)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
