@@ -45,6 +45,12 @@ const StatsIcon = () => (
 const EquipoIcon = () => (
   <svg {...ic}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
 );
+const PrintsIcon = () => (
+  <svg {...ic}><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+);
+const NovedadesIcon = () => (
+  <svg {...ic}><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+);
 
 interface Seccion {
   Icono: () => React.ReactElement;
@@ -99,7 +105,7 @@ function secciones(lang: "es" | "en"): Seccion[] {
           "To EDIT a count you need permission: an admin enables your access for a specific market, usually when they ask you to count it.",
           "Pick the market, update the quantities, and they save automatically.",
         ],
-        nota: "Admins also find Restock here (adding newly printed posters to stock).",
+        nota: "Admins also find Restock here (adding newly printed posters to stock). A restock can be deleted from its history, which reverts the box stock and returns the units to the prints warehouse.",
       },
       {
         Icono: FeedbackIcon, titulo: "BETA Feedback: your opinion makes this app better",
@@ -166,7 +172,24 @@ function secciones(lang: "es" | "en"): Seccion[] {
         Icono: StatsIcon, titulo: "Stats", soloAdmin: true,
         pasos: [
           "Product metrics for ALL markets together (including Mauerpark and RAW): best-selling posters, sales by month, by market, by series.",
-          "Money is separated in Finance; Stats is about units and designs.",
+          "Open a market (in 'By market') to see its economic balance: health by margin (healthy >30%, tight, at a loss), month-by-month net, and expense breakdown by category (stand, transport, food, shift, VAT) with each individual expense.",
+          "Personal markets' balance is private to their owner, like in Finance.",
+        ],
+      },
+      {
+        Icono: PrintsIcon, titulo: "Prints (studio warehouse)", soloAdmin: true,
+        pasos: [
+          "The central stock of prints in the studio, by design and size.",
+          "Register entries when you print (workshop) or a batch arrives (sent to print), choosing the origin; the stock adds up.",
+          "When you restock a box, it's deducted automatically from here, and you see 'warehouse: N' next to each design while restocking.",
+          "Delete a design's stock with the × (e.g. a test entry).",
+        ],
+      },
+      {
+        Icono: NovedadesIcon, titulo: "What's new", soloAdmin: true,
+        pasos: [
+          "Log of improvements made to the app (title, description, who requested it).",
+          "'Notify the admins' sends an email summary to Marcello and Nuria with what changed.",
         ],
       },
       {
@@ -220,7 +243,7 @@ function secciones(lang: "es" | "en"): Seccion[] {
         "Para EDITAR un conteo necesitas permiso: un admin te habilita el acceso a un mercado concreto, normalmente cuando te pide contarlo.",
         "Elige el mercado, actualiza las cantidades y se guardan solas.",
       ],
-      nota: "Los admins también encuentran aquí el Restock (sumar pósters recién impresos al stock).",
+      nota: "Los admins también encuentran aquí el Restock (sumar pósters recién impresos al stock). Un restock se puede eliminar desde su historial: revierte el stock de la caja y devuelve las unidades al almacén de prints.",
     },
     {
       Icono: FeedbackIcon, titulo: "Feedback BETA: tu opinión mejora esta app",
@@ -287,7 +310,24 @@ function secciones(lang: "es" | "en"): Seccion[] {
       Icono: StatsIcon, titulo: "Stats", soloAdmin: true,
       pasos: [
         "Métricas de producto de TODOS los mercados juntos (incluidos Mauerpark y RAW): pósters más vendidos, ventas por mes, por mercado, por serie.",
-        "El dinero va separado en Finanzas; Stats es de unidades y diseños.",
+        "Abre un mercado (en 'Por mercado') para ver su balance económico: salud por margen (sano >30%, ajustado, en pérdida), neto mes a mes, y detalle de gastos por categoría (stand, transporte, comida, turno, IVA) con cada gasto individual.",
+        "El balance de los mercados personales es privado de su dueño, como en Finanzas.",
+      ],
+    },
+    {
+      Icono: PrintsIcon, titulo: "Prints (almacén del estudio)", soloAdmin: true,
+      pasos: [
+        "El stock central de prints que hay en el estudio, por diseño y talla.",
+        "Registra entradas cuando imprimís (taller) o llega un pedido (mandado a imprimir), eligiendo el origen; el stock se va sumando.",
+        "Al hacer restock de una caja, se descuenta solo de aquí, y ves 'almacén: N' junto a cada diseño mientras repones.",
+        "Elimina el stock de un diseño con la × (por ejemplo, una entrada de prueba).",
+      ],
+    },
+    {
+      Icono: NovedadesIcon, titulo: "Novedades", soloAdmin: true,
+      pasos: [
+        "Registro de las mejoras hechas en la app (título, descripción, quién lo pidió).",
+        "'Notificar a los admins' envía un resumen por email a Marcello y Nuria con lo que cambió.",
       ],
     },
     {
