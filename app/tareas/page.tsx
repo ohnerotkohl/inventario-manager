@@ -328,7 +328,10 @@ export default function TareasPage() {
           <span className="bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">{freqLabel[tarea.frecuencia]}</span>
           {asignada && <span className="bg-blue-50 text-blue-700 rounded-full px-2 py-0.5">{asignada}</span>}
           {tarea.rotacion && (tarea.orden_rotacion || []).length > 1 && (
-            <span className="bg-purple-50 text-purple-700 rounded-full px-2 py-0.5">
+            <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 rounded-full px-2 py-0.5">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+              </svg>
               {t.rotatingBadge} · {tr("rotationNextUp", { name: nombreDe(tarea.orden_rotacion[(tarea.rotacion_idx + 1) % tarea.orden_rotacion.length]) || "—" })}
             </span>
           )}

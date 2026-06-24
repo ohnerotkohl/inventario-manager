@@ -98,14 +98,21 @@ export default function PrintsPage() {
     fetchData();
   }
 
+  // Eliminar del almacén todo el stock de un diseño (ambas tallas)
+  async function eliminarPrint(posterId: string, nombre: string) {
+    if (!confirm(tr("deletePrintConfirm", { name: nombre }))) return;
+    await supabase.from("prints_estudio").delete().eq("poster_id", posterId);
+    fetchData();
+  }
+
   // Agrupar el stock por diseño (A4 + A3 en la misma fila)
-  type Fila = { nombre: string; serie: string; color: string; a4: number; a3: number };
+  type Fila = { nombre: string; posterId: string; serie: string; color: string; a4: number; a3: number };
   const porDiseno = new Map<string, Fila>();
   for (const p of prints) {
     const nombre = p.posters?.nombre || "—";
     const serie = p.posters?.series?.nombre || "—";
     const color = p.posters?.series?.color || "#6B7280";
-    const f = porDiseno.get(nombre) || { nombre, serie, color, a4: 0, a3: 0 };
+    const f = porDiseno.get(nombre) || { nombre, posterId: p.poster_id, serie, color, a4: 0, a3: 0 };
     if (p.talla === "A4") f.a4 = p.cantidad;
     else f.a3 = p.cantidad;
     porDiseno.set(nombre, f);
@@ -204,19 +211,21 @@ export default function PrintsPage() {
         <div>
           <p className="text-xs text-gray-400 mb-2">{tr("totalPrints", { n: totalUnidades })}</p>
           <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-            <div className="grid grid-cols-[1fr_56px_56px] gap-2 px-4 py-2 bg-gray-50 border-b border-gray-100">
+            <div className="grid grid-cols-[1fr_48px_48px_28px] gap-2 px-4 py-2 bg-gray-50 border-b border-gray-100">
               <span className="text-xs font-semibold text-gray-500">{t.poster}</span>
               <span className="text-xs font-semibold text-yellow-600 text-center">A4</span>
               <span className="text-xs font-semibold text-blue-600 text-center">A3</span>
+              <span />
             </div>
             {filas.map((f, i) => (
-              <div key={f.nombre} className={`grid grid-cols-[1fr_56px_56px] gap-2 px-4 py-3 items-center ${i < filas.length - 1 ? "border-b border-gray-100" : ""}`}>
+              <div key={f.nombre} className={`grid grid-cols-[1fr_48px_48px_28px] gap-2 px-4 py-3 items-center ${i < filas.length - 1 ? "border-b border-gray-100" : ""}`}>
                 <div className="min-w-0">
                   <p className="text-sm text-gray-900 truncate">{f.nombre}</p>
                   <p className="text-[10px]" style={{ color: f.color }}>{f.serie}</p>
                 </div>
                 <span className={`text-center text-sm font-bold ${f.a4 > 0 ? "text-gray-900" : "text-gray-300"}`}>{f.a4}</span>
                 <span className={`text-center text-sm font-bold ${f.a3 > 0 ? "text-gray-900" : "text-gray-300"}`}>{f.a3}</span>
+                <button onClick={() => eliminarPrint(f.posterId, f.nombre)} className="text-gray-300 hover:text-red-500 text-lg leading-none">×</button>
               </div>
             ))}
           </div>
