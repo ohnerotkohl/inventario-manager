@@ -280,7 +280,7 @@ const es = {
   noPrints: "Aún no hay prints registrados",
   recentEntries: "Últimas entradas",
   totalPrints: "{n} prints en total",
-  deletePrintConfirm: "¿Eliminar todo el stock de \"{name}\" del almacén?",
+  deletePrintConfirm: "¿Eliminar todo el stock de \"{name}\" del almacén y su historial de entradas?",
   // Novedades
   news: "Novedades",
   newsTitle: "Novedades de la app",
@@ -555,7 +555,7 @@ const en: typeof es = {
   noPrints: "No prints registered yet",
   recentEntries: "Recent entries",
   totalPrints: "{n} prints in total",
-  deletePrintConfirm: "Delete all stock of \"{name}\" from the warehouse?",
+  deletePrintConfirm: "Delete all stock of \"{name}\" from the warehouse and its entry history?",
   news: "What's new",
   newsTitle: "What's new",
   newsSubtitle: "What's been improved and updated",

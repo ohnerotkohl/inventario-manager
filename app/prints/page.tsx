@@ -98,10 +98,13 @@ export default function PrintsPage() {
     fetchData();
   }
 
-  // Eliminar del almacén todo el stock de un diseño (ambas tallas)
+  // Eliminar del almacén todo el stock de un diseño (ambas tallas) y su historial de entradas
   async function eliminarPrint(posterId: string, nombre: string) {
     if (!confirm(tr("deletePrintConfirm", { name: nombre }))) return;
-    await supabase.from("prints_estudio").delete().eq("poster_id", posterId);
+    await Promise.all([
+      supabase.from("prints_estudio").delete().eq("poster_id", posterId),
+      supabase.from("prints_entradas").delete().eq("poster_id", posterId),
+    ]);
     fetchData();
   }
 
