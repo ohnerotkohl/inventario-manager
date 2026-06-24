@@ -104,9 +104,12 @@ export default function EstadisticasPage() {
   const [saveMinsOk, setSaveMinsOk] = useState(false);
   const [saveMinsError, setSaveMinsError] = useState("");
   const [mercadoChartMode, setMercadoChartMode] = useState<"semana" | "mes">("semana");
-  // Balance económico detallado por mercado (balances + ingresos históricos), respetando el periodo
+  // Balance económico detallado por mercado (balances + ingresos históricos)
   const [balanceMercado, setBalanceMercado] = useState<Record<string, MercadoFin>>({});
   const [gastoMercadoAbierto, setGastoMercadoAbierto] = useState<string | null>(null);
+  // Ventas en crudo (para filtrar la vista por mercado por mes natural)
+  const [ventasRaw, setVentasRaw] = useState<{ nombre: string; serie: string; color: string; talla: string; cantidad: number; fecha: string; mercado: string; sesionId: string }[]>([]);
+  const [mesMercado, setMesMercado] = useState<string>("todo");
 
   useEffect(() => {
     if (user?.rol === "empleado") { router.replace("/sesion"); return; }
@@ -143,9 +146,8 @@ export default function EstadisticasPage() {
     const contabPorNombre: Record<string, string> = {};
     for (const m of (mercContabRes.data || [])) contabPorNombre[m.nombre] = m.contabilidad || "negocio";
 
-    const desdeP = periodo !== "todo" ? new Date() : null;
-    if (desdeP) desdeP.setDate(desdeP.getDate() - parseInt(periodo));
-    const enPeriodo = (fecha: string) => !desdeP || new Date(fecha + "T12:00:00") >= desdeP;
+    // El balance por mercado trae TODO (la vista por mercado se filtra por mes natural, no por el periodo global)
+    const enPeriodo = (_fecha: string) => true;
 
     const balMap: Record<string, MercadoFin> = {};
     const getM = (nombre: string): MercadoFin => {
@@ -188,6 +190,20 @@ export default function EstadisticasPage() {
       sesiones: { id: string; fecha: string; trabajador: string; mercados: { nombre: string } | null } | null;
     };
     const ventas = (data || []) as unknown as VentaRow[];
+
+    // Guardar ventas en crudo para filtrar la vista por mercado por mes natural
+    setVentasRaw(
+      ventas.filter((v) => v.sesiones?.fecha).map((v) => ({
+        nombre: v.posters?.nombre || "—",
+        serie: v.posters?.series?.nombre || "—",
+        color: v.posters?.series?.color || "#6B7280",
+        talla: v.talla,
+        cantidad: v.cantidad,
+        fecha: v.sesiones!.fecha,
+        mercado: v.sesiones?.mercados?.nombre || "—",
+        sesionId: v.sesiones?.id || "",
+      }))
+    );
 
     const ventasFiltradas = periodo !== "todo"
       ? ventas.filter((v) => {
@@ -783,6 +799,7 @@ export default function EstadisticasPage() {
                     key={m.mercado}
                     onClick={() => {
                       setMercadoSeleccionado(m.mercado);
+                      setMesMercado("todo");
                       setRestockMinsEdit({ id: m.id, minBajo: m.minBajo, minMedio: m.minMedio, minTop: m.minTop, topN: m.topN });
                       setSaveMinsOk(false);
                       setSaveMinsError("");
@@ -818,7 +835,32 @@ export default function EstadisticasPage() {
             /* Detalle de mercado */
             const m = mercadoStats.find((s) => s.mercado === mercadoSeleccionado);
             if (!m) return null;
-            const maxTop = m.topPosters[0]?.total || 1;
+
+            // Meses con datos de este mercado (ventas o balance)
+            const mesesSet = new Set<string>();
+            for (const v of ventasRaw) if (v.mercado === m.mercado) mesesSet.add(v.fecha.slice(0, 7));
+            const balDet = balanceMercado[m.mercado];
+            if (balDet) for (const ym of Object.keys(balDet.porMes)) mesesSet.add(ym);
+            const mesesDisp = [...mesesSet].sort((a, b) => b.localeCompare(a));
+            const nombreMesSel = (ym: string) => `${t.months[parseInt(ym.slice(5)) - 1]} ${ym.slice(0, 4)}`;
+
+            // Métricas de producto filtradas por el mes elegido (o todas)
+            let total = m.total, sesiones = m.sesiones, promedio = m.promedio, topPosters = m.topPosters;
+            if (mesMercado !== "todo") {
+              const vMes = ventasRaw.filter((v) => v.mercado === m.mercado && v.fecha.slice(0, 7) === mesMercado);
+              total = vMes.reduce((s, v) => s + v.cantidad, 0);
+              sesiones = new Set(vMes.map((v) => v.sesionId)).size;
+              promedio = sesiones > 0 ? Math.round(total / sesiones) : 0;
+              const tp = new Map<string, { nombre: string; total: number; a4: number; a3: number }>();
+              for (const v of vMes) {
+                const e = tp.get(v.nombre) || { nombre: v.nombre, total: 0, a4: 0, a3: 0 };
+                e.total += v.cantidad;
+                if (v.talla === "A4") e.a4 += v.cantidad; else e.a3 += v.cantidad;
+                tp.set(v.nombre, e);
+              }
+              topPosters = [...tp.values()].sort((a, b) => b.total - a.total);
+            }
+            const maxTop = topPosters[0]?.total || 1;
             return (
               <div className="space-y-4">
                 {/* Back */}
@@ -834,25 +876,49 @@ export default function EstadisticasPage() {
 
                 <h2 className="text-xl font-bold text-gray-900">{m.mercado}</h2>
 
+                {/* Selector de mes natural */}
+                <select
+                  value={mesMercado}
+                  onChange={(e) => setMesMercado(e.target.value)}
+                  className="w-full text-sm font-medium border border-gray-200 rounded-xl py-2.5 px-3 focus:outline-none focus:border-black"
+                >
+                  <option value="todo">Todos los meses</option>
+                  {mesesDisp.map((ym) => <option key={ym} value={ym} className="capitalize">{nombreMesSel(ym)}</option>)}
+                </select>
+
                 {/* 3 tarjetas de métricas */}
                 <div className="grid grid-cols-3 gap-3">
                   <div className="bg-black text-white rounded-2xl p-4 text-center">
-                    <p className="text-2xl font-bold">{m.total}</p>
+                    <p className="text-2xl font-bold">{total}</p>
                     <p className="text-xs text-gray-400 mt-1">vendidos</p>
                   </div>
                   <div className="bg-white border border-gray-200 rounded-2xl p-4 text-center">
-                    <p className="text-2xl font-bold text-gray-900">{m.sesiones}</p>
+                    <p className="text-2xl font-bold text-gray-900">{sesiones}</p>
                     <p className="text-xs text-gray-400 mt-1">sesiones</p>
                   </div>
                   <div className="bg-white border border-gray-200 rounded-2xl p-4 text-center">
-                    <p className="text-2xl font-bold text-gray-900">{m.promedio}</p>
+                    <p className="text-2xl font-bold text-gray-900">{promedio}</p>
                     <p className="text-xs text-gray-400 mt-1">promedio/sesión</p>
                   </div>
                 </div>
 
                 {/* Balance económico del mercado (con privacidad) */}
                 {(() => {
-                  const bal = balanceMercado[m.mercado];
+                  const balRaw = balanceMercado[m.mercado];
+                  // Filtrar el balance por el mes elegido (o todo)
+                  let bal = balRaw;
+                  if (balRaw && mesMercado !== "todo") {
+                    const mm = balRaw.porMes[mesMercado];
+                    bal = {
+                      contabilidad: balRaw.contabilidad,
+                      ingresos: mm?.ingresos || 0,
+                      gastos: mm?.gastos || 0,
+                      neto: mm?.neto || 0,
+                      n: mm ? 1 : 0,
+                      porMes: mm ? { [mesMercado]: mm } : {},
+                      gastosDetalle: balRaw.gastosDetalle.filter((g) => g.fecha.slice(0, 7) === mesMercado),
+                    };
+                  }
                   const contab = bal?.contabilidad || "negocio";
                   const propio = (user?.nombre || "").toLowerCase();
                   const puedeVer = contab === "negocio" || contab === propio;
@@ -1113,17 +1179,17 @@ export default function EstadisticasPage() {
                 )}
 
                 {/* Top pósters del mercado */}
-                {m.topPosters.length > 0 && (
+                {topPosters.length > 0 && (
                   <div>
                     <h3 className="font-bold text-gray-700 mb-3">{t.topPosters}</h3>
                     <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-                      {m.topPosters.map((p, idx) => (
-                        <div key={p.nombre} className={`flex items-center gap-3 px-4 py-3 ${idx < m.topPosters.length - 1 ? "border-b border-gray-100" : ""}`}>
+                      {topPosters.map((p, idx) => (
+                        <div key={p.nombre} className={`flex items-center gap-3 px-4 py-3 ${idx < topPosters.length - 1 ? "border-b border-gray-100" : ""}`}>
                           <span className={`text-sm font-bold w-7 text-right flex-shrink-0 ${idx < 3 ? "text-gray-900" : "text-gray-300"}`}>{idx + 1}</span>
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm text-gray-900 truncate">{p.nombre}</p>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              {idx < m.topN && <span className="text-xs bg-amber-100 text-amber-700 font-semibold px-1.5 py-0.5 rounded-md">⭐ top {idx + 1}</span>}
+                              {idx < m.topN && <span className="text-xs bg-amber-100 text-amber-700 font-semibold px-1.5 py-0.5 rounded-md">top {idx + 1}</span>}
                               <span className="text-xs text-gray-400">A4: {p.a4} · A3: {p.a3}</span>
                             </div>
                           </div>
