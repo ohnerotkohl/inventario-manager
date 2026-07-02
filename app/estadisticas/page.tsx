@@ -125,6 +125,8 @@ export default function EstadisticasPage() {
   // Ventas en crudo (para filtrar la vista por mercado por mes natural)
   const [ventasRaw, setVentasRaw] = useState<{ nombre: string; serie: string; color: string; talla: string; cantidad: number; fecha: string; mercado: string; sesionId: string }[]>([]);
   const [mesMercado, setMesMercado] = useState<string>("todo");
+  // Mercados cancelados (contexto: explican fines de semana sin ventas)
+  const [cancelaciones, setCancelaciones] = useState<{ id: string; mercado_nombre: string; fecha: string; motivo: string | null }[]>([]);
 
   useEffect(() => {
     if (user?.rol === "empleado") { router.replace("/sesion"); return; }
@@ -153,11 +155,13 @@ export default function EstadisticasPage() {
 
     // Balance económico detallado por mercado: balances (con desglose de gastos)
     // + ingresos históricos, agrupado por mes, respetando el periodo
-    const [balRes, mercContabRes, histRes] = await Promise.all([
+    const [balRes, mercContabRes, histRes, cancRes] = await Promise.all([
       supabase.from("balances").select("mercado_nombre, fecha, total_ventas, total_gastos, neto, gastos, turno_costo, iva_aplicado, iva_monto"),
       supabase.from("mercados").select("nombre, contabilidad"),
       supabase.from("ingresos_historicos").select("evento, fecha, total"),
+      supabase.from("cancelaciones").select("id, mercado_nombre, fecha, motivo").order("fecha", { ascending: false }),
     ]);
+    setCancelaciones(cancRes.data || []);
     const contabPorNombre: Record<string, string> = {};
     for (const m of (mercContabRes.data || [])) contabPorNombre[m.nombre] = m.contabilidad || "negocio";
 
@@ -911,6 +915,37 @@ export default function EstadisticasPage() {
                     <p className="text-xs text-gray-400 mt-1">promedio/sesión</p>
                   </div>
                 </div>
+
+                {/* Mercados cancelados: contexto de los huecos sin ventas */}
+                {(() => {
+                  const cancs = cancelaciones.filter((c) =>
+                    c.mercado_nombre === m.mercado && (mesMercado === "todo" || c.fecha.slice(0, 7) === mesMercado)
+                  );
+                  if (cancs.length === 0) return null;
+                  return (
+                    <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4">
+                      <p className="text-xs font-bold uppercase tracking-widest text-orange-600 mb-2">{t.cancelledDates}</p>
+                      {cancs.map((c) => (
+                        <div key={c.id} className="flex items-center justify-between gap-2 py-1">
+                          <p className="text-sm text-orange-900">
+                            {new Date(c.fecha + "T12:00:00").toLocaleDateString("es-DE", { weekday: "short", day: "numeric", month: "short" })}
+                            {c.motivo ? <span className="text-orange-700"> — {c.motivo}</span> : ""}
+                          </p>
+                          <button
+                            onClick={async () => {
+                              if (!confirm(t.deleteCancellationConfirm)) return;
+                              await supabase.from("cancelaciones").delete().eq("id", c.id);
+                              setCancelaciones((prev) => prev.filter((x) => x.id !== c.id));
+                            }}
+                            className="shrink-0 text-orange-300 hover:text-red-500 text-base leading-none"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
 
                 {/* Balance económico del mercado (con privacidad) */}
                 {(() => {
