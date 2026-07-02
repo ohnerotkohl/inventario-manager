@@ -48,8 +48,9 @@ export default function PrintsPage() {
 
   const [formAbierto, setFormAbierto] = useState(false);
   const [fPoster, setFPoster] = useState("");
-  const [fTalla, setFTalla] = useState<Talla>("A4");
-  const [fCantidad, setFCantidad] = useState(0);
+  // A4 y A3 se registran juntos en una sola entrada (feedback de Nuria)
+  const [fCantA4, setFCantA4] = useState(0);
+  const [fCantA3, setFCantA3] = useState(0);
   const [fOrigen, setFOrigen] = useState<Origen>("taller");
   const [guardando, setGuardando] = useState(false);
 
@@ -74,26 +75,34 @@ export default function PrintsPage() {
   if (user?.rol === "empleado") return null;
 
   async function registrarEntrada() {
-    if (!fPoster || fCantidad <= 0 || guardando) return;
+    // Ambas tallas se guardan juntas en un solo paso
+    const lineas: { talla: Talla; cantidad: number }[] = [];
+    if (fCantA4 > 0) lineas.push({ talla: "A4", cantidad: fCantA4 });
+    if (fCantA3 > 0) lineas.push({ talla: "A3", cantidad: fCantA3 });
+    if (!fPoster || lineas.length === 0 || guardando) return;
     setGuardando(true);
-    // 1) Registrar la entrada en el historial
-    const { error: errEntrada } = await supabase.from("prints_entradas").insert({
-      poster_id: fPoster,
-      talla: fTalla,
-      cantidad: fCantidad,
-      origen: fOrigen,
-      registrado_por: user?.nombre || null,
-    });
+    // 1) Registrar las entradas en el historial
+    const { error: errEntrada } = await supabase.from("prints_entradas").insert(
+      lineas.map((l) => ({
+        poster_id: fPoster,
+        talla: l.talla,
+        cantidad: l.cantidad,
+        origen: fOrigen,
+        registrado_por: user?.nombre || null,
+      }))
+    );
     if (errEntrada) { setGuardando(false); alert(t.saveError); return; }
     // 2) Sumar al stock del almacén central (crear si no existe)
-    const existente = prints.find((p) => p.poster_id === fPoster && p.talla === fTalla);
-    if (existente) {
-      await supabase.from("prints_estudio").update({ cantidad: existente.cantidad + fCantidad, updated_at: new Date().toISOString() }).eq("id", existente.id);
-    } else {
-      await supabase.from("prints_estudio").insert({ poster_id: fPoster, talla: fTalla, cantidad: fCantidad });
+    for (const l of lineas) {
+      const existente = prints.find((p) => p.poster_id === fPoster && p.talla === l.talla);
+      if (existente) {
+        await supabase.from("prints_estudio").update({ cantidad: existente.cantidad + l.cantidad, updated_at: new Date().toISOString() }).eq("id", existente.id);
+      } else {
+        await supabase.from("prints_estudio").insert({ poster_id: fPoster, talla: l.talla, cantidad: l.cantidad });
+      }
     }
     setGuardando(false);
-    setFPoster(""); setFCantidad(0); setFTalla("A4"); setFOrigen("taller");
+    setFPoster(""); setFCantA4(0); setFCantA3(0); setFOrigen("taller");
     setFormAbierto(false);
     fetchData();
   }
@@ -139,37 +148,31 @@ export default function PrintsPage() {
           <p className="text-xs font-bold uppercase tracking-wider text-gray-500">{t.registerEntry}</p>
           <div>
             <label className="block text-xs text-gray-500 mb-1">{t.entryDesign}</label>
-            <select value={fPoster} onChange={(e) => { setFPoster(e.target.value); setFTalla("A4"); }} className={inputClass}>
+            <select value={fPoster} onChange={(e) => { setFPoster(e.target.value); setFCantA4(0); setFCantA3(0); }} className={inputClass}>
               <option value="">{t.selectDesign}</option>
               {posters.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
             </select>
           </div>
+          {/* A4 y A3 juntos: una sola entrada para las dos tallas */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">{t.entrySize}</label>
-              <div className="flex gap-2">
-                {(["A4", "A3"] as Talla[]).map((tll) => {
-                  const disp = !posterSel || (tll === "A4" ? posterSel.tiene_a4 : posterSel.tiene_a3);
-                  return (
-                    <button
-                      key={tll}
-                      onClick={() => setFTalla(tll)}
-                      disabled={!disp}
-                      className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${fTalla === tll ? "bg-black text-white" : "bg-gray-100 text-gray-600"} disabled:opacity-30`}
-                    >
-                      {tll}
-                    </button>
-                  );
-                })}
-              </div>
+              <label className="block text-xs font-semibold text-yellow-600 mb-1">A4</label>
+              <input
+                type="number" inputMode="numeric" min={0} value={fCantA4 === 0 ? "" : fCantA4} placeholder="0"
+                disabled={!!posterSel && !posterSel.tiene_a4}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => setFCantA4(Math.max(0, parseInt(e.target.value) || 0))}
+                className={`${inputClass} disabled:opacity-30 disabled:bg-gray-50`}
+              />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">{t.entryQty}</label>
+              <label className="block text-xs font-semibold text-blue-600 mb-1">A3</label>
               <input
-                type="number" inputMode="numeric" min={0} value={fCantidad === 0 ? "" : fCantidad} placeholder="0"
+                type="number" inputMode="numeric" min={0} value={fCantA3 === 0 ? "" : fCantA3} placeholder="0"
+                disabled={!!posterSel && !posterSel.tiene_a3}
                 onFocus={(e) => e.target.select()}
-                onChange={(e) => setFCantidad(Math.max(0, parseInt(e.target.value) || 0))}
-                className={inputClass}
+                onChange={(e) => setFCantA3(Math.max(0, parseInt(e.target.value) || 0))}
+                className={`${inputClass} disabled:opacity-30 disabled:bg-gray-50`}
               />
             </div>
           </div>
@@ -190,7 +193,7 @@ export default function PrintsPage() {
           <div className="flex gap-2">
             <button
               onClick={registrarEntrada}
-              disabled={!fPoster || fCantidad <= 0 || guardando}
+              disabled={!fPoster || (fCantA4 <= 0 && fCantA3 <= 0) || guardando}
               className="flex-1 py-2.5 rounded-xl bg-black text-white font-medium text-sm disabled:bg-gray-200 disabled:text-gray-400"
             >
               {guardando ? t.saving : t.saveEntry}
