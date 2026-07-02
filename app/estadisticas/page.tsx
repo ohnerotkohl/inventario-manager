@@ -56,14 +56,29 @@ interface SesionHistorial {
 
 type Tab = "resumen" | "mercados" | "historial";
 
-// Balance económico detallado de un mercado
+// Balance económico detallado de un mercado.
+// Los "reales" excluyen los ingresos históricos (que no traen gastos y
+// no sirven para juzgar la salud del mercado).
+interface MesFin {
+  ingresos: number;
+  gastos: number;
+  neto: number;
+  ingReal: number;
+  gasReal: number;
+  historico: boolean;
+  real: boolean;
+}
 interface MercadoFin {
   contabilidad: string;
   ingresos: number;
   gastos: number;
   neto: number;
   n: number;
-  porMes: Record<string, { ingresos: number; gastos: number; neto: number }>;
+  ingresosReales: number;
+  gastosReales: number;
+  netoReal: number;
+  nReales: number;
+  porMes: Record<string, MesFin>;
   gastosDetalle: { fecha: string; concepto: string; monto: number }[];
 }
 
@@ -146,26 +161,27 @@ export default function EstadisticasPage() {
     const contabPorNombre: Record<string, string> = {};
     for (const m of (mercContabRes.data || [])) contabPorNombre[m.nombre] = m.contabilidad || "negocio";
 
-    // El balance por mercado trae TODO (la vista por mercado se filtra por mes natural, no por el periodo global)
-    const enPeriodo = (_fecha: string) => true;
-
+    // El balance por mercado trae TODO: la vista por mercado se filtra por
+    // mes natural con su propio selector, no por el periodo global
     const balMap: Record<string, MercadoFin> = {};
     const getM = (nombre: string): MercadoFin => {
-      if (!balMap[nombre]) balMap[nombre] = { contabilidad: contabPorNombre[nombre] || "negocio", ingresos: 0, gastos: 0, neto: 0, n: 0, porMes: {}, gastosDetalle: [] };
+      if (!balMap[nombre]) balMap[nombre] = { contabilidad: contabPorNombre[nombre] || "negocio", ingresos: 0, gastos: 0, neto: 0, n: 0, ingresosReales: 0, gastosReales: 0, netoReal: 0, nReales: 0, porMes: {}, gastosDetalle: [] };
       return balMap[nombre];
     };
-    const addMes = (m: MercadoFin, ym: string, ing: number, gas: number) => {
-      const e = m.porMes[ym] || { ingresos: 0, gastos: 0, neto: 0 };
+    const addMes = (m: MercadoFin, ym: string, ing: number, gas: number, esReal: boolean) => {
+      const e = m.porMes[ym] || { ingresos: 0, gastos: 0, neto: 0, ingReal: 0, gasReal: 0, historico: false, real: false };
       e.ingresos += ing; e.gastos += gas; e.neto += (ing - gas);
+      if (esReal) { e.ingReal += ing; e.gasReal += gas; e.real = true; }
+      else e.historico = true;
       m.porMes[ym] = e;
     };
     type GastoItem = { nombre: string; monto: number };
     for (const b of (balRes.data || [])) {
-      if (!enPeriodo(b.fecha)) continue;
       const m = getM(b.mercado_nombre);
       const ing = Number(b.total_ventas), gas = Number(b.total_gastos);
       m.ingresos += ing; m.gastos += gas; m.neto += Number(b.neto); m.n += 1;
-      addMes(m, b.fecha.slice(0, 7), ing, gas);
+      m.ingresosReales += ing; m.gastosReales += gas; m.netoReal += Number(b.neto); m.nReales += 1;
+      addMes(m, b.fecha.slice(0, 7), ing, gas, true);
       for (const g of ((b.gastos as GastoItem[]) || [])) {
         if (Number(g.monto) > 0) m.gastosDetalle.push({ fecha: b.fecha, concepto: g.nombre || "—", monto: Number(g.monto) });
       }
@@ -173,11 +189,10 @@ export default function EstadisticasPage() {
       if (b.iva_aplicado && Number(b.iva_monto) > 0) m.gastosDetalle.push({ fecha: b.fecha, concepto: "IVA 19%", monto: Number(b.iva_monto) });
     }
     for (const h of (histRes.data || [])) {
-      if (!enPeriodo(h.fecha)) continue;
       const m = getM(mercadoDeEvento(h.evento));
       const ing = Number(h.total);
       m.ingresos += ing; m.neto += ing; m.n += 1;
-      addMes(m, h.fecha.slice(0, 7), ing, 0);
+      addMes(m, h.fecha.slice(0, 7), ing, 0, false);
     }
     setBalanceMercado(balMap);
 
@@ -391,7 +406,9 @@ export default function EstadisticasPage() {
       };
       const acc: { [m: string]: MercadoAcc } = {};
 
-      for (const v of ventasFiltradas) {
+      // La vista Por mercado usa TODOS los datos: se filtra con su propio
+      // selector de mes natural, no con el periodo global de días
+      for (const v of ventas) {
         const m = v.sesiones?.mercados?.nombre || "—";
         const sid = v.sesiones?.id || "";
         if (!acc[m]) acc[m] = { total: 0, sesiones: new Set(), topPosters: {}, totalAnterior: 0, semanaActual: 0, semanaAnterior: 0, porMes: Array(12).fill(0), porSemana: Array(N_SEMANAS).fill(0) };
@@ -547,18 +564,20 @@ export default function EstadisticasPage() {
         </button>
       </div>
 
-      {/* Filtro período */}
-      <div className="flex gap-2">
-        {[{ val: "30", label: t.days30 }, { val: "90", label: t.months3 }, { val: "365", label: t.year1 }, { val: "todo", label: t.all }].map((p) => (
-          <button
-            key={p.val}
-            onClick={() => setPeriodo(p.val as "30" | "90" | "365" | "todo")}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${periodo === p.val ? "bg-black text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
+      {/* Filtro período (solo en Resumen e Historial: Por mercado usa su selector de mes) */}
+      {tab !== "mercados" && (
+        <div className="flex gap-2">
+          {[{ val: "30", label: t.days30 }, { val: "90", label: t.months3 }, { val: "365", label: t.year1 }, { val: "todo", label: t.all }].map((p) => (
+            <button
+              key={p.val}
+              onClick={() => setPeriodo(p.val as "30" | "90" | "365" | "todo")}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${periodo === p.val ? "bg-black text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {loading ? (
         <div className="space-y-4">
@@ -566,7 +585,7 @@ export default function EstadisticasPage() {
           <SkeletonList rows={4} />
           <SkeletonList rows={5} />
         </div>
-      ) : totalVentas === 0 ? (
+      ) : totalVentas === 0 && tab !== "mercados" ? (
         <div className="text-center py-16 text-gray-400">
           <div className="flex justify-center mb-2">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -813,15 +832,6 @@ export default function EstadisticasPage() {
                     <div className="flex items-center gap-2">
                       <div className="text-right">
                         <p className="font-bold text-gray-900 text-lg">{m.total}</p>
-                        {periodo !== "todo" && m.totalAnterior > 0 && (() => {
-                          const cambio = ((m.total - m.totalAnterior) / m.totalAnterior) * 100;
-                          const sube = cambio >= 0;
-                          return (
-                            <p className={`text-xs font-semibold ${sube ? "text-green-600" : "text-red-500"}`}>
-                              {sube ? "▲" : "▼"} {Math.abs(cambio).toFixed(0)}%
-                            </p>
-                          );
-                        })()}
                       </div>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-300 flex-shrink-0">
                         <polyline points="9 18 15 12 9 6"/>
@@ -882,7 +892,7 @@ export default function EstadisticasPage() {
                   onChange={(e) => setMesMercado(e.target.value)}
                   className="w-full text-sm font-medium border border-gray-200 rounded-xl py-2.5 px-3 focus:outline-none focus:border-black"
                 >
-                  <option value="todo">Todos los meses</option>
+                  <option value="todo">{t.allMonths}</option>
                   {mesesDisp.map((ym) => <option key={ym} value={ym} className="capitalize">{nombreMesSel(ym)}</option>)}
                 </select>
 
@@ -915,6 +925,10 @@ export default function EstadisticasPage() {
                       gastos: mm?.gastos || 0,
                       neto: mm?.neto || 0,
                       n: mm ? 1 : 0,
+                      ingresosReales: mm?.ingReal || 0,
+                      gastosReales: mm?.gasReal || 0,
+                      netoReal: (mm?.ingReal || 0) - (mm?.gasReal || 0),
+                      nReales: mm?.real ? 1 : 0,
                       porMes: mm ? { [mesMercado]: mm } : {},
                       gastosDetalle: balRaw.gastosDetalle.filter((g) => g.fecha.slice(0, 7) === mesMercado),
                     };
@@ -941,12 +955,17 @@ export default function EstadisticasPage() {
                     );
                   }
                   const eur = (n: number) => n.toFixed(2) + " €";
-                  const margen = bal.ingresos > 0 ? bal.neto / bal.ingresos : 0;
-                  const salud = bal.neto < 0
-                    ? { label: t.healthLoss, bg: "bg-red-50", border: "border-red-200", text: "text-red-600", dot: "bg-red-500" }
-                    : margen >= 0.30
-                      ? { label: t.healthHealthy, bg: "bg-green-50", border: "border-green-200", text: "text-green-600", dot: "bg-green-500" }
-                      : { label: t.healthTight, bg: "bg-yellow-50", border: "border-yellow-200", text: "text-yellow-700", dot: "bg-yellow-500" };
+                  // La salud se juzga SOLO con los meses de balances reales:
+                  // los históricos no traen gastos y maquillarían el margen
+                  const margen = bal.ingresosReales > 0 ? bal.netoReal / bal.ingresosReales : 0;
+                  const sinDatosSalud = bal.nReales === 0;
+                  const salud = sinDatosSalud
+                    ? { label: t.healthNoData, bg: "bg-gray-50", border: "border-gray-200", text: "text-gray-500", dot: "bg-gray-400" }
+                    : bal.netoReal < 0
+                      ? { label: t.healthLoss, bg: "bg-red-50", border: "border-red-200", text: "text-red-600", dot: "bg-red-500" }
+                      : margen >= 0.30
+                        ? { label: t.healthHealthy, bg: "bg-green-50", border: "border-green-200", text: "text-green-600", dot: "bg-green-500" }
+                        : { label: t.healthTight, bg: "bg-yellow-50", border: "border-yellow-200", text: "text-yellow-700", dot: "bg-yellow-500" };
                   const meses = Object.entries(bal.porMes).sort((a, b) => b[0].localeCompare(a[0]));
                   const nombreMes = (ym: string) => `${t.months[parseInt(ym.slice(5)) - 1]} ${ym.slice(0, 4)}`;
                   // Detalle de gastos agrupado por concepto
@@ -961,17 +980,22 @@ export default function EstadisticasPage() {
                     <div className="space-y-3">
                       {/* Salud + resumen */}
                       <div className={`rounded-2xl p-4 border-2 ${salud.bg} ${salud.border}`}>
-                        <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center justify-between mb-3 gap-2">
                           <span className={`flex items-center gap-2 text-sm font-bold ${salud.text}`}>
-                            <span className={`w-2.5 h-2.5 rounded-full ${salud.dot}`} />{salud.label}
+                            <span className={`shrink-0 w-2.5 h-2.5 rounded-full ${salud.dot}`} />{salud.label}
                           </span>
-                          <span className={`text-sm font-bold ${salud.text}`}>{t.marginLabel}: {(margen * 100).toFixed(0)}%</span>
+                          {!sinDatosSalud && (
+                            <span className={`shrink-0 text-sm font-bold ${salud.text}`}>{t.marginLabel}: {(margen * 100).toFixed(0)}%</span>
+                          )}
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-center">
                           <div><p className="text-base font-bold text-green-600">{eur(bal.ingresos)}</p><p className="text-[11px] text-gray-500">{t.incomeLabel}</p></div>
                           <div><p className="text-base font-bold text-red-600">{eur(bal.gastos)}</p><p className="text-[11px] text-gray-500">{t.expensesShort}</p></div>
                           <div><p className={`text-base font-bold ${bal.neto >= 0 ? "text-gray-900" : "text-red-600"}`}>{bal.neto >= 0 ? "+" : ""}{eur(bal.neto)}</p><p className="text-[11px] text-gray-500">{t.netLabel}</p></div>
                         </div>
+                        {!sinDatosSalud && bal.n > bal.nReales && (
+                          <p className="text-[11px] text-gray-400 mt-2">{t.healthRealNote}</p>
+                        )}
                       </div>
 
                       {/* Balance mes a mes */}
@@ -979,8 +1003,9 @@ export default function EstadisticasPage() {
                         <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-2.5">
                           <p className="text-xs font-bold uppercase tracking-widest text-gray-400">{t.byMonthBalance}</p>
                           {meses.map(([ym, v]) => {
-                            const mg = v.ingresos > 0 ? v.neto / v.ingresos : 0;
-                            const col = v.neto < 0 ? "text-red-600" : mg >= 0.30 ? "text-green-600" : "text-yellow-700";
+                            const esHistorico = v.historico && !v.real;
+                            const mg = v.ingReal > 0 ? (v.ingReal - v.gasReal) / v.ingReal : 0;
+                            const col = esHistorico ? "text-gray-500" : (v.ingReal - v.gasReal) < 0 ? "text-red-600" : mg >= 0.30 ? "text-green-600" : "text-yellow-700";
                             return (
                               <div key={ym} className="flex items-center justify-between border-b border-gray-50 last:border-0 pb-2 last:pb-0">
                                 <div>
@@ -989,7 +1014,9 @@ export default function EstadisticasPage() {
                                 </div>
                                 <div className="text-right">
                                   <p className={`text-sm font-bold ${col}`}>{v.neto >= 0 ? "+" : ""}{eur(v.neto)}</p>
-                                  <p className="text-[11px] text-gray-400">{(mg * 100).toFixed(0)}% margen</p>
+                                  {esHistorico
+                                    ? <p className="text-[10px] text-gray-400 bg-gray-100 rounded-full px-2 py-0.5 inline-block">{t.histMonthBadge}</p>
+                                    : <p className="text-[11px] text-gray-400">{(mg * 100).toFixed(0)}% margen</p>}
                                 </div>
                               </div>
                             );
@@ -1147,36 +1174,41 @@ export default function EstadisticasPage() {
                   );
                 })()}
 
-                {/* Comparativa vs período anterior */}
-                {periodo !== "todo" && (
-                  <div className="bg-white border border-gray-200 rounded-2xl p-4">
-                    <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Comparativa de períodos</p>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="text-center bg-gray-50 rounded-xl p-3">
-                        <p className="text-2xl font-bold text-gray-900">{m.total}</p>
-                        <p className="text-xs text-gray-500 mt-1 font-medium">{periodo === "30" ? "Este mes" : `Últimos ${periodo} días`}</p>
-                      </div>
-                      <div className="text-center bg-gray-50 rounded-xl p-3">
-                        <p className="text-2xl font-bold text-gray-400">{m.totalAnterior}</p>
-                        <p className="text-xs text-gray-500 mt-1 font-medium">{periodo === "30" ? "Mes anterior" : `${periodo} días antes`}</p>
-                      </div>
-                    </div>
-                    {m.totalAnterior > 0 && (() => {
-                      const cambio = ((m.total - m.totalAnterior) / m.totalAnterior) * 100;
-                      const sube = cambio >= 0;
-                      return (
-                        <div className={`mt-3 text-center py-2 rounded-xl text-sm font-semibold ${sube ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
-                          {sube ? "▲" : "▼"} {Math.abs(cambio).toFixed(1)}% {sube ? "más que el período anterior" : "menos que el período anterior"}
+                {/* Comparativa: mes elegido vs mes anterior (mismo lenguaje del selector) */}
+                {mesMercado !== "todo" && (() => {
+                  const [yC, mC] = mesMercado.split("-").map(Number);
+                  const prevD = new Date(yC, mC - 2, 1);
+                  const ymPrev = `${prevD.getFullYear()}-${String(prevD.getMonth() + 1).padStart(2, "0")}`;
+                  const totalPrev = ventasRaw
+                    .filter((v) => v.mercado === m.mercado && v.fecha.slice(0, 7) === ymPrev)
+                    .reduce((s, v) => s + v.cantidad, 0);
+                  const cambio = totalPrev > 0 ? ((total - totalPrev) / totalPrev) * 100 : null;
+                  const sube = cambio !== null && cambio >= 0;
+                  return (
+                    <div className="bg-white border border-gray-200 rounded-2xl p-4">
+                      <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Comparativa de meses</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="text-center bg-gray-50 rounded-xl p-3">
+                          <p className="text-2xl font-bold text-gray-900">{total}</p>
+                          <p className="text-xs text-gray-500 mt-1 font-medium capitalize">{nombreMesSel(mesMercado)}</p>
                         </div>
-                      );
-                    })()}
-                    {m.totalAnterior === 0 && (
-                      <div className="mt-3 text-center py-2 rounded-xl text-sm text-gray-400">
-                        Sin datos en el período anterior
+                        <div className="text-center bg-gray-50 rounded-xl p-3">
+                          <p className="text-2xl font-bold text-gray-400">{totalPrev}</p>
+                          <p className="text-xs text-gray-500 mt-1 font-medium capitalize">{nombreMesSel(ymPrev)}</p>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                )}
+                      {cambio !== null ? (
+                        <div className={`mt-3 text-center py-2 rounded-xl text-sm font-semibold ${sube ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
+                          {sube ? "▲" : "▼"} {Math.abs(cambio).toFixed(1)}% {sube ? "más que el mes anterior" : "menos que el mes anterior"}
+                        </div>
+                      ) : (
+                        <div className="mt-3 text-center py-2 rounded-xl text-sm text-gray-400">
+                          Sin ventas en el mes anterior
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Top pósters del mercado */}
                 {topPosters.length > 0 && (

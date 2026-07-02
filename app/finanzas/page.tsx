@@ -9,7 +9,6 @@ import { SkeletonPage } from "@/app/components/Skeleton";
 import type { Mercado, Balance } from "@/lib/types";
 
 type Tab = "negocio" | "personal" | "gastos";
-type Rango = "30" | "90" | "365" | "all";
 
 interface Gasto {
   id: string;
@@ -61,7 +60,8 @@ export default function FinanzasPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [tab, setTab] = useState<Tab>("negocio");
-  const [rango, setRango] = useState<Rango>("90");
+  // Filtro por mes natural (feedback: los rangos de días eran ambiguos)
+  const [mes, setMes] = useState<string>("todo");
   const [mercados, setMercados] = useState<Mercado[]>([]);
   const [balances, setBalances] = useState<Balance[]>([]);
   const [gastos, setGastos] = useState<Gasto[]>([]);
@@ -107,9 +107,13 @@ export default function FinanzasPage() {
 
   const mercadosPersonales = mercados.filter((m) => m.contabilidad === propio);
 
-  const dias = rango === "all" ? null : parseInt(rango);
-  const desde = dias ? new Date(Date.now() - dias * 86400000) : null;
-  const enRango = (fecha: string) => !desde || new Date(fecha + "T12:00:00") >= desde;
+  // Meses disponibles: todos los que tienen datos (balances, históricos o gastos)
+  const mesesDisp = [...new Set([
+    ...balances.map((b) => b.fecha.slice(0, 7)),
+    ...historicos.map((h) => h.fecha.slice(0, 7)),
+    ...gastos.map((g) => g.fecha.slice(0, 7)),
+  ])].sort((a, b) => b.localeCompare(a));
+  const enRango = (fecha: string) => mes === "todo" || fecha.slice(0, 7) === mes;
 
   const vista = tab === "gastos" ? "negocio" : tab;
   const balancesVista = balances.filter((b) => {
@@ -133,17 +137,19 @@ export default function FinanzasPage() {
   const gastosEstudioTotal = gastosVista.reduce((s, g) => s + Number(g.importe), 0);
 
   // Agrupar por mes (balances + históricos + gastos estudio)
-  const porMes = new Map<string, { ingresos: number; gastos: number; neto: number }>();
-  function acumular(ym: string, ingresos: number, gastosMes: number) {
-    const acc = porMes.get(ym) || { ingresos: 0, gastos: 0, neto: 0 };
+  const porMes = new Map<string, { ingresos: number; gastos: number; neto: number; historico: boolean; real: boolean }>();
+  function acumular(ym: string, ingresos: number, gastosMes: number, esReal: boolean) {
+    const acc = porMes.get(ym) || { ingresos: 0, gastos: 0, neto: 0, historico: false, real: false };
     acc.ingresos += ingresos;
     acc.gastos += gastosMes;
     acc.neto += ingresos - gastosMes;
+    if (esReal) acc.real = true;
+    else acc.historico = true;
     porMes.set(ym, acc);
   }
-  for (const b of balancesVista) acumular(b.fecha.slice(0, 7), Number(b.total_ventas), Number(b.total_gastos));
-  for (const h of historicosVista) acumular(h.fecha.slice(0, 7), Number(h.total), 0);
-  for (const g of gastosVista) acumular(g.fecha.slice(0, 7), 0, Number(g.importe));
+  for (const b of balancesVista) acumular(b.fecha.slice(0, 7), Number(b.total_ventas), Number(b.total_gastos), true);
+  for (const h of historicosVista) acumular(h.fecha.slice(0, 7), Number(h.total), 0, false);
+  for (const g of gastosVista) acumular(g.fecha.slice(0, 7), 0, Number(g.importe), true);
   const meses = [...porMes.entries()].sort((a, b) => b[0].localeCompare(a[0]));
   const maxNeto = Math.max(1, ...meses.map(([, v]) => Math.abs(v.neto)));
 
@@ -193,13 +199,6 @@ export default function FinanzasPage() {
 
   const inputClass = "w-full text-sm border border-gray-200 rounded-lg py-2 px-3 focus:outline-none focus:border-black";
 
-  const rangos: { id: Rango; label: string }[] = [
-    { id: "30", label: t.days30 },
-    { id: "90", label: t.months3 },
-    { id: "365", label: t.year1 },
-    { id: "all", label: t.all },
-  ];
-
   return (
     <div className="space-y-6">
       <div>
@@ -235,18 +234,15 @@ export default function FinanzasPage() {
                 : t.noPersonalMarkets}
           </p>
 
-          {/* Rango temporal */}
-          <div className="flex gap-2">
-            {rangos.map((r) => (
-              <button
-                key={r.id}
-                onClick={() => setRango(r.id)}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors ${rango === r.id ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-500"}`}
-              >
-                {r.label}
-              </button>
-            ))}
-          </div>
+          {/* Selector de mes natural */}
+          <select
+            value={mes}
+            onChange={(e) => setMes(e.target.value)}
+            className="w-full text-sm font-medium border border-gray-200 rounded-xl py-2.5 px-3 focus:outline-none focus:border-black"
+          >
+            <option value="todo">{t.allMonths}</option>
+            {mesesDisp.map((ym) => <option key={ym} value={ym} className="capitalize">{nombreMes(ym)}</option>)}
+          </select>
 
           {/* Totales */}
           <div className="grid grid-cols-2 gap-3">
@@ -306,6 +302,7 @@ export default function FinanzasPage() {
                   </div>
                   <p className="text-[11px] text-gray-400 mt-0.5">
                     {eur(v.ingresos)} {t.incomeLabel.toLowerCase()} · {eur(v.gastos)} {t.expensesShort.toLowerCase()}
+                    {v.historico && !v.real && <span className="ml-1.5 text-[10px] text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">{t.histMonthBadge}</span>}
                   </p>
                 </div>
               ))}
