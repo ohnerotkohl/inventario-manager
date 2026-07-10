@@ -76,6 +76,9 @@ export default function RestockPage() {
   const [hasSales, setHasSales] = useState<Set<string>>(new Set());
   const [printQty, setPrintQty] = useState<{ [key: string]: number }>({});
   const [printLoading, setPrintLoading] = useState(false);
+  // Lista fija de samples que faltaban al abrir la caja; se marca cada uno
+  // como hecho sin que desaparezca, para poder tacharlos como checklist
+  const [samplesList, setSamplesList] = useState<{ posterId: string; nombre: string; talla: "A4" | "A3" }[]>([]);
   const [showReview, setShowReview] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [mercadoMins, setMercadoMins] = useState({ minBajo: 3, minMedio: 4, minTop: 8, topN: 5, nombre: "" });
@@ -312,6 +315,16 @@ export default function RestockPage() {
     });
 
     setPosters(postersConStock);
+
+    // Congelar la lista de samples que faltan al entrar (por póster + talla)
+    const sList: { posterId: string; nombre: string; talla: "A4" | "A3" }[] = [];
+    for (const p of postersConStock) {
+      if (p.tiene_a4 && p.a4SampleFalta) sList.push({ posterId: p.id, nombre: p.nombre, talla: "A4" });
+      if (p.tiene_a3 && p.a3SampleFalta) sList.push({ posterId: p.id, nombre: p.nombre, talla: "A3" });
+    }
+    sList.sort((a, b) => a.nombre.localeCompare(b.nombre) || a.talla.localeCompare(b.talla));
+    setSamplesList(sList);
+
     setCantidades({});
     setPrintQty({});
     setTop8(new Set());
@@ -320,6 +333,25 @@ export default function RestockPage() {
     setLoading(false);
     setStep("restock");
     loadPrintData(postersConStock, cajaId);
+  }
+
+  // Marcar/desmarcar un sample como hecho. sample_falta=false significa "hecho".
+  // Se guarda al momento en el inventario de esta caja.
+  async function toggleSample(posterId: string, talla: "A4" | "A3") {
+    const poster = posters.find((p) => p.id === posterId);
+    if (!poster) return;
+    const falta = talla === "A4" ? poster.a4SampleFalta : poster.a3SampleFalta;
+    const nuevaFalta = !falta; // si faltaba -> hecho; si estaba hecho -> vuelve a faltar
+    const campo = talla === "A4" ? "a4SampleFalta" : "a3SampleFalta";
+    setPosters((prev) => prev.map((p) => (p.id === posterId ? { ...p, [campo]: nuevaFalta } : p)));
+    const invId = talla === "A4" ? poster.a4InvId : poster.a3InvId;
+    if (invId) {
+      const { error } = await supabase.from("inventario").update({ sample_falta: nuevaFalta }).eq("id", invId);
+      if (error) {
+        // Revertir en pantalla si no se pudo guardar
+        setPosters((prev) => prev.map((p) => (p.id === posterId ? { ...p, [campo]: falta } : p)));
+      }
+    }
   }
 
   async function confirmarRestock() {
@@ -752,48 +784,6 @@ export default function RestockPage() {
               <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded font-semibold">— sin ventas → mín. {mercadoMins.minBajo}</span>
             </div>
           )}
-          {/* Samples que faltan — siempre visible */}
-          {(() => {
-            const samplesA4 = posters.filter(p => p.tiene_a4 && p.a4SampleFalta);
-            const samplesA3 = posters.filter(p => p.tiene_a3 && p.a3SampleFalta);
-            if (samplesA4.length === 0 && samplesA3.length === 0) return null;
-            return (
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <p className="text-xs font-bold uppercase tracking-widest text-orange-600">Sample falta</p>
-                  <span className="text-xs bg-orange-100 text-orange-600 font-bold px-1.5 py-0.5 rounded-full">{samplesA4.length + samplesA3.length}</span>
-                </div>
-                <div className="bg-orange-50 border border-orange-200 rounded-2xl overflow-hidden">
-                  {(() => {
-                    const porPoster: { id: string; nombre: string; a4: boolean; a3: boolean }[] = [];
-                    const seen = new Set<string>();
-                    for (const p of [...samplesA4, ...samplesA3]) {
-                      if (!seen.has(p.id)) {
-                        seen.add(p.id);
-                        porPoster.push({ id: p.id, nombre: p.nombre, a4: !!p.a4SampleFalta, a3: !!p.a3SampleFalta });
-                      } else {
-                        const entry = porPoster.find(e => e.id === p.id);
-                        if (entry) { entry.a4 = entry.a4 || !!p.a4SampleFalta; entry.a3 = entry.a3 || !!p.a3SampleFalta; }
-                      }
-                    }
-                    return porPoster.sort((a, b) => a.nombre.localeCompare(b.nombre)).map(({ id, nombre, a4, a3 }, idx, arr) => (
-                      <div key={id} className={`flex items-center gap-3 px-4 py-3 ${idx < arr.length - 1 ? "border-b border-orange-100" : ""}`}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-orange-400 flex-shrink-0">
-                          <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
-                        </svg>
-                        <p className="flex-1 text-sm font-medium text-gray-900">{nombre}</p>
-                        <div className="flex gap-1.5 flex-shrink-0">
-                          {a4 && <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-yellow-100 text-yellow-700">A4</span>}
-                          {a3 && <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-blue-100 text-blue-700">A3</span>}
-                        </div>
-                      </div>
-                    ));
-                  })()}
-                </div>
-              </div>
-            );
-          })()}
-
           {printLoading ? (
             <div className="text-sm text-gray-400 text-center py-8">{t.loadingBestsellers}</div>
           ) : (() => {
@@ -911,6 +901,46 @@ export default function RestockPage() {
                   {t.continueBtn}
                 </button>
               </>
+            );
+          })()}
+
+          {/* Samples — checklist al final: marca cada uno cuando lo hayas hecho */}
+          {samplesList.length > 0 && (() => {
+            const pendientes = samplesList.filter((s) => {
+              const p = posters.find((pp) => pp.id === s.posterId);
+              return s.talla === "A4" ? p?.a4SampleFalta : p?.a3SampleFalta;
+            }).length;
+            return (
+              <div className="pt-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <p className="text-xs font-bold uppercase tracking-widest text-orange-600">{t.samplesTitle}</p>
+                  <span className="text-xs bg-orange-100 text-orange-600 font-bold px-1.5 py-0.5 rounded-full">{pendientes}</span>
+                </div>
+                <div className="bg-orange-50 border border-orange-200 rounded-2xl overflow-hidden">
+                  {samplesList.map((s, idx) => {
+                    const p = posters.find((pp) => pp.id === s.posterId);
+                    const falta = s.talla === "A4" ? p?.a4SampleFalta : p?.a3SampleFalta;
+                    const hecho = !falta;
+                    return (
+                      <button
+                        key={`${s.posterId}-${s.talla}`}
+                        onClick={() => toggleSample(s.posterId, s.talla)}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${idx < samplesList.length - 1 ? "border-b border-orange-100" : ""} ${hecho ? "bg-orange-50/40" : "hover:bg-orange-100/50"}`}
+                      >
+                        <span className={`flex-shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${hecho ? "bg-green-500 border-green-500 text-white" : "border-orange-300 bg-white"}`}>
+                          {hecho && (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                          )}
+                        </span>
+                        <span className={`flex-1 text-sm font-medium ${hecho ? "text-gray-400 line-through" : "text-gray-900"}`}>{s.nombre}</span>
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-md flex-shrink-0 ${s.talla === "A4" ? "bg-yellow-100 text-yellow-700" : "bg-blue-100 text-blue-700"}`}>{s.talla}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             );
           })()}
         </div>

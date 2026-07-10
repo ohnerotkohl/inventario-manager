@@ -102,6 +102,7 @@ const es = {
   backupLeft: "quedan {n} en backup",
   restockPrintSplit: "repones {r} · imprimes {i}",
   nothingToPrintBackup: "Nada que imprimir: todo sale del backup",
+  samplesTitle: "Samples que faltan",
   deleteRestockConfirm: "¿Eliminar este restock? Se revertirá el stock de la caja y las unidades volverán al almacén de prints.",
   deleteRestock: "Eliminar restock",
   // Stats
@@ -406,6 +407,7 @@ const en: typeof es = {
   backupLeft: "{n} left in backup",
   restockPrintSplit: "restock {r} · print {i}",
   nothingToPrintBackup: "Nothing to print: it all comes from backup",
+  samplesTitle: "Missing samples",
   deleteRestockConfirm: "Delete this restock? The box stock will be reverted and the units returned to the prints warehouse.",
   deleteRestock: "Delete restock",
   statsTitle: "Statistics", statsSubtitle: "Sales & performance",
