@@ -79,7 +79,6 @@ export default function RestockPage() {
   // Lista fija de samples que faltaban al abrir la caja; se marca cada uno
   // como hecho sin que desaparezca, para poder tacharlos como checklist
   const [samplesList, setSamplesList] = useState<{ posterId: string; nombre: string; talla: "A4" | "A3" }[]>([]);
-  const [showReview, setShowReview] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [mercadoMins, setMercadoMins] = useState({ minBajo: 3, minMedio: 4, minTop: 8, topN: 5, nombre: "" });
 
@@ -1058,103 +1057,26 @@ export default function RestockPage() {
         })}
       </div>}
 
-      {/* Botón confirmar (solo en tab restock) */}
+      {/* Botón guardar (solo en tab restock) */}
       {tabRestock === "restock" && (
-        <div className="sticky bottom-20 bg-white border border-gray-200 rounded-2xl p-4 flex items-center justify-between">
-          <div>
-            <p className="font-bold text-gray-900">{tr("unitsOf", { total: totalUnidades, designs: totalPosters })}</p>
-            <p className="text-xs text-gray-500">{totalA4 > 0 ? `A4: ${totalA4}` : ""}{totalA4 > 0 && totalA3 > 0 ? " · " : ""}{totalA3 > 0 ? `A3: ${totalA3}` : ""} · {caja?.nombre}</p>
-          </div>
-          <button
-            onClick={() => { setSaveError(""); setShowReview(true); }}
-            disabled={guardando || totalUnidades === 0}
-            className="bg-black text-white px-5 py-2.5 rounded-xl font-semibold disabled:opacity-40 hover:bg-gray-900 transition-colors"
-          >
-            {guardando ? t.saving : t.save}
-          </button>
-        </div>
-      )}
-
-      {/* Review overlay — verify quantities before committing */}
-      {showReview && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end">
-          <div className="bg-white rounded-t-3xl w-full max-h-[88vh] flex flex-col">
-            <div className="p-5 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-              <div>
-                <h3 className="font-bold text-gray-900 text-lg">{t.reviewTitle}</h3>
-                <p className="text-xs text-gray-400">{caja?.nombre} · {tr("unitsOf", { total: totalUnidades, designs: totalPosters })}</p>
-              </div>
-              <button
-                onClick={() => setShowReview(false)}
-                className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 text-xl font-bold"
-              >
-                ×
-              </button>
+        <div className="sticky bottom-20 space-y-2">
+          {saveError && (
+            <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
+              <p className="text-sm text-red-700 font-semibold">⚠ {saveError}</p>
             </div>
-            <div className="overflow-y-auto flex-1 p-4 space-y-3">
-              {/* Grouped table: poster | talla | añadir | stock actual → nuevo */}
-              {(() => {
-                const byPoster: { [name: string]: { a4?: { add: number; from: number; to: number }; a3?: { add: number; from: number; to: number } } } = {};
-                for (const [key, cantidad] of Object.entries(cantidades)) {
-                  if (cantidad <= 0) continue;
-                  const talla = key.slice(-2) as "A4" | "A3";
-                  const posterId = key.slice(0, -3);
-                  const poster = posters.find(p => p.id === posterId);
-                  if (!poster) continue;
-                  const nombre = poster.nombre;
-                  const from = talla === "A4" ? poster.a4Stock : poster.a3Stock;
-                  byPoster[nombre] = byPoster[nombre] || {};
-                  byPoster[nombre][talla === "A4" ? "a4" : "a3"] = { add: cantidad, from, to: from + cantidad };
-                }
-                const entries = Object.entries(byPoster).sort((a, b) => a[0].localeCompare(b[0]));
-                return (
-                  <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-                    <div className="grid grid-cols-[1fr_1fr_1fr] gap-2 px-4 py-2 bg-gray-50 border-b border-gray-100">
-                      <span className="text-xs font-semibold text-gray-500">{t.poster}</span>
-                      <span className="text-xs font-semibold text-yellow-600 text-center">A4</span>
-                      <span className="text-xs font-semibold text-blue-600 text-center">A3</span>
-                    </div>
-                    {entries.map(([nombre, vals], i) => (
-                      <div key={nombre} className={`grid grid-cols-[1fr_1fr_1fr] gap-2 px-4 py-3 items-center ${i < entries.length - 1 ? "border-b border-gray-100" : ""}`}>
-                        <span className="text-sm text-gray-900 font-medium leading-tight">{nombre}</span>
-                        {vals.a4 ? (
-                          <div className="text-center">
-                            <p className="text-sm font-bold text-gray-900">+{vals.a4.add}</p>
-                            <p className="text-xs text-gray-400">{vals.a4.from} → <span className="text-green-600 font-semibold">{vals.a4.to}</span></p>
-                          </div>
-                        ) : <div />}
-                        {vals.a3 ? (
-                          <div className="text-center">
-                            <p className="text-sm font-bold text-gray-900">+{vals.a3.add}</p>
-                            <p className="text-xs text-gray-400">{vals.a3.from} → <span className="text-green-600 font-semibold">{vals.a3.to}</span></p>
-                          </div>
-                        ) : <div />}
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
-              {saveError && (
-                <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
-                  <p className="text-sm text-red-700 font-semibold">⚠ {saveError}</p>
-                </div>
-              )}
+          )}
+          <div className="bg-white border border-gray-200 rounded-2xl p-4 flex items-center justify-between">
+            <div>
+              <p className="font-bold text-gray-900">{tr("unitsOf", { total: totalUnidades, designs: totalPosters })}</p>
+              <p className="text-xs text-gray-500">{totalA4 > 0 ? `A4: ${totalA4}` : ""}{totalA4 > 0 && totalA3 > 0 ? " · " : ""}{totalA3 > 0 ? `A3: ${totalA3}` : ""} · {caja?.nombre}</p>
             </div>
-            <div className="p-4 flex gap-3 border-t border-gray-100 flex-shrink-0">
-              <button
-                onClick={() => setShowReview(false)}
-                className="flex-1 border-2 border-gray-200 text-gray-700 py-3 rounded-2xl font-semibold hover:bg-gray-50 transition-colors"
-              >
-                {t.edit}
-              </button>
-              <button
-                onClick={() => { setShowReview(false); confirmarRestock(); }}
-                disabled={guardando}
-                className="flex-1 bg-black text-white py-3 rounded-2xl font-semibold disabled:opacity-40 hover:bg-gray-900 transition-colors"
-              >
-                {guardando ? t.saving : t.confirm}
-              </button>
-            </div>
+            <button
+              onClick={() => { setSaveError(""); confirmarRestock(); }}
+              disabled={guardando || totalUnidades === 0}
+              className="bg-black text-white px-5 py-2.5 rounded-xl font-semibold disabled:opacity-40 hover:bg-gray-900 transition-colors"
+            >
+              {guardando ? t.saving : t.save}
+            </button>
           </div>
         </div>
       )}
