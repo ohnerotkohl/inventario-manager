@@ -797,8 +797,14 @@ export default function RestockPage() {
           {printLoading ? (
             <div className="text-sm text-gray-400 text-center py-8">{t.loadingBestsellers}</div>
           ) : (() => {
+            // `printQty` es lo que falta para el mínimo: eso se repone en la caja.
+            // Pero lo que hay que mandar a imprimir es solo lo que el backup del
+            // estudio no cubre — lo demás ya está impreso.
+            const aImprimir = (key: string) => Math.max(0, (printQty[key] ?? 0) - (almacenPrints[key] ?? 0));
             const a4Items = posters.filter((p) => p.tiene_a4 && (printQty[`${p.id}-A4`] ?? 0) > 0);
             const a3Items = posters.filter((p) => p.tiene_a3 && (printQty[`${p.id}-A3`] ?? 0) > 0);
+            const a4Print = a4Items.filter((p) => aImprimir(`${p.id}-A4`) > 0);
+            const a3Print = a3Items.filter((p) => aImprimir(`${p.id}-A3`) > 0);
             if (a4Items.length === 0 && a3Items.length === 0) {
               return (
                 <div className="text-center py-12 text-gray-400">
@@ -819,24 +825,34 @@ export default function RestockPage() {
                     const stock = talla === "A4" ? p.a4Stock : p.a3Stock;
                     const isTop8 = top8.has(p.id);
                     const isMed = !isTop8 && hasSales.has(p.id);
+                    const backup = almacenPrints[key] ?? 0;
+                    const imprimir = aImprimir(key);
+                    // El backup cubre lo que falta: esta fila no se imprime, se
+                    // repone del estudio. Se atenúa para no mandarla a imprenta.
+                    const cubierto = backup > 0 && imprimir === 0;
                     return (
-                      <div key={p.id} className={`flex items-center gap-3 px-4 py-3 ${idx < items.length - 1 ? "border-b border-gray-100" : ""}`}>
+                      <div key={p.id} className={`flex items-center gap-3 px-4 py-3 ${cubierto ? "bg-yellow-50" : ""} ${idx < items.length - 1 ? "border-b border-gray-100" : ""}`}>
                         <div className="flex-1 min-w-0">
                           {isTop8 && <span className="text-xs bg-amber-100 text-amber-700 font-semibold px-1.5 py-0.5 rounded-md">{t.bestseller}</span>}
                           {isMed && <span className="text-xs bg-blue-50 text-blue-600 font-semibold px-1.5 py-0.5 rounded-md">↗ {t.medSeller}</span>}
-                          <p className="text-sm font-medium text-gray-900 mt-0.5">{p.nombre}</p>
+                          <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                            <p className="text-sm font-medium text-gray-900">{p.nombre}</p>
+                            {backup > 0 && (
+                              <span className="text-xs font-semibold px-1.5 py-0.5 rounded-md bg-yellow-100 text-yellow-800 whitespace-nowrap">
+                                {tr("backupLeft", { n: backup })}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-gray-400">{tr("currentStock", { n: stock })}</p>
-                          {/* Lo que ya hay impreso en el almacén del estudio: si cubre lo
-                              sugerido, no hace falta imprimir, solo reponer de ahí */}
-                          {almacenPrints[key] !== undefined && (
-                            almacenPrints[key] >= qty && qty > 0
-                              ? <p className="text-xs font-semibold text-purple-600">{tr("warehouseStock", { n: almacenPrints[key] })} · {t.alreadyInStudio}</p>
-                              : <p className="text-xs text-purple-500">{tr("warehouseStock", { n: almacenPrints[key] })}</p>
+                          {backup > 0 && (
+                            imprimir === 0
+                              ? <p className="text-xs font-semibold text-yellow-700">{t.alreadyInStudio}</p>
+                              : <p className="text-xs font-semibold text-yellow-700">{tr("restockPrintSplit", { r: qty, i: imprimir })}</p>
                           )}
                         </div>
                         <div className="flex items-center gap-2">
                           <button onClick={() => setPrintQty((prev) => ({ ...prev, [key]: Math.max(1, qty - 1) }))} className="w-7 h-7 rounded-lg bg-gray-100 text-gray-700 font-bold flex items-center justify-center hover:bg-gray-200">−</button>
-                          <span className="w-6 text-center font-bold text-gray-900">{qty}</span>
+                          <span className={`w-6 text-center font-bold ${cubierto ? "text-gray-300 line-through" : "text-gray-900"}`}>{qty}</span>
                           <button onClick={() => setPrintQty((prev) => ({ ...prev, [key]: qty + 1 }))} className="w-7 h-7 rounded-lg bg-gray-100 text-gray-700 font-bold flex items-center justify-center hover:bg-gray-200">+</button>
                           <button onClick={() => setPrintQty((prev) => ({ ...prev, [key]: 0 }))} className="w-7 h-7 rounded-lg bg-gray-50 text-gray-300 hover:bg-red-50 hover:text-red-400 font-bold flex items-center justify-center transition-colors text-base">×</button>
                         </div>
@@ -846,10 +862,11 @@ export default function RestockPage() {
                 </div>
               </div>
             );
+            // Al PDF solo va lo que el backup no cubre
             function openPrint(talla: "A4" | "A3") {
               const items = posters
-                .filter((p) => (printQty[`${p.id}-${talla}`] ?? 0) > 0 && (talla === "A4" ? p.tiene_a4 : p.tiene_a3))
-                .map((p) => ({ nombre: p.nombre, talla, qty: printQty[`${p.id}-${talla}`] }));
+                .filter((p) => aImprimir(`${p.id}-${talla}`) > 0 && (talla === "A4" ? p.tiene_a4 : p.tiene_a3))
+                .map((p) => ({ nombre: p.nombre, talla, qty: aImprimir(`${p.id}-${talla}`) }));
               localStorage.setItem("or_print_job", JSON.stringify(items));
               window.open("/imprimir", "_blank");
             }
@@ -857,8 +874,13 @@ export default function RestockPage() {
               <>
                 {a4Items.length > 0 && <PrintSection items={a4Items} talla="A4" label={`A4 — ${a4Items.length} diseños`} />}
                 {a3Items.length > 0 && <PrintSection items={a3Items} talla="A3" label={`A3 — ${a3Items.length} diseños`} />}
+                {a4Print.length === 0 && a3Print.length === 0 && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-2xl px-4 py-3 text-center">
+                    <p className="text-sm font-semibold text-yellow-800">{t.nothingToPrintBackup}</p>
+                  </div>
+                )}
                 <div className="flex gap-2">
-                  {a4Items.length > 0 && (
+                  {a4Print.length > 0 && (
                     <button
                       onClick={() => openPrint("A4")}
                       className="flex-1 py-3 bg-gray-900 text-white rounded-2xl font-semibold hover:bg-black transition-colors flex items-center justify-center gap-2"
@@ -869,7 +891,7 @@ export default function RestockPage() {
                       A4
                     </button>
                   )}
-                  {a3Items.length > 0 && (
+                  {a3Print.length > 0 && (
                     <button
                       onClick={() => openPrint("A3")}
                       className="flex-1 py-3 bg-gray-900 text-white rounded-2xl font-semibold hover:bg-black transition-colors flex items-center justify-center gap-2"
@@ -975,8 +997,8 @@ export default function RestockPage() {
                           className="w-16 text-center text-sm border border-gray-200 rounded-lg py-1.5 focus:outline-none focus:border-black"
                         />
                         <span className="text-xs text-gray-400">{tr("currentStock", { n: p.a4Stock })}</span>
-                        {almacenPrints[`${p.id}-A4`] !== undefined && (
-                          <span className="text-[10px] text-purple-500">{tr("warehouseStock", { n: almacenPrints[`${p.id}-A4`] })}</span>
+                        {(almacenPrints[`${p.id}-A4`] ?? 0) > 0 && (
+                          <span className="text-[10px] font-semibold text-yellow-700">{tr("warehouseStock", { n: almacenPrints[`${p.id}-A4`] })}</span>
                         )}
                       </div>
                     ) : <div />}
@@ -995,8 +1017,8 @@ export default function RestockPage() {
                           className="w-16 text-center text-sm border border-gray-200 rounded-lg py-1.5 focus:outline-none focus:border-black"
                         />
                         <span className="text-xs text-gray-400">{tr("currentStock", { n: p.a3Stock })}</span>
-                        {almacenPrints[`${p.id}-A3`] !== undefined && (
-                          <span className="text-[10px] text-purple-500">{tr("warehouseStock", { n: almacenPrints[`${p.id}-A3`] })}</span>
+                        {(almacenPrints[`${p.id}-A3`] ?? 0) > 0 && (
+                          <span className="text-[10px] font-semibold text-yellow-700">{tr("warehouseStock", { n: almacenPrints[`${p.id}-A3`] })}</span>
                         )}
                       </div>
                     ) : <div />}
