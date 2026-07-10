@@ -844,10 +844,8 @@ export default function RestockPage() {
                             )}
                           </div>
                           <p className="text-xs text-gray-400">{tr("currentStock", { n: stock })}</p>
-                          {backup > 0 && (
-                            imprimir === 0
-                              ? <p className="text-xs font-semibold text-yellow-700">{t.alreadyInStudio}</p>
-                              : <p className="text-xs font-semibold text-yellow-700">{tr("restockPrintSplit", { r: qty, i: imprimir })}</p>
+                          {backup > 0 && imprimir > 0 && (
+                            <p className="text-xs font-semibold text-yellow-700">{tr("restockPrintSplit", { r: qty, i: imprimir })}</p>
                           )}
                         </div>
                         <div className="flex items-center gap-2">
