@@ -99,6 +99,7 @@ const es = {
   whichBox: "¿Qué caja vas a reponer?", continueBtn: "Continuar →",
   writeUnitsToAdd: "Escribe cuántas unidades nuevas añades. El stock actual se muestra en gris.",
   currentStock: "stock: {n}", warehouseStock: "almacén: {n}", unitsOf: "{total} unidades de {designs} diseños",
+  alreadyInStudio: "ya los tienes impresos en el estudio",
   deleteRestockConfirm: "¿Eliminar este restock? Se revertirá el stock de la caja y las unidades volverán al almacén de prints.",
   deleteRestock: "Eliminar restock",
   // Stats
@@ -400,6 +401,7 @@ const en: typeof es = {
   whichBox: "Which box are you restocking?", continueBtn: "Continue →",
   writeUnitsToAdd: "Enter how many new units you're adding. Current stock is shown in gray.",
   currentStock: "stock: {n}", warehouseStock: "warehouse: {n}", unitsOf: "{total} units across {designs} designs",
+  alreadyInStudio: "already printed in the studio",
   deleteRestockConfirm: "Delete this restock? The box stock will be reverted and the units returned to the prints warehouse.",
   deleteRestock: "Delete restock",
   statsTitle: "Statistics", statsSubtitle: "Sales & performance",

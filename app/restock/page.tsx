@@ -822,10 +822,17 @@ export default function RestockPage() {
                     return (
                       <div key={p.id} className={`flex items-center gap-3 px-4 py-3 ${idx < items.length - 1 ? "border-b border-gray-100" : ""}`}>
                         <div className="flex-1 min-w-0">
-                          {isTop8 && <span className="text-xs bg-amber-100 text-amber-700 font-semibold px-1.5 py-0.5 rounded-md">⭐ {t.bestseller}</span>}
+                          {isTop8 && <span className="text-xs bg-amber-100 text-amber-700 font-semibold px-1.5 py-0.5 rounded-md">{t.bestseller}</span>}
                           {isMed && <span className="text-xs bg-blue-50 text-blue-600 font-semibold px-1.5 py-0.5 rounded-md">↗ {t.medSeller}</span>}
                           <p className="text-sm font-medium text-gray-900 mt-0.5">{p.nombre}</p>
                           <p className="text-xs text-gray-400">{tr("currentStock", { n: stock })}</p>
+                          {/* Lo que ya hay impreso en el almacén del estudio: si cubre lo
+                              sugerido, no hace falta imprimir, solo reponer de ahí */}
+                          {almacenPrints[key] !== undefined && (
+                            almacenPrints[key] >= qty && qty > 0
+                              ? <p className="text-xs font-semibold text-purple-600">{tr("warehouseStock", { n: almacenPrints[key] })} · {t.alreadyInStudio}</p>
+                              : <p className="text-xs text-purple-500">{tr("warehouseStock", { n: almacenPrints[key] })}</p>
+                          )}
                         </div>
                         <div className="flex items-center gap-2">
                           <button onClick={() => setPrintQty((prev) => ({ ...prev, [key]: Math.max(1, qty - 1) }))} className="w-7 h-7 rounded-lg bg-gray-100 text-gray-700 font-bold flex items-center justify-center hover:bg-gray-200">−</button>
@@ -856,7 +863,10 @@ export default function RestockPage() {
                       onClick={() => openPrint("A4")}
                       className="flex-1 py-3 bg-gray-900 text-white rounded-2xl font-semibold hover:bg-black transition-colors flex items-center justify-center gap-2"
                     >
-                      🖨️ A4
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+                      </svg>
+                      A4
                     </button>
                   )}
                   {a3Items.length > 0 && (
@@ -864,7 +874,10 @@ export default function RestockPage() {
                       onClick={() => openPrint("A3")}
                       className="flex-1 py-3 bg-gray-900 text-white rounded-2xl font-semibold hover:bg-black transition-colors flex items-center justify-center gap-2"
                     >
-                      🖨️ A3
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+                      </svg>
+                      A3
                     </button>
                   )}
                 </div>
