@@ -103,6 +103,8 @@ export default function FinanzasPage() {
   const [gFecha, setGFecha] = useState(hoy());
   const [gCategoria, setGCategoria] = useState("Otros");
   const [gGuardando, setGGuardando] = useState(false);
+  // Si está editando un gasto existente, guarda su id (si no, null = nuevo)
+  const [gEditandoId, setGEditandoId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.rol === "empleado") { router.replace("/sesion"); return; }
@@ -237,25 +239,45 @@ export default function FinanzasPage() {
     return `${t.months[parseInt(m) - 1]} ${y}`;
   }
 
+  function limpiarFormGasto() {
+    setGConcepto(""); setGImporte(0); setGFecha(hoy()); setGCategoria("Otros");
+    setGEditandoId(null);
+  }
+
+  // Cargar un gasto en el formulario para editarlo (conserva fecha y quién lo registró).
+  function abrirEdicionGasto(g: Gasto) {
+    setGConcepto(g.descripcion);
+    setGImporte(Number(g.importe));
+    setGFecha(g.fecha);
+    setGCategoria(g.categoria);
+    setGEditandoId(g.id);
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   async function guardarGasto() {
     if (!gConcepto.trim() || gImporte <= 0 || gGuardando) return;
     setGGuardando(true);
-    const { error } = await supabase.from("gastos").insert({
+    const campos = {
       fecha: gFecha,
       importe: gImporte,
       descripcion: gConcepto.trim(),
       categoria: gCategoria,
-      registrado_por: user?.nombre || null,
-    });
+    };
+    // Si editamos, actualizamos ese gasto; si no, creamos uno nuevo.
+    const { error } = gEditandoId
+      ? await supabase.from("gastos").update(campos).eq("id", gEditandoId)
+      : await supabase.from("gastos").insert({ ...campos, registrado_por: user?.nombre || null });
     setGGuardando(false);
     if (error) { alert(t.saveError); return; }
-    setGConcepto(""); setGImporte(0); setGFecha(hoy()); setGCategoria("Otros");
+    limpiarFormGasto();
     fetchData();
   }
 
   async function eliminarGasto(g: Gasto) {
     if (!confirm(tr("deleteExpenseConfirm", { name: g.descripcion, amount: eur(Number(g.importe)) }))) return;
-    await supabase.from("gastos").delete().eq("id", g.id);
+    const { error } = await supabase.from("gastos").delete().eq("id", g.id);
+    if (error) { alert(t.saveError); return; }
+    if (gEditandoId === g.id) limpiarFormGasto();
     fetchData();
   }
 
@@ -481,9 +503,11 @@ export default function FinanzasPage() {
 
       {tab === "gastos" && (
         <div className="space-y-3">
-          {/* Nuevo gasto */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-3">
-            <p className="text-xs font-bold uppercase tracking-wider text-red-600">{t.studioExpenses}</p>
+          {/* Nuevo gasto (o edición de uno existente) */}
+          <div className={`bg-white border rounded-2xl p-4 space-y-3 ${gEditandoId ? "border-amber-400" : "border-gray-200"}`}>
+            <p className={`text-xs font-bold uppercase tracking-wider ${gEditandoId ? "text-amber-600" : "text-red-600"}`}>
+              {gEditandoId ? t.editExpense : t.studioExpenses}
+            </p>
             <input type="text" value={gConcepto} onChange={(e) => setGConcepto(e.target.value)} placeholder={t.expenseConcept} className={inputClass} />
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -507,13 +531,24 @@ export default function FinanzasPage() {
                 {CATEGORIAS_GASTO.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
-            <button
-              onClick={guardarGasto}
-              disabled={!gConcepto.trim() || gImporte <= 0 || gGuardando}
-              className="w-full py-2.5 rounded-xl bg-black text-white font-medium text-sm disabled:bg-gray-200 disabled:text-gray-400"
-            >
-              {gGuardando ? t.saving : t.addStudioExpense}
-            </button>
+            <div className="flex gap-2">
+              {gEditandoId && (
+                <button
+                  onClick={limpiarFormGasto}
+                  disabled={gGuardando}
+                  className="px-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 font-medium text-sm"
+                >
+                  {t.cancel}
+                </button>
+              )}
+              <button
+                onClick={guardarGasto}
+                disabled={!gConcepto.trim() || gImporte <= 0 || gGuardando}
+                className="flex-1 py-2.5 rounded-xl bg-black text-white font-medium text-sm disabled:bg-gray-200 disabled:text-gray-400"
+              >
+                {gGuardando ? t.saving : gEditandoId ? t.saveChanges : t.addStudioExpense}
+              </button>
+            </div>
           </div>
 
           {/* Lista de gastos */}
@@ -526,8 +561,9 @@ export default function FinanzasPage() {
                     <p className="text-sm text-gray-800 truncate">{g.descripcion}</p>
                     <p className="text-xs text-gray-400">{g.fecha} · {g.categoria}{g.registrado_por ? ` · ${g.registrado_por}` : ""}</p>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-1 shrink-0">
                     <p className="text-sm font-semibold text-red-600">{eur(Number(g.importe))}</p>
+                    <button onClick={() => abrirEdicionGasto(g)} title={t.editExpense} className="text-gray-300 hover:text-amber-500 text-base leading-none px-1">✎</button>
                     <button onClick={() => eliminarGasto(g)} className="text-gray-300 hover:text-red-500 text-lg leading-none px-1">×</button>
                   </div>
                 </div>
