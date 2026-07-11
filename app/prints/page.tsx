@@ -92,16 +92,19 @@ export default function PrintsPage() {
       }))
     );
     if (errEntrada) { setGuardando(false); alert(t.saveError); return; }
-    // 2) Sumar al stock del almacén central (crear si no existe)
+    // 2) Sumar al stock del almacén central (crear si no existe).
+    // Comprobamos el error de cada escritura: si no, un fallo aquí dejaría la
+    // entrada registrada en el historial ("+20") sin haber sumado nada al stock.
+    let huboError = false;
     for (const l of lineas) {
       const existente = prints.find((p) => p.poster_id === fPoster && p.talla === l.talla);
-      if (existente) {
-        await supabase.from("prints_estudio").update({ cantidad: existente.cantidad + l.cantidad, updated_at: new Date().toISOString() }).eq("id", existente.id);
-      } else {
-        await supabase.from("prints_estudio").insert({ poster_id: fPoster, talla: l.talla, cantidad: l.cantidad });
-      }
+      const { error } = existente
+        ? await supabase.from("prints_estudio").update({ cantidad: existente.cantidad + l.cantidad, updated_at: new Date().toISOString() }).eq("id", existente.id)
+        : await supabase.from("prints_estudio").insert({ poster_id: fPoster, talla: l.talla, cantidad: l.cantidad });
+      if (error) huboError = true;
     }
     setGuardando(false);
+    if (huboError) { alert(t.saveError); fetchData(); return; }
     setFPoster(""); setFCantA4(0); setFCantA3(0); setFOrigen("taller");
     setFormAbierto(false);
     fetchData();
@@ -110,10 +113,11 @@ export default function PrintsPage() {
   // Eliminar del almacén todo el stock de un diseño (ambas tallas) y su historial de entradas
   async function eliminarPrint(posterId: string, nombre: string) {
     if (!confirm(tr("deletePrintConfirm", { name: nombre }))) return;
-    await Promise.all([
+    const [r1, r2] = await Promise.all([
       supabase.from("prints_estudio").delete().eq("poster_id", posterId),
       supabase.from("prints_entradas").delete().eq("poster_id", posterId),
     ]);
+    if (r1.error || r2.error) alert(t.saveError);
     fetchData();
   }
 

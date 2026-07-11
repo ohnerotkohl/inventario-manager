@@ -2,7 +2,7 @@
 export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { supabase, fetchAllRows } from "@/lib/supabase";
 import { useAuth } from "@/app/components/AuthProvider";
 import { useLang } from "@/app/components/LangProvider";
 import { SkeletonPage } from "@/app/components/Skeleton";
@@ -82,16 +82,18 @@ export default function FinanzasPage() {
   }, [user]);
 
   async function fetchData() {
-    const [mRes, bRes, gRes, hRes] = await Promise.all([
+    // balances/gastos/históricos paginados: sin ello se truncarían en 1000 filas
+    // y los totales de finanzas saldrían incompletos sin aviso al superarlo.
+    const [mRes, balances, gastos, historicos] = await Promise.all([
       supabase.from("mercados").select("*"),
-      supabase.from("balances").select("*").order("fecha", { ascending: false }),
-      supabase.from("gastos").select("*").order("fecha", { ascending: false }),
-      supabase.from("ingresos_historicos").select("*").order("fecha", { ascending: false }),
+      fetchAllRows<Balance>(() => supabase.from("balances").select("*").order("fecha", { ascending: false })),
+      fetchAllRows<Gasto>(() => supabase.from("gastos").select("*").order("fecha", { ascending: false })),
+      fetchAllRows<IngresoHistorico>(() => supabase.from("ingresos_historicos").select("*").order("fecha", { ascending: false })),
     ]);
     setMercados(mRes.data || []);
-    setBalances((bRes.data as Balance[]) || []);
-    setGastos((gRes.data as Gasto[]) || []);
-    setHistoricos((hRes.data as IngresoHistorico[]) || []);
+    setBalances(balances);
+    setGastos(gastos);
+    setHistoricos(historicos);
     setLoading(false);
   }
 

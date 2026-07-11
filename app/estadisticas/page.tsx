@@ -155,10 +155,12 @@ export default function EstadisticasPage() {
 
     // Balance económico detallado por mercado: balances (con desglose de gastos)
     // + ingresos históricos, agrupado por mes, respetando el periodo
-    const [balRes, mercContabRes, histRes, cancRes] = await Promise.all([
-      supabase.from("balances").select("mercado_nombre, fecha, total_ventas, total_gastos, neto, gastos, turno_costo, iva_aplicado, iva_monto"),
+    type BalRow = { mercado_nombre: string; fecha: string; total_ventas: number; total_gastos: number; neto: number; gastos: GastoItem[] | null; turno_costo: number; iva_aplicado: boolean; iva_monto: number };
+    type HistRow = { evento: string; fecha: string; total: number };
+    const [balances, mercContabRes, historicos, cancRes] = await Promise.all([
+      fetchAllRows<BalRow>(() => supabase.from("balances").select("mercado_nombre, fecha, total_ventas, total_gastos, neto, gastos, turno_costo, iva_aplicado, iva_monto")),
       supabase.from("mercados").select("nombre, contabilidad"),
-      supabase.from("ingresos_historicos").select("evento, fecha, total"),
+      fetchAllRows<HistRow>(() => supabase.from("ingresos_historicos").select("evento, fecha, total")),
       supabase.from("cancelaciones").select("id, mercado_nombre, fecha, motivo").order("fecha", { ascending: false }),
     ]);
     setCancelaciones(cancRes.data || []);
@@ -180,7 +182,7 @@ export default function EstadisticasPage() {
       m.porMes[ym] = e;
     };
     type GastoItem = { nombre: string; monto: number };
-    for (const b of (balRes.data || [])) {
+    for (const b of balances) {
       const m = getM(b.mercado_nombre);
       const ing = Number(b.total_ventas), gas = Number(b.total_gastos);
       m.ingresos += ing; m.gastos += gas; m.neto += Number(b.neto); m.n += 1;
@@ -192,7 +194,7 @@ export default function EstadisticasPage() {
       if (Number(b.turno_costo) > 0) m.gastosDetalle.push({ fecha: b.fecha, concepto: "Turno", monto: Number(b.turno_costo) });
       if (b.iva_aplicado && Number(b.iva_monto) > 0) m.gastosDetalle.push({ fecha: b.fecha, concepto: "IVA 19%", monto: Number(b.iva_monto) });
     }
-    for (const h of (histRes.data || [])) {
+    for (const h of historicos) {
       const m = getM(mercadoDeEvento(h.evento));
       const ing = Number(h.total);
       m.ingresos += ing; m.neto += ing; m.n += 1;
