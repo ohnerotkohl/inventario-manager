@@ -156,10 +156,14 @@ export default function TareasPage() {
       puntos_coles: fColes,
       rotacion: rotacionActiva,
       orden_rotacion: orden,
+      // asignada_a se fija a orden[0], así que el índice de rotación debe volver a
+      // 0 para que ambos concuerden. Si no, al editar una tarea a mitad de rotación
+      // completarTarea usaría un rotacion_idx viejo y asignaría a la persona equivocada.
+      rotacion_idx: 0,
     };
     const { error } = editandoId
       ? await supabase.from("tareas").update(campos).eq("id", editandoId)
-      : await supabase.from("tareas").insert({ ...campos, estado: "pendiente", rotacion_idx: 0, creada_por: user?.id || null });
+      : await supabase.from("tareas").insert({ ...campos, estado: "pendiente", creada_por: user?.id || null });
     setCreando(false);
     if (error) { alert(t.saveError); return; }
     setFNombre(""); setFDescripcion(""); setFCategoria("Otra"); setFAsignada("");

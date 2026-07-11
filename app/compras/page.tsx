@@ -95,25 +95,30 @@ export default function ComprasPage() {
     const entries = Object.entries(pendingSaves.current);
     if (entries.length === 0) return;
     setSaving(true);
-    try {
-      await Promise.all(
-        entries.map(([id, cantidad]) => {
-          const ins = insumos.find((i) => i.id === id);
-          const minimo = ins?.stock_minimo ?? 1;
-          return supabase
-            .from("insumos_estudio")
-            .update({ cantidad, necesita_compra: cantidad <= minimo })
-            .eq("id", id);
-        })
-      );
-      pendingSaves.current = {};
-      setDirtyCount(0);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
-    } catch {
-      alert(t.purchasesSaveError);
-    }
+    // supabase-js NO lanza excepción en errores de query: devuelve { error }.
+    // Hay que inspeccionar cada resultado, o un fallo (RLS, red) se reportaría
+    // como "Guardado" sin haber escrito nada.
+    const results = await Promise.all(
+      entries.map(([id, cantidad]) => {
+        const ins = insumos.find((i) => i.id === id);
+        const minimo = ins?.stock_minimo ?? 1;
+        return supabase
+          .from("insumos_estudio")
+          .update({ cantidad, necesita_compra: cantidad <= minimo })
+          .eq("id", id);
+      })
+    );
     setSaving(false);
+    const algunoFallo = results.some((r) => r.error);
+    if (algunoFallo) {
+      // No limpiamos pendingSaves: los cambios siguen pendientes para reintentar.
+      alert(t.purchasesSaveError);
+      return;
+    }
+    pendingSaves.current = {};
+    setDirtyCount(0);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
   }
 
   async function enviarEmail() {

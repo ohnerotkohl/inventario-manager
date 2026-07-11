@@ -2,7 +2,7 @@
 export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { supabase, fetchAllRows } from "@/lib/supabase";
 import { useAuth } from "@/app/components/AuthProvider";
 import { useLang } from "@/app/components/LangProvider";
 import { SkeletonCard, SkeletonList } from "@/app/components/Skeleton";
@@ -149,9 +149,9 @@ export default function EstadisticasPage() {
   async function fetchStats() {
     setLoading(true);
 
-    const { data } = await supabase
+    const data = await fetchAllRows(() => supabase
       .from("ventas")
-      .select("cantidad, talla, poster_id, sesion_id, posters(nombre, series(nombre, color)), sesiones(id, fecha, trabajador, mercados(nombre))");
+      .select("cantidad, talla, poster_id, sesion_id, posters(nombre, series(nombre, color)), sesiones(id, fecha, trabajador, mercados(nombre))"));
 
     // Balance económico detallado por mercado: balances (con desglose de gastos)
     // + ingresos históricos, agrupado por mes, respetando el periodo

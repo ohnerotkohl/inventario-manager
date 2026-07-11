@@ -1,6 +1,6 @@
 "use client";
 export const dynamic = "force-dynamic";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/app/components/AuthProvider";
 import { useLang } from "@/app/components/LangProvider";
@@ -63,6 +63,9 @@ export default function BalancePage() {
   const [ivaOn, setIvaOn] = useState(false);
 
   const [saving, setSaving] = useState(false);
+  // Guard síncrono contra doble-submit: `saving` (estado) no bloquea una segunda
+  // llamada disparada antes del re-render → dos balances y dos emails duplicados.
+  const savingRef = useRef(false);
   const [guardado, setGuardado] = useState<Balance | null>(null);
   const [emailEstado, setEmailEstado] = useState<"enviando" | "ok" | "error" | null>(null);
 
@@ -102,12 +105,31 @@ export default function BalancePage() {
 
   function onMercadoChange(id: string) {
     setMercadoId(id);
-    setGastos(gastosPorDefecto(id, turnoTipo));
+    const mercado = mercados.find((m) => m.id === id);
+    const nuevoStand = mercado?.costo_stand || 0;
+    setGastos((prev) => {
+      // Si aún no hay gastos, ponemos los de por defecto del mercado.
+      if (prev.length === 0) return gastosPorDefecto(id, turnoTipo);
+      // Si ya hay gastos escritos, NO los borramos: solo actualizamos el coste
+      // del Stand (que depende del mercado) y conservamos todo lo demás.
+      if (prev.some((g) => g.nombre === "Stand")) {
+        return prev.map((g) => (g.nombre === "Stand" ? { ...g, monto: nuevoStand } : g));
+      }
+      return [{ nombre: "Stand", monto: nuevoStand, efectivo: false }, ...prev];
+    });
   }
 
   function onTurnoChange(tipo: TurnoTipo) {
     setTurnoTipo(tipo);
-    setGastos(gastosPorDefecto(mercadoId, tipo));
+    setGastos((prev) => {
+      if (prev.length === 0) return gastosPorDefecto(mercadoId, tipo);
+      // Al pasar a turno "na" añadimos "Comida" si no existe; nunca borramos
+      // gastos ya introducidos por el trabajador.
+      if (tipo === "na" && !prev.some((g) => g.nombre === "Comida")) {
+        return [...prev, { nombre: "Comida", monto: 0, efectivo: false }];
+      }
+      return prev;
+    });
   }
 
   function setGasto(i: number, cambio: Partial<GastoBalance>) {
@@ -129,7 +151,9 @@ export default function BalancePage() {
 
   const mercadoNombre = mercadoId === ESPECIAL ? (mercadoCustom.trim() || "Especial") : (mercados.find((m) => m.id === mercadoId)?.nombre || "");
   const turnoCosto = turnoTipo === "horas" ? turnoHoras * turnoTarifa : 0;
-  const ivaMonto = ivaOn ? ventaSumup * 0.19 : 0;
+  // Las ventas de SumUp ya incluyen el IVA (importe bruto): para extraer la parte
+  // de IVA de un bruto se divide entre 1,19, no se multiplica por 0,19.
+  const ivaMonto = ivaOn ? ventaSumup * 19 / 119 : 0;
   const gastosManual = gastos.reduce((s, g) => s + (g.monto || 0), 0);
   const gastosEfectivo = gastos.reduce((s, g) => s + (g.efectivo ? g.monto || 0 : 0), 0);
   const totalGastos = gastosManual + ivaMonto + turnoCosto;
@@ -158,7 +182,8 @@ export default function BalancePage() {
   }
 
   async function handleGuardar() {
-    if (!puedeGuardar) return;
+    if (!puedeGuardar || savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     const fila = {
       mercado_id: mercadoId === ESPECIAL ? null : mercadoId,
@@ -181,7 +206,7 @@ export default function BalancePage() {
       neto,
     };
     const { data, error } = await supabase.from("balances").insert(fila).select().single();
-    setSaving(false);
+    setSaving(false); savingRef.current = false;
     if (error || !data) {
       alert(t.balanceSaveError);
       return;

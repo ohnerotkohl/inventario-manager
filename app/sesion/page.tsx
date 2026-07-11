@@ -8,6 +8,14 @@ import { Check, CheckCircle, Printer, Pencil, Dot } from "@/app/components/Icons
 import { useLang } from "@/app/components/LangProvider";
 import { useAuth } from "@/app/components/AuthProvider";
 
+// Fecha de HOY en horario local (Berlín), no UTC. new Date().toISOString() da la
+// fecha UTC, que entre medianoche y las 01:00/02:00 devuelve el día de AYER y
+// registraría el cierre de mercado con la fecha equivocada.
+function fechaLocalHoy(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 const SERIES_ORDER = [
   "Life is Food - Kitchen",
   "Animals",
@@ -92,7 +100,7 @@ export default function SesionPage() {
   const [step, setStep] = useState<Step>("info");
   const [mercados, setMercados] = useState<Mercado[]>([]);
   const [mercadoId, setMercadoId] = useState("");
-  const [fecha, setFecha] = useState(new Date().toISOString().split("T")[0]);
+  const [fecha, setFecha] = useState(fechaLocalHoy());
   const [trabajador, setTrabajador] = useState("");
   const [series, setSeries] = useState<Serie[]>([]);
   const [posters, setPosters] = useState<PosterConSeries[]>([]);
@@ -104,10 +112,7 @@ export default function SesionPage() {
   // Registro de mercado cancelado (calor, lluvia...)
   const [cancelAbierto, setCancelAbierto] = useState(false);
   const [cMercadoId, setCMercadoId] = useState("");
-  const [cFecha, setCFecha] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  });
+  const [cFecha, setCFecha] = useState(fechaLocalHoy);
   const [cMotivo, setCMotivo] = useState("");
   const [cGuardando, setCGuardando] = useState(false);
   const [cAviso, setCAviso] = useState("");
@@ -119,6 +124,9 @@ export default function SesionPage() {
   const [guardandoInfo, setGuardandoInfo] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Guard síncrono contra doble-submit: el estado `submitting` no bloquea una
+  // segunda llamada disparada antes del re-render (dos taps rápidos → 2 sesiones).
+  const submittingRef = useRef(false);
   const [enviandoEmail, setEnviandoEmail] = useState(false);
   const [emailEnviado, setEmailEnviado] = useState(false);
   const [emailError, setEmailError] = useState("");
@@ -131,7 +139,7 @@ export default function SesionPage() {
   const [historial, setHistorial] = useState<SesionHistorial[]>([]);
   const [historialAbierto, setHistorialAbierto] = useState<string | null>(null);
   const [loadingHistorial, setLoadingHistorial] = useState(false);
-  const [calendarMonth, setCalendarMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [calendarMonth, setCalendarMonth] = useState(() => fechaLocalHoy().slice(0, 7));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [notas, setNotas] = useState("");
   const [ideas, setIdeas] = useState("");
@@ -389,6 +397,8 @@ export default function SesionPage() {
   }
 
   async function handleSubmit() {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
 
     // Solo ideas/materiales/comisiones sin ventas (y sin editar):
@@ -403,7 +413,7 @@ export default function SesionPage() {
       setReporteImpresion({ a4: [], a3: [] });
       setSesionId("");
       setStep("confirmado");
-      setSubmitting(false);
+      setSubmitting(false); submittingRef.current = false;
       enviarReporteEmail({ a4: [], a3: [] });
       return;
     }
@@ -458,7 +468,7 @@ export default function SesionPage() {
           const { error: insertErrorMc } = await supabase.from("ventas").insert(ventasInsert);
           if (insertErrorMc) {
             alert(`${t.saveError}\n${insertErrorMc.message}`);
-            setSubmitting(false);
+            setSubmitting(false); submittingRef.current = false;
             return;
           }
         }
@@ -500,7 +510,7 @@ export default function SesionPage() {
           const { error: insertError } = await supabase.from("ventas").insert(ventasUpsert);
           if (insertError) {
             alert(`${t.saveError}\n${insertError.message}`);
-            setSubmitting(false);
+            setSubmitting(false); submittingRef.current = false;
             return;
           }
         }
@@ -535,7 +545,7 @@ export default function SesionPage() {
           .single();
         if (error || !nuevaSesion) {
           alert(t.saveError);
-          setSubmitting(false);
+          setSubmitting(false); submittingRef.current = false;
           return;
         }
         nuevaSesionId = nuevaSesion.id;
@@ -576,7 +586,7 @@ export default function SesionPage() {
         const { error: insertErrorNuevo } = await supabase.from("ventas").insert(ventasInsert);
         if (insertErrorNuevo) {
           alert(`${t.saveError}\n${insertErrorNuevo.message}`);
-          setSubmitting(false);
+          setSubmitting(false); submittingRef.current = false;
           return;
         }
       }
@@ -619,7 +629,7 @@ export default function SesionPage() {
     const reporte = await generarReporte(reportSesionId);
 
     setStep("confirmado");
-    setSubmitting(false);
+    setSubmitting(false); submittingRef.current = false;
     // Enviar el reporte por email automáticamente al confirmar
     enviarReporteEmail(reporte);
   }
@@ -798,6 +808,7 @@ export default function SesionPage() {
         {sesionId && <button
           onClick={async () => {
             // Cargar ventas actuales de la sesión para pre-rellenar
+            const mercado = mercados.find((m) => m.id === mercadoId);
             const { data: ventasActuales } = await supabase
               .from("ventas")
               .select("poster_id, talla, cantidad")
@@ -807,8 +818,19 @@ export default function SesionPage() {
               const key = `${v.poster_id}-${v.talla}`;
               map[key] = (map[key] || 0) + v.cantidad;
             }
+            // Releer el stock fresco de la BD: tras el guardado, el inventario en
+            // memoria quedó desfasado (nunca se re-descontó), y la rama de
+            // diferencias del guardado usa este estado para calcular el nuevo stock.
+            if (mercado) {
+              const { data: invData } = await supabase
+                .from("inventario").select("*").eq("caja_id", mercado.caja_id);
+              if (invData) setInventario(invData);
+            }
             setVentasOriginales({ ...map });
             setVentas({ ...map });
+            // Marcar el mercado original = actual, para que el guardado tome la rama
+            // "mismo mercado" (diferencias) y no la de cambio de mercado.
+            setSesionMercadoIdOriginal(mercadoId);
             setModoEdicion(true);
             setEmailEnviado(false);
             setStep("ventas");

@@ -513,7 +513,7 @@ function TallaCell({ posterId, talla, stock, saving, editando, setEditando, guar
       {/* Toggles OUT y SAMPLE */}
       <div className="flex gap-1">
         <button
-          onClick={() => !readOnly && upsertInventario(posterId, talla, "out", !stock?.out)}
+          onClick={() => { if (!readOnly) upsertInventario(posterId, talla, "out", !stock?.out).catch((e) => alert(e instanceof Error ? e.message : String(e))); }}
           disabled={readOnly}
           className={`text-xs px-1.5 py-0.5 rounded font-medium transition-colors ${
             stock?.out ? "bg-red-500 text-white" : "bg-gray-100 text-gray-400"
@@ -523,7 +523,7 @@ function TallaCell({ posterId, talla, stock, saving, editando, setEditando, guar
           OUT
         </button>
         <button
-          onClick={() => !readOnly && upsertInventario(posterId, talla, "sample_falta", !stock?.sample_falta)}
+          onClick={() => { if (!readOnly) upsertInventario(posterId, talla, "sample_falta", !stock?.sample_falta).catch((e) => alert(e instanceof Error ? e.message : String(e))); }}
           disabled={readOnly}
           className={`text-xs px-1.5 py-0.5 rounded font-medium transition-colors ${
             stock?.sample_falta ? "bg-orange-400 text-white" : "bg-gray-100 text-gray-400"

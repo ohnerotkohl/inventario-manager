@@ -1,8 +1,8 @@
 "use client";
 export const dynamic = "force-dynamic";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { supabase, fetchAllRows } from "@/lib/supabase";
 import { useAuth } from "@/app/components/AuthProvider";
 import { useLang } from "@/app/components/LangProvider";
 import type { Caja, Serie, Poster, Inventario } from "@/lib/types";
@@ -64,6 +64,10 @@ export default function RestockPage() {
   const [trabajador, setTrabajador] = useState("");
   const [loading, setLoading] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  // Guard síncrono contra doble-submit: `guardando` (estado) no bloquea una
+  // segunda llamada antes del re-render → líneas de restock e historial duplicados
+  // y doble descuento del almacén de prints.
+  const guardandoRef = useRef(false);
   const [historial, setHistorial] = useState<RestockHistorial[]>([]);
   const [historialAbierto, setHistorialAbierto] = useState<string | null>(null);
   const [eliminandoRestock, setEliminandoRestock] = useState<string | null>(null);
@@ -149,13 +153,15 @@ export default function RestockPage() {
       const sesionIds = ((sesionesData || []) as { id: string }[]).map(s => s.id);
 
       if (sesionIds.length > 0) {
-        // 3. Ventas históricas en estas sesiones → velocidad por póster
-        const { data: ventasData } = await supabase
+        // 3. Ventas históricas en estas sesiones → velocidad por póster.
+        // Paginado: sin él, PostgREST corta en 1000 filas y el top/bestsellers
+        // se calcularía sobre un subconjunto arbitrario en cuanto haya historial.
+        const ventasData = await fetchAllRows<{ poster_id: string; cantidad: number }>(() => supabase
           .from("ventas")
           .select("poster_id, cantidad")
-          .in("sesion_id", sesionIds);
+          .in("sesion_id", sesionIds));
         const totales: { [id: string]: number } = {};
-        ((ventasData || []) as { poster_id: string; cantidad: number }[])
+        ventasData
           .forEach(v => { totales[v.poster_id] = (totales[v.poster_id] || 0) + v.cantidad; });
         const sorted = Object.entries(totales).sort((a, b) => b[1] - a[1]);
         newTop = new Set(sorted.slice(0, topN).map(([id]) => id));
@@ -354,6 +360,8 @@ export default function RestockPage() {
   }
 
   async function confirmarRestock() {
+    if (guardandoRef.current) return;
+    guardandoRef.current = true;
     setGuardando(true);
     setSaveError("");
 
@@ -446,13 +454,13 @@ export default function RestockPage() {
         console.error("No se pudo descontar del almacén de prints:", e);
       }
 
-      setGuardando(false);
+      setGuardando(false); guardandoRef.current = false;
       setStep("confirmado");
 
     } catch (err) {
       console.error("Restock error:", err);
       setSaveError(err instanceof Error ? err.message : "Error desconocido. Intenta de nuevo.");
-      setGuardando(false);
+      setGuardando(false); guardandoRef.current = false;
     }
   }
 
