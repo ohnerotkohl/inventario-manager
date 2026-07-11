@@ -57,7 +57,8 @@ export default function BalancePage() {
   const [floatInicial, setFloatInicial] = useState(0);
   const [gastos, setGastos] = useState<GastoBalance[]>([]);
   const [ventaSumup, setVentaSumup] = useState(0);
-  const [ventaEfectivo, setVentaEfectivo] = useState(0);
+  // Se escribe TODO el efectivo contado (con el float dentro); la app resta el float
+  const [efectivoContado, setEfectivoContado] = useState(0);
   const [ventaPaypal, setVentaPaypal] = useState(0);
   const [ivaOn, setIvaOn] = useState(false);
 
@@ -132,6 +133,9 @@ export default function BalancePage() {
   const gastosManual = gastos.reduce((s, g) => s + (g.monto || 0), 0);
   const gastosEfectivo = gastos.reduce((s, g) => s + (g.efectivo ? g.monto || 0 : 0), 0);
   const totalGastos = gastosManual + ivaMonto + turnoCosto;
+  // El efectivo vendido = lo contado menos el float (puede salir negativo
+  // si el efectivo del día no alcanzó a cubrir el float)
+  const ventaEfectivo = efectivoContado - floatInicial;
   const totalVentas = ventaSumup + ventaPaypal + ventaEfectivo + gastosEfectivo;
   const neto = totalVentas - totalGastos;
 
@@ -201,7 +205,7 @@ export default function BalancePage() {
     setFloatInicial(0);
     setGastos([]);
     setVentaSumup(0);
-    setVentaEfectivo(0);
+    setEfectivoContado(0);
     setVentaPaypal(0);
     setIvaOn(false);
   }
@@ -369,23 +373,13 @@ export default function BalancePage() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">{t.cashInPocket}</span>
-              {/* Puede ser negativo: a veces el efectivo no alcanza a cubrir el float.
-                  El teclado del móvil no tiene tecla de menos, por eso el botón ± */}
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setVentaEfectivo(-ventaEfectivo)}
-                  title={t.negativeCashHint}
-                  className={`shrink-0 w-9 py-2 rounded-lg text-sm font-bold transition-colors ${ventaEfectivo < 0 ? "bg-red-500 text-white" : "bg-gray-100 text-gray-500"}`}
-                >
-                  ±
-                </button>
-                <NumInput value={Math.abs(ventaEfectivo)} onChange={(n) => setVentaEfectivo(ventaEfectivo < 0 ? -n : n)} />
-              </div>
+              <NumInput value={efectivoContado} onChange={setEfectivoContado} />
             </div>
-            {ventaEfectivo < 0 && (
-              <p className="text-[11px] text-red-600 bg-red-50 rounded-lg px-3 py-2">
-                {t.negativeCashHint}: {eur(ventaEfectivo)}
+            {/* La app resta el float sola: nada de matemática mental en el mercado */}
+            {(efectivoContado > 0 || floatInicial > 0) && (
+              <p className={`text-[11px] rounded-lg px-3 py-2 ${ventaEfectivo < 0 ? "text-red-600 bg-red-50" : "text-gray-500 bg-gray-50"}`}>
+                {t.cashAfterFloat}: {eur(efectivoContado)} − {eur(floatInicial)} = <span className="font-semibold">{eur(ventaEfectivo)}</span>
+                {ventaEfectivo < 0 ? ` · ${t.negativeCashHint}` : ""}
               </p>
             )}
             <div className="flex items-center justify-between">
@@ -462,7 +456,7 @@ export default function BalancePage() {
                 {open && (
                   <div className="border-t border-gray-100 px-4 py-3 space-y-1 text-sm">
                     <div className="flex justify-between"><span className="text-gray-500">{t.sumupCard}</span><span>{eur(b.venta_sumup)}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">{t.cashInPocket}</span><span>{eur(b.venta_efectivo)}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">{t.cashNet}</span><span>{eur(b.venta_efectivo)}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500">{t.paypalLabel}</span><span>{eur(b.venta_paypal)}</span></div>
                     <div className="flex justify-between font-medium"><span className="text-gray-600">{t.totalSalesLabel}</span><span className="text-green-600">{eur(b.total_ventas)}</span></div>
                     <div className="border-t border-gray-100 my-1" />

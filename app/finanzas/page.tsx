@@ -347,7 +347,7 @@ export default function FinanzasPage() {
                     {open && (
                       <div className="border-t border-gray-100 px-4 py-3 space-y-1 text-sm">
                         <div className="flex justify-between"><span className="text-gray-500">{t.sumupCard}</span><span>{eur(b.venta_sumup)}</span></div>
-                        <div className="flex justify-between"><span className="text-gray-500">{t.cashInPocket}</span><span>{eur(b.venta_efectivo)}</span></div>
+                        <div className="flex justify-between"><span className="text-gray-500">{t.cashNet}</span><span>{eur(b.venta_efectivo)}</span></div>
                         <div className="flex justify-between"><span className="text-gray-500">{t.paypalLabel}</span><span>{eur(b.venta_paypal)}</span></div>
                         <div className="flex justify-between font-medium"><span className="text-gray-600">{t.totalSalesLabel}</span><span className="text-green-600">{eur(b.total_ventas)}</span></div>
                         <div className="border-t border-gray-100 my-1" />
