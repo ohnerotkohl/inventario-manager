@@ -26,40 +26,71 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   const pathname = usePathname();
 
   useEffect(() => {
-    const session = getSession();
-    if (!session) {
-      setLoading(false);
-      if (!PUBLIC_PATHS.includes(pathname)) router.replace("/login");
-      return;
-    }
+    let cancelado = false;
+    (async () => {
+      const local = getSession();
+      if (!local) {
+        if (cancelado) return;
+        setLoading(false);
+        if (!PUBLIC_PATHS.includes(pathname)) router.replace("/login");
+        return;
+      }
 
-    // Refresca permisos desde Supabase en cada carga
-    supabase
-      .from("usuarios")
-      .select("*")
-      .eq("id", session.id)
-      .single()
-      .then(({ data }) => {
+      // Exigir la sesión segura de Supabase: sin ella (expirada/borrada) los
+      // datos no cargarían con RLS activo, así que forzamos volver a entrar.
+      const { data: { session: authSession } } = await supabase.auth.getSession();
+      if (!authSession) {
+        clearSession();
+        if (cancelado) return;
+        setUser(null);
+        setLoading(false);
+        if (!PUBLIC_PATHS.includes(pathname)) router.replace("/login");
+        return;
+      }
+
+      // Revalidar que el usuario sigue activo. Envuelto para no dejar la app en
+      // blanco para siempre si la consulta falla (antes .then sin catch colgaba).
+      try {
+        const { data, error } = await supabase
+          .from("usuarios")
+          .select("*")
+          .eq("id", local.id)
+          .maybeSingle();
+        if (cancelado) return;
+        if (error) {
+          // Fallo transitorio de red: mantener la sesión local, no expulsar.
+          setUser(local);
+          setLoading(false);
+          return;
+        }
         if (!data || !data.activo) {
           clearSession();
           setUser(null);
-          router.replace("/login");
-        } else {
-          const fresh: Usuario = {
-            id: data.id,
-            nombre: data.nombre,
-            rol: data.rol,
-            puede_inventario: data.puede_inventario,
-            cajas_permitidas: data.cajas_permitidas ?? null,
-          };
-          setSession(fresh);
-          setUser(fresh);
+          setLoading(false);
+          if (!PUBLIC_PATHS.includes(pathname)) router.replace("/login");
+          return;
         }
+        const fresh: Usuario = {
+          id: data.id,
+          nombre: data.nombre,
+          rol: data.rol,
+          puede_inventario: data.puede_inventario,
+          cajas_permitidas: data.cajas_permitidas ?? null,
+        };
+        setSession(fresh);
+        setUser(fresh);
         setLoading(false);
-      });
+      } catch {
+        if (cancelado) return;
+        setUser(local);
+        setLoading(false);
+      }
+    })();
+    return () => { cancelado = true; };
   }, [pathname]);
 
-  function logout() {
+  async function logout() {
+    await supabase.auth.signOut();
     clearSession();
     setUser(null);
     router.replace("/login");

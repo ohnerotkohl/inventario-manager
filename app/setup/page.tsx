@@ -1,8 +1,6 @@
 "use client";
 export const dynamic = "force-dynamic";
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
-import { hashPin } from "@/lib/auth";
 import { useLang } from "@/app/components/LangProvider";
 
 export default function SetupPage() {
@@ -22,17 +20,25 @@ export default function SetupPage() {
     if (pin !== confirmar) { setError(t.pinsNoMatch); return; }
 
     setSaving(true);
-    const pin_hash = await hashPin(pin);
-    const { error: err } = await supabase.from("usuarios").insert({
-      nombre: nombre.trim(),
-      pin_hash,
-      rol: "admin",
-      puede_inventario: true,
-      activo: true,
-    });
-    setSaving(false);
-    if (err) { setError(err.message); return; }
-    setDone(true);
+    // El alta del primer admin se hace en el servidor (con la service_role key) y
+    // solo si aún no existe ningún usuario. Así /setup deja de ser un hueco público.
+    try {
+      const res = await fetch("/api/auth/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nombre: nombre.trim(), pin }),
+      });
+      setSaving(false);
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setError(d.error === "already_setup" ? t.initialSetupOnly : t.saveError);
+        return;
+      }
+      setDone(true);
+    } catch {
+      setSaving(false);
+      setError(t.saveError);
+    }
   }
 
   if (done) {

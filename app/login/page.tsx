@@ -3,27 +3,25 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { hashPin, setSession, getSession } from "@/lib/auth";
+import { setSession, getSession } from "@/lib/auth";
 import type { Usuario } from "@/lib/auth";
 import { useLang } from "@/app/components/LangProvider";
 
-interface UsuarioRow {
+// Solo id y nombre: el PIN cifrado ya no se descarga al navegador.
+interface UsuarioLista {
   id: string;
   nombre: string;
-  pin_hash: string;
-  rol: "admin" | "empleado";
-  puede_inventario: boolean;
-  cajas_permitidas: string[] | null;
 }
 
 export default function LoginPage() {
   const router = useRouter();
   const { t } = useLang();
-  const [usuarios, setUsuarios] = useState<UsuarioRow[]>([]);
-  const [selected, setSelected] = useState<UsuarioRow | null>(null);
+  const [usuarios, setUsuarios] = useState<UsuarioLista[]>([]);
+  const [selected, setSelected] = useState<UsuarioLista | null>(null);
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [verificando, setVerificando] = useState(false);
 
   useEffect(() => {
     const session = getSession();
@@ -31,15 +29,12 @@ export default function LoginPage() {
       router.replace("/");
       return;
     }
-    supabase
-      .from("usuarios")
-      .select("*")
-      .eq("activo", true)
-      .order("nombre")
-      .then(({ data }) => {
-        setUsuarios(data ?? []);
-        setLoading(false);
-      });
+    // La lista de nombres viene de una ruta de servidor (sin PINs).
+    fetch("/api/auth/users")
+      .then((r) => r.json())
+      .then((d) => setUsuarios(d.users ?? []))
+      .catch(() => setUsuarios([]))
+      .finally(() => setLoading(false));
   }, []);
 
   function pressDigit(d: string) {
@@ -54,22 +49,39 @@ export default function LoginPage() {
   }
 
   async function tryLogin() {
-    if (!selected || pin.length < 4) return;
-    const hashed = await hashPin(pin);
-    if (hashed !== selected.pin_hash) {
+    if (!selected || pin.length < 4 || verificando) return;
+    setVerificando(true);
+    setError("");
+    try {
+      // El PIN se verifica en el servidor; si es correcto devuelve la sesión.
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: selected.id, pin }),
+      });
+      if (!res.ok) {
+        setError(t.wrongPin);
+        setPin("");
+        setVerificando(false);
+        return;
+      }
+      const data = await res.json();
+      // Guardar la sesión segura de Supabase (habilita el acceso con RLS activo).
+      const { error: sessErr } = await supabase.auth.setSession(data.session);
+      if (sessErr) {
+        setError(t.wrongPin);
+        setPin("");
+        setVerificando(false);
+        return;
+      }
+      const user: Usuario = data.user;
+      setSession(user);
+      router.replace("/");
+    } catch {
       setError(t.wrongPin);
       setPin("");
-      return;
+      setVerificando(false);
     }
-    const user: Usuario = {
-      id: selected.id,
-      nombre: selected.nombre,
-      rol: selected.rol,
-      puede_inventario: selected.puede_inventario,
-      cajas_permitidas: selected.cajas_permitidas ?? null,
-    };
-    setSession(user);
-    router.replace("/");
   }
 
   if (loading) {
@@ -144,10 +156,10 @@ export default function LoginPage() {
 
           <button
             onClick={tryLogin}
-            disabled={pin.length < 4}
+            disabled={pin.length < 4 || verificando}
             className="w-full bg-white text-black rounded-2xl py-4 text-base font-semibold disabled:opacity-30 transition-opacity"
           >
-            {t.enter}
+            {verificando ? t.loading : t.enter}
           </button>
         </div>
       )}
