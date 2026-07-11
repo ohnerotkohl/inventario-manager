@@ -26,6 +26,13 @@ interface IngresoHistorico {
   total: number;
 }
 
+interface Cancelacion {
+  id: string;
+  mercado_nombre: string;
+  fecha: string;
+  motivo: string | null;
+}
+
 const CATEGORIAS_GASTO = [
   "Material de impresión",
   "Material de packaging",
@@ -42,6 +49,24 @@ function eur(n: number): string {
 function hoy(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function ymd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// Lunes de la semana a la que pertenece una fecha "YYYY-MM-DD" (semana lun–dom).
+function lunesDeSemana(fecha: string): string {
+  const d = new Date(fecha + "T12:00:00");
+  const dow = d.getDay() === 0 ? 6 : d.getDay() - 1; // 0 = lunes
+  d.setDate(d.getDate() - dow);
+  return ymd(d);
+}
+
+// "5 may" a partir de "YYYY-MM-DD" (día + mes corto).
+function diaMesCorto(fecha: string, meses: string[]): string {
+  const [, m, dd] = fecha.split("-");
+  return `${parseInt(dd)} ${meses[parseInt(m) - 1].slice(0, 3).toLowerCase()}`;
 }
 
 // Los ingresos históricos guardan el mercado como texto libre
@@ -66,8 +91,11 @@ export default function FinanzasPage() {
   const [balances, setBalances] = useState<Balance[]>([]);
   const [gastos, setGastos] = useState<Gasto[]>([]);
   const [historicos, setHistoricos] = useState<IngresoHistorico[]>([]);
+  const [cancelaciones, setCancelaciones] = useState<Cancelacion[]>([]);
   const [loading, setLoading] = useState(true);
   const [balanceAbierto, setBalanceAbierto] = useState<string | null>(null);
+  // Mercado desplegado en "Por mercado" (muestra el desglose por semana)
+  const [mercadoAbierto, setMercadoAbierto] = useState<string | null>(null);
 
   // Formulario de gasto
   const [gConcepto, setGConcepto] = useState("");
@@ -84,16 +112,18 @@ export default function FinanzasPage() {
   async function fetchData() {
     // balances/gastos/históricos paginados: sin ello se truncarían en 1000 filas
     // y los totales de finanzas saldrían incompletos sin aviso al superarlo.
-    const [mRes, balances, gastos, historicos] = await Promise.all([
+    const [mRes, balances, gastos, historicos, cancRes] = await Promise.all([
       supabase.from("mercados").select("*"),
       fetchAllRows<Balance>(() => supabase.from("balances").select("*").order("fecha", { ascending: false })),
       fetchAllRows<Gasto>(() => supabase.from("gastos").select("*").order("fecha", { ascending: false })),
       fetchAllRows<IngresoHistorico>(() => supabase.from("ingresos_historicos").select("*").order("fecha", { ascending: false })),
+      supabase.from("cancelaciones").select("id, mercado_nombre, fecha, motivo").order("fecha", { ascending: false }),
     ]);
     setMercados(mRes.data || []);
     setBalances(balances);
     setGastos(gastos);
     setHistoricos(historicos);
+    setCancelaciones((cancRes.data as Cancelacion[]) || []);
     setLoading(false);
   }
 
@@ -171,6 +201,36 @@ export default function FinanzasPage() {
     porMercado.set(nombre, acc);
   }
   const mercadosOrdenados = [...porMercado.entries()].sort((a, b) => b[1].neto - a[1].neto);
+
+  // Desglose por semana de un mercado concreto (dentro del mes/rango filtrado):
+  // ingresos de balances + históricos y las cancelaciones registradas de ese mercado.
+  function semanasDeMercado(nombre: string) {
+    const semanas = new Map<string, { neto: number; count: number; cancelada: boolean; motivo: string | null }>();
+    const get = (fecha: string) => {
+      const lunes = lunesDeSemana(fecha);
+      if (!semanas.has(lunes)) semanas.set(lunes, { neto: 0, count: 0, cancelada: false, motivo: null });
+      return semanas.get(lunes)!;
+    };
+    for (const b of balancesVista) {
+      if (b.mercado_nombre !== nombre) continue;
+      const s = get(b.fecha);
+      s.neto += Number(b.neto);
+      s.count += 1;
+    }
+    for (const h of historicosVista) {
+      if (mercadoDeEvento(h.evento).nombre !== nombre) continue;
+      const s = get(h.fecha);
+      s.neto += Number(h.total);
+      s.count += 1;
+    }
+    for (const c of cancelaciones) {
+      if (c.mercado_nombre !== nombre || !enRango(c.fecha)) continue;
+      const s = get(c.fecha);
+      s.cancelada = true;
+      if (!s.motivo) s.motivo = c.motivo;
+    }
+    return [...semanas.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+  }
 
   function nombreMes(ym: string): string {
     const [y, m] = ym.split("-");
@@ -311,21 +371,64 @@ export default function FinanzasPage() {
             </div>
           )}
 
-          {/* Por mercado */}
+          {/* Por mercado — tocar un mercado despliega el desglose por semana */}
           {mercadosOrdenados.length > 0 && (
             <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
               <p className="text-xs font-bold uppercase tracking-wider text-gray-500 px-4 pt-4 pb-2">{t.byMarket}</p>
-              {mercadosOrdenados.map(([nombre, v], idx) => (
-                <div key={nombre} className={`flex justify-between items-center px-4 py-3 ${idx < mercadosOrdenados.length - 1 ? "border-b border-gray-100" : ""}`}>
-                  <div>
-                    <p className="text-sm text-gray-800">{nombre}</p>
-                    <p className="text-xs text-gray-400">{tr("balancesCount", { n: v.count })}</p>
+              {mercadosOrdenados.map(([nombre, v], idx) => {
+                const open = mercadoAbierto === nombre;
+                const semanas = open ? semanasDeMercado(nombre) : [];
+                return (
+                  <div key={nombre} className={idx < mercadosOrdenados.length - 1 ? "border-b border-gray-100" : ""}>
+                    <button
+                      onClick={() => setMercadoAbierto(open ? null : nombre)}
+                      className="w-full flex justify-between items-center px-4 py-3 text-left"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={`text-gray-400 text-xs transition-transform ${open ? "rotate-90" : ""}`}>▶</span>
+                        <div>
+                          <p className="text-sm text-gray-800">{nombre}</p>
+                          <p className="text-xs text-gray-400">{tr("balancesCount", { n: v.count })}</p>
+                        </div>
+                      </div>
+                      <p className={`text-sm font-semibold ${v.neto >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        {v.neto >= 0 ? "+" : ""}{eur(v.neto)}
+                      </p>
+                    </button>
+                    {open && (
+                      <div className="bg-gray-50 px-4 py-2 space-y-2">
+                        {semanas.length === 0 && (
+                          <p className="text-xs text-gray-400 py-2">{t.noBalances}</p>
+                        )}
+                        {semanas.map(([lunes, s]) => {
+                          const domingo = ymd(new Date(new Date(lunes + "T12:00:00").getTime() + 6 * 86400000));
+                          return (
+                            <div key={lunes} className="flex justify-between items-center py-1">
+                              <div>
+                                <p className="text-xs text-gray-700">
+                                  {tr("weekOf", { start: diaMesCorto(lunes, t.months), end: diaMesCorto(domingo, t.months) })}
+                                </p>
+                                {s.cancelada && (
+                                  <p className="text-[10px] text-amber-700">
+                                    ⚠ {t.marketCancelledBadge}{s.motivo ? `: ${s.motivo}` : ""}
+                                  </p>
+                                )}
+                              </div>
+                              {s.count > 0 ? (
+                                <p className={`text-xs font-semibold ${s.neto >= 0 ? "text-green-600" : "text-red-600"}`}>
+                                  {s.neto >= 0 ? "+" : ""}{eur(s.neto)}
+                                </p>
+                              ) : (
+                                <p className="text-xs text-gray-400">—</p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                  <p className={`text-sm font-semibold ${v.neto >= 0 ? "text-green-600" : "text-red-600"}`}>
-                    {v.neto >= 0 ? "+" : ""}{eur(v.neto)}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 

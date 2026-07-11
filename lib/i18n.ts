@@ -183,6 +183,8 @@ const es = {
   cancellationSaved: "Cancelación registrada. Quedará como contexto en las estadísticas.",
   cancelledDates: "Fechas canceladas",
   deleteCancellationConfirm: "¿Eliminar esta cancelación?",
+  weekOf: "Semana del {start} al {end}",
+  marketCancelledBadge: "Mercado cancelado",
   healthNoData: "Mes histórico: sin gastos registrados, no se puede evaluar la salud",
   healthRealNote: "Salud calculada solo con los meses de datos completos",
   // Finanzas: gastos del estudio e históricos
@@ -485,6 +487,8 @@ const en: typeof es = {
   cancellationSaved: "Cancellation registered. It will show as context in the statistics.",
   cancelledDates: "Cancelled dates",
   deleteCancellationConfirm: "Delete this cancellation?",
+  weekOf: "Week of {start} – {end}",
+  marketCancelledBadge: "Market cancelled",
   healthNoData: "Historical month: no expenses recorded, health can't be assessed",
   healthRealNote: "Health computed only from months with complete data",
   expensesTab: "Expenses",
