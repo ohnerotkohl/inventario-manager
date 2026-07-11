@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { PDFDocument } from "pdf-lib";
 import { supabase } from "@/lib/supabase";
 
 interface PrintItem {
@@ -24,10 +25,48 @@ interface Slot {
   key: string;
 }
 
+// Supabase devuelve la URL firmada con el path SIN codificar. Si el nombre
+// del archivo lleva '?' (p.ej. "Wie Geht's? - Mauerpark.jpg"), el navegador
+// corta la URL en ese '?' y la descarga falla con 400. Codificamos cada
+// segmento del path, dejando intacto el token.
+function fixSignedUrl(u: string): string {
+  const tokenIdx = u.lastIndexOf("?token=");
+  if (tokenIdx === -1) return u;
+  const prefix = u.slice(0, tokenIdx);
+  const query = u.slice(tokenIdx);
+  const marker = "/object/sign/";
+  const markerIdx = prefix.indexOf(marker);
+  if (markerIdx === -1) return u;
+  const base = prefix.slice(0, markerIdx + marker.length);
+  const path = prefix.slice(markerIdx + marker.length);
+  // El path puede venir parcialmente codificado (espacios como %20): se
+  // decodifica primero para no codificar dos veces.
+  const encoded = path.split("/").map((seg) => {
+    let raw = seg;
+    try { raw = decodeURIComponent(seg); } catch { /* segmento con % literal */ }
+    return encodeURIComponent(raw);
+  }).join("/");
+  return base + encoded + query;
+}
+
+// Dimensiones estándar en puntos PDF (1 pt = 1/72")
+const PAGE_PT: Record<"A4" | "A3", [number, number]> = {
+  A4: [595.28, 841.89],
+  A3: [841.89, 1190.55],
+};
+
+// Píxeles mínimos del lado largo para imprimir a 150 dpi (calidad aceptable en póster)
+const MIN_PX_LONG: Record<"A4" | "A3", number> = {
+  A4: 1754,
+  A3: 2480,
+};
+
 export default function ImprimirPage() {
   const [slots, setSlots] = useState<Slot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [pdfWarnings, setPdfWarnings] = useState<string[]>([]);
 
   useEffect(() => {
     async function init() {
@@ -55,7 +94,7 @@ export default function ImprimirPage() {
         (data || []).forEach((entry) => {
           if (!entry.path || !entry.signedUrl) return;
           const originalName = pathToName[entry.path];
-          if (originalName) urlMap[originalName] = entry.signedUrl;
+          if (originalName) urlMap[originalName] = fixSignedUrl(entry.signedUrl);
         });
 
         const expanded: Slot[] = items.flatMap((item) =>
@@ -77,10 +116,86 @@ export default function ImprimirPage() {
     init();
   }, []);
 
+  async function downloadPdf(talla: "A4" | "A3") {
+    setGenerating(true);
+    setPdfWarnings([]);
+    const warnings: string[] = [];
+    try {
+      const jobSlots = slots.filter((s) => s.talla === talla && s.signedUrl);
+      const pdf = await PDFDocument.create();
+
+      // Cada diseño se descarga y se incrusta UNA sola vez; las repeticiones
+      // son páginas que referencian la misma imagen (el PDF no se infla).
+      const embedded: Record<string, Awaited<ReturnType<typeof pdf.embedJpg>> | null> = {};
+      const uniqueNames = [...new Set(jobSlots.map((s) => s.nombre))];
+      for (const nombre of uniqueNames) {
+        const url = jobSlots.find((s) => s.nombre === nombre)!.signedUrl;
+        try {
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const bytes = await res.arrayBuffer();
+          let img;
+          try {
+            img = await pdf.embedJpg(bytes);
+          } catch {
+            // El bucket guarda .jpg, pero por si algún archivo es realmente PNG
+            img = await pdf.embedPng(bytes);
+          }
+          embedded[nombre] = img;
+          const longSide = Math.max(img.width, img.height);
+          if (longSide < MIN_PX_LONG[talla]) {
+            warnings.push(`${nombre}: resolución baja para ${talla} (${img.width}×${img.height}px, se recomienda ≥${MIN_PX_LONG[talla]}px en el lado largo)`);
+          }
+        } catch {
+          embedded[nombre] = null;
+          warnings.push(`${nombre}: no se pudo descargar la imagen, no va en el PDF`);
+        }
+      }
+
+      const [pw, ph] = PAGE_PT[talla];
+      let pages = 0;
+      for (const slot of jobSlots) {
+        const img = embedded[slot.nombre];
+        if (!img) continue;
+        const page = pdf.addPage([pw, ph]);
+        // Ajuste proporcional centrado: la imagen ocupa el máximo posible
+        // sin deformarse ni recortarse.
+        const scale = Math.min(pw / img.width, ph / img.height);
+        const w = img.width * scale;
+        const h = img.height * scale;
+        page.drawImage(img, { x: (pw - w) / 2, y: (ph - h) / 2, width: w, height: h });
+        pages++;
+      }
+
+      if (pages === 0) {
+        setPdfWarnings(warnings.length > 0 ? warnings : ["No hay páginas que generar para " + talla]);
+        return;
+      }
+
+      const bytes = await pdf.save();
+      const blob = new Blob([bytes as BlobPart], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const fecha = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `imprimir-${talla}-${fecha}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setPdfWarnings(warnings);
+    } catch (e) {
+      setPdfWarnings([e instanceof Error ? e.message : "Error generando el PDF"]);
+    } finally {
+      setGenerating(false);
+    }
+  }
+
   const totalPages = slots.length;
   const totalDesigns = new Set(slots.map((s) => s.nombre)).size;
   const missing = slots.filter((s) => !s.signedUrl).map((s) => s.nombre);
   const uniqueMissing = [...new Set(missing)];
+  const tallas = [...new Set(slots.map((s) => s.talla))] as ("A4" | "A3")[];
 
   if (loading) {
     return (
@@ -111,43 +226,20 @@ export default function ImprimirPage() {
   return (
     <>
       <style>{`
-        @page { margin: 8mm; size: auto; }
-        @media print {
-          html, body { margin: 0; padding: 0; }
-          .no-print { display: none !important; }
-          .print-page {
-            page-break-after: always;
-            break-after: page;
-            margin: 0; padding: 0;
-            width: 100%; height: 100vh;
-            display: flex; align-items: center; justify-content: center;
-          }
-          .print-page:last-child {
-            page-break-after: avoid;
-            break-after: avoid;
-          }
-          .print-page img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            display: block;
-          }
-          .missing-page { display: none; }
+        body { background: #f3f4f6; font-family: sans-serif; margin: 0; }
+        .print-page {
+          background: white;
+          margin: 24px auto;
+          display: flex; align-items: center; justify-content: center;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.12);
         }
-        @media screen {
-          body { background: #f3f4f6; font-family: sans-serif; margin: 0; }
-          .print-page {
-            width: 210mm; min-height: 297mm; background: white;
-            margin: 24px auto;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.12);
-          }
-          .print-page img { max-width: 100%; max-height: 297mm; object-fit: contain; display: block; }
-        }
+        .print-page.a4 { width: 210mm; height: 297mm; }
+        .print-page.a3 { width: 297mm; height: 420mm; }
+        .print-page img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
       `}</style>
 
       {/* Header */}
-      <div className="no-print" style={{ background: "#000", color: "#fff", padding: "12px 24px", position: "sticky", top: 0, zIndex: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+      <div style={{ background: "#000", color: "#fff", padding: "12px 24px", position: "sticky", top: 0, zIndex: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
         <div>
           <span style={{ fontWeight: 700, fontSize: 14 }}>
             {totalPages} página{totalPages !== 1 ? "s" : ""} · {totalDesigns} diseño{totalDesigns !== 1 ? "s" : ""}
@@ -158,23 +250,39 @@ export default function ImprimirPage() {
             </p>
           )}
         </div>
-        <button
-          onClick={() => window.print()}
-          style={{ background: "#fff", color: "#000", border: "none", borderRadius: 8, padding: "8px 20px", fontWeight: 700, fontSize: 14, cursor: "pointer", whiteSpace: "nowrap" }}
-        >
-          🖨️ Imprimir
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          {tallas.map((talla) => (
+            <button
+              key={talla}
+              onClick={() => downloadPdf(talla)}
+              disabled={generating}
+              style={{ background: "#fff", color: "#000", border: "none", borderRadius: 8, padding: "8px 20px", fontWeight: 700, fontSize: 14, cursor: generating ? "wait" : "pointer", whiteSpace: "nowrap", opacity: generating ? 0.6 : 1 }}
+            >
+              {generating ? "Generando..." : `⬇ Descargar PDF ${talla}`}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Pages */}
+      {/* Avisos del PDF generado */}
+      {pdfWarnings.length > 0 && (
+        <div style={{ background: "#fef3c7", border: "1px solid #fcd34d", borderRadius: 8, margin: "16px auto", maxWidth: 640, padding: "12px 16px" }}>
+          <p style={{ fontWeight: 700, fontSize: 13, color: "#92400e", margin: 0 }}>Avisos:</p>
+          {pdfWarnings.map((w, i) => (
+            <p key={i} style={{ fontSize: 12, color: "#92400e", margin: "4px 0 0" }}>· {w}</p>
+          ))}
+        </div>
+      )}
+
+      {/* Vista previa a tamaño real por talla */}
       {slots.map((slot) => (
-        <div key={slot.key} className={`print-page ${!slot.signedUrl ? "missing-page" : ""}`}>
+        <div key={slot.key} className={`print-page ${slot.talla === "A4" ? "a4" : "a3"}`}>
           {slot.signedUrl ? (
             <img src={slot.signedUrl} alt={slot.nombre} />
           ) : (
             <div style={{ textAlign: "center", color: "#ccc", padding: 32 }}>
               <p style={{ fontSize: 20, fontWeight: 700, color: "#aaa" }}>{slot.nombre}</p>
-              <p style={{ fontSize: 13, marginTop: 8 }}>Imagen no subida aún · no se imprimirá</p>
+              <p style={{ fontSize: 13, marginTop: 8 }}>Imagen no subida aún · no irá en el PDF</p>
             </div>
           )}
         </div>
