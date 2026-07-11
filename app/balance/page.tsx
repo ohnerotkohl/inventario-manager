@@ -369,8 +369,25 @@ export default function BalancePage() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">{t.cashInPocket}</span>
-              <NumInput value={ventaEfectivo} onChange={setVentaEfectivo} />
+              {/* Puede ser negativo: a veces el efectivo no alcanza a cubrir el float.
+                  El teclado del móvil no tiene tecla de menos, por eso el botón ± */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setVentaEfectivo(-ventaEfectivo)}
+                  title={t.negativeCashHint}
+                  className={`shrink-0 w-9 py-2 rounded-lg text-sm font-bold transition-colors ${ventaEfectivo < 0 ? "bg-red-500 text-white" : "bg-gray-100 text-gray-500"}`}
+                >
+                  ±
+                </button>
+                <NumInput value={Math.abs(ventaEfectivo)} onChange={(n) => setVentaEfectivo(ventaEfectivo < 0 ? -n : n)} />
+              </div>
             </div>
+            {ventaEfectivo < 0 && (
+              <p className="text-[11px] text-red-600 bg-red-50 rounded-lg px-3 py-2">
+                {t.negativeCashHint}: {eur(ventaEfectivo)}
+              </p>
+            )}
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">{t.paypalLabel}</span>
               <NumInput value={ventaPaypal} onChange={setVentaPaypal} />
