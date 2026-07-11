@@ -95,6 +95,15 @@ export default function BalancePage() {
     setHistorialCargado(true);
   }
 
+  // Borrar un balance (p. ej. uno de prueba). Solo admin (la pestaña ya lo es).
+  async function eliminarBalance(b: Balance) {
+    if (!confirm(tr("deleteBalanceConfirm", { market: b.mercado_nombre, date: b.fecha }))) return;
+    const { error } = await supabase.from("balances").delete().eq("id", b.id);
+    if (error) { alert(t.balanceSaveError); return; }
+    setHistorial((prev) => prev.filter((x) => x.id !== b.id));
+    setAbierto(null);
+  }
+
   function gastosPorDefecto(mId: string, turno: TurnoTipo): GastoBalance[] {
     const mercado = mercados.find((m) => m.id === mId);
     const rows: GastoBalance[] = [{ nombre: "Stand", monto: mercado?.costo_stand || 0, efectivo: false }];
@@ -498,6 +507,14 @@ export default function BalancePage() {
                     {b.float_inicial > 0 && (
                       <div className="flex justify-between"><span className="text-gray-400">{t.balanceFloat}</span><span className="text-gray-400">{eur(b.float_inicial)}</span></div>
                     )}
+                    <div className="pt-2">
+                      <button
+                        onClick={() => eliminarBalance(b)}
+                        className="text-xs text-red-500 hover:text-red-700 font-medium"
+                      >
+                        {t.delete}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
