@@ -226,12 +226,15 @@ export default function EstadisticasPage() {
       }))
     );
 
+    // desde a las 00:00 del día límite: si no, el filtro depende de la hora a la
+    // que se mire la página (el total cambiaría por la mañana vs por la tarde).
+    const desdePeriodo = new Date();
+    desdePeriodo.setDate(desdePeriodo.getDate() - parseInt(periodo));
+    desdePeriodo.setHours(0, 0, 0, 0);
     const ventasFiltradas = periodo !== "todo"
       ? ventas.filter((v) => {
           if (!v.sesiones?.fecha) return false;
-          const desde = new Date();
-          desde.setDate(desde.getDate() - parseInt(periodo));
-          return new Date(v.sesiones.fecha + "T12:00:00") >= desde;
+          return new Date(v.sesiones.fecha + "T12:00:00") >= desdePeriodo;
         })
       : ventas;
 
@@ -295,18 +298,22 @@ export default function EstadisticasPage() {
       const hoy = new Date();
       let desdeActual: Date, hastaActual: Date, desdeAnterior: Date, hastaAnterior: Date;
 
+      // Límites normalizados a inicio (00:00) / fin (23:59:59) de día. Las ventas
+      // se comparan a las 12:00, así que si el límite superior quedara a medianoche
+      // ese último día entero se excluiría (p.ej. el último día del mes anterior
+      // desaparecía de la comparativa e inflaba el % de subida).
       if (periodo === "30") {
         // Mes natural actual vs mes natural anterior
-        desdeActual = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-        hastaActual = hoy;
-        desdeAnterior = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
-        hastaAnterior = new Date(hoy.getFullYear(), hoy.getMonth(), 0);
+        desdeActual = new Date(hoy.getFullYear(), hoy.getMonth(), 1, 0, 0, 0);
+        hastaActual = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 23, 59, 59);
+        desdeAnterior = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1, 0, 0, 0);
+        hastaAnterior = new Date(hoy.getFullYear(), hoy.getMonth(), 0, 23, 59, 59);
       } else {
         const dias = parseInt(periodo);
-        desdeActual = new Date(); desdeActual.setDate(hoy.getDate() - dias);
-        hastaActual = hoy;
-        desdeAnterior = new Date(); desdeAnterior.setDate(hoy.getDate() - dias * 2);
-        hastaAnterior = new Date(); hastaAnterior.setDate(hoy.getDate() - dias - 1);
+        desdeActual = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - dias, 0, 0, 0);
+        hastaActual = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 23, 59, 59);
+        desdeAnterior = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - dias * 2, 0, 0, 0);
+        hastaAnterior = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - dias - 1, 23, 59, 59);
       }
 
       const totalActual = ventas
@@ -357,12 +364,13 @@ export default function EstadisticasPage() {
       if (periodo !== "todo") {
         const hoy = new Date();
         if (periodo === "30") {
-          desdeAnteriorMerc = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
-          hastaAnteriorMerc = new Date(hoy.getFullYear(), hoy.getMonth(), 0);
+          desdeAnteriorMerc = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1, 0, 0, 0);
+          // Fin de día para no excluir el último día del mes anterior (ventas a 12:00).
+          hastaAnteriorMerc = new Date(hoy.getFullYear(), hoy.getMonth(), 0, 23, 59, 59);
         } else {
           const dias = parseInt(periodo);
-          desdeAnteriorMerc = new Date(); desdeAnteriorMerc.setDate(hoy.getDate() - dias * 2);
-          hastaAnteriorMerc = new Date(); hastaAnteriorMerc.setDate(hoy.getDate() - dias - 1);
+          desdeAnteriorMerc = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - dias * 2, 0, 0, 0);
+          hastaAnteriorMerc = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - dias - 1, 23, 59, 59);
         }
       }
 
