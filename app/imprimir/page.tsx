@@ -100,10 +100,15 @@ export default function ImprimirPage() {
           if (originalName) urlMap[originalName] = fixSignedUrl(entry.signedUrl);
         });
 
-        // Si NINGUNA imagen se pudo firmar, no es que falten archivos: es un
-        // fallo temporal de la nube. Decir la verdad y ofrecer reintentar.
+        // Si NINGUNA imagen se pudo firmar, no es que falten archivos: la nube
+        // rechazó la petición completa. Mostrar el motivo real y ofrecer reintentar.
         if (paths.length > 0 && Object.keys(urlMap).length === 0) {
-          throw new Error("La nube no respondió al preparar las imágenes (fallo temporal). Tus archivos siguen subidos: toca Reintentar.");
+          const motivo = (data || []).map((e) => e.error).find(Boolean);
+          throw new Error(
+            motivo
+              ? `La nube rechazó la petición de imágenes. Motivo: ${motivo}`
+              : "La nube no respondió al preparar las imágenes (fallo temporal). Tus archivos siguen subidos: toca Reintentar."
+          );
         }
 
         const expanded: Slot[] = items.flatMap((item) =>
