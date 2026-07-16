@@ -67,10 +67,13 @@ export default function ImprimirPage() {
   const [error, setError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [pdfWarnings, setPdfWarnings] = useState<string[]>([]);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     async function init() {
       try {
+        setLoading(true);
+        setError(null);
         const raw = localStorage.getItem("or_print_job");
         if (!raw) { setLoading(false); return; }
         const items: PrintItem[] = JSON.parse(raw);
@@ -97,6 +100,12 @@ export default function ImprimirPage() {
           if (originalName) urlMap[originalName] = fixSignedUrl(entry.signedUrl);
         });
 
+        // Si NINGUNA imagen se pudo firmar, no es que falten archivos: es un
+        // fallo temporal de la nube. Decir la verdad y ofrecer reintentar.
+        if (paths.length > 0 && Object.keys(urlMap).length === 0) {
+          throw new Error("La nube no respondió al preparar las imágenes (fallo temporal). Tus archivos siguen subidos: toca Reintentar.");
+        }
+
         const expanded: Slot[] = items.flatMap((item) =>
           Array.from({ length: item.qty }, (_, i) => ({
             nombre: item.nombre,
@@ -114,7 +123,7 @@ export default function ImprimirPage() {
       }
     }
     init();
-  }, []);
+  }, [reloadKey]);
 
   async function downloadPdf(talla: "A4" | "A3") {
     setGenerating(true);
@@ -207,9 +216,18 @@ export default function ImprimirPage() {
 
   if (error) {
     return (
-      <div style={{ fontFamily: "sans-serif", padding: 32 }}>
+      <div style={{ fontFamily: "sans-serif", padding: 32, textAlign: "center" }}>
         <p style={{ color: "#dc2626", fontWeight: 700 }}>Error: {error}</p>
-        <p style={{ color: "#555", marginTop: 8 }}>Asegúrate de que el bucket "Posters" existe en Supabase Storage.</p>
+        <p style={{ color: "#555", marginTop: 8 }}>Suele ser un fallo pasajero de la conexión con la nube, no de tus imágenes.</p>
+        <button
+          onClick={() => setReloadKey((k) => k + 1)}
+          style={{
+            marginTop: 20, padding: "12px 32px", fontSize: 15, fontWeight: 600,
+            color: "#fff", background: "#111827", border: "none", borderRadius: 12, cursor: "pointer",
+          }}
+        >
+          Reintentar
+        </button>
       </div>
     );
   }
