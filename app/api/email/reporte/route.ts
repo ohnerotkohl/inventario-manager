@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 
 export async function POST(req: NextRequest) {
-  const { mercado, fecha, trabajador, hora, a4, a3, notas, ideas, materiales } = await req.json();
+  const { mercado, fecha, trabajador, hora, a4, a3, notas, ideas, materiales, totalA4, totalA3, combosA4, combosA3 } = await req.json();
 
   const transporter = nodemailer.createTransport({
     service: "gmail",
@@ -108,6 +108,27 @@ export async function POST(req: NextRequest) {
           </tr>
         </table>
       </div>
+      ${(totalA4 || 0) + (totalA3 || 0) > 0 ? `
+      <div style="margin-top:16px; background:#f9fafb; border-radius:12px; padding:16px;">
+        <p style="font-size:11px; font-weight:bold; text-transform:uppercase; letter-spacing:0.08em; color:#6b7280; margin:0 0 10px;">Desglose del día</p>
+        <table style="width:100%; text-align:center;">
+          <tr>
+            <td>
+              <p style="font-size:24px; font-weight:bold; color:#b45309; margin:0;">${totalA4 || 0}</p>
+              <p style="color:#666; font-size:12px; margin:4px 0 0;">A4 vendidos</p>
+            </td>
+            <td>
+              <p style="font-size:24px; font-weight:bold; color:#1d4ed8; margin:0;">${totalA3 || 0}</p>
+              <p style="color:#666; font-size:12px; margin:4px 0 0;">A3 vendidos</p>
+            </td>
+          </tr>
+        </table>
+        ${(combosA4 || 0) + (combosA3 || 0) > 0 ? `
+        <p style="text-align:center; font-size:13px; color:#444; margin:10px 0 0;">
+          Combos x3: <strong style="color:#b45309;">${combosA4 || 0} A4</strong> · <strong style="color:#1d4ed8;">${combosA3 || 0} A3</strong>
+        </p>` : ""}
+      </div>` : ""}
+
       ${materiales && materiales.length > 0 ? `
       <div style="margin-top:24px; background:#fef2f2; border:1px solid #fecaca; border-radius:12px; padding:16px;">
         <p style="font-size:11px; font-weight:bold; text-transform:uppercase; letter-spacing:0.08em; color:#dc2626; margin:0 0 10px;">⚠ Materiales faltantes</p>

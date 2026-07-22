@@ -86,6 +86,9 @@ interface SesionHistorial {
   trabajador: string;
   totalVentas: number;
   lineas: { nombre: string; talla: string; cantidad: number }[];
+  materiales: string[];
+  combosA4: number;
+  combosA3: number;
 }
 
 interface VentaEntry {
@@ -144,6 +147,9 @@ export default function SesionPage() {
   const [notas, setNotas] = useState("");
   const [ideas, setIdeas] = useState("");
   const [materiales, setMateriales] = useState<string[]>([]);
+  // Combos vendidos (packs de 3 pósters con descuento), contados a mano al cierre
+  const [combosA4, setCombosA4] = useState(0);
+  const [combosA3, setCombosA3] = useState(0);
   const [showReview, setShowReview] = useState(false);
   const reviewPosterIdsRef = useRef<Set<string>>(new Set());
 
@@ -172,12 +178,15 @@ export default function SesionPage() {
       id: string;
       fecha: string;
       trabajador: string;
+      materiales_faltantes: string[] | null;
+      combos_a4: number | null;
+      combos_a3: number | null;
       mercados: { id: string; nombre: string; caja_id: string } | null;
       ventas: { cantidad: number; talla: string; posters: { nombre: string } | null }[];
     };
     const { data } = await supabase
       .from("sesiones")
-      .select("id, fecha, trabajador, mercados(id, nombre, caja_id), ventas(cantidad, talla, posters(nombre))")
+      .select("id, fecha, trabajador, materiales_faltantes, combos_a4, combos_a3, mercados(id, nombre, caja_id), ventas(cantidad, talla, posters(nombre))")
       .order("fecha", { ascending: false })
       .limit(50);
     const rows = (data || []) as unknown as SesionRow[];
@@ -192,6 +201,9 @@ export default function SesionPage() {
       lineas: r.ventas
         .map((v) => ({ nombre: v.posters?.nombre || "—", talla: v.talla, cantidad: v.cantidad }))
         .sort((a, b) => b.cantidad - a.cantidad),
+      materiales: r.materiales_faltantes || [],
+      combosA4: r.combos_a4 || 0,
+      combosA3: r.combos_a3 || 0,
     })));
     setLoadingHistorial(false);
   }
@@ -294,7 +306,7 @@ export default function SesionPage() {
     if (modoEdicion && sesionId) {
       const [ventasRes, sesionRes] = await Promise.all([
         supabase.from("ventas").select("poster_id, talla, cantidad").eq("sesion_id", sesionId),
-        supabase.from("sesiones").select("notas, materiales_faltantes").eq("id", sesionId).single(),
+        supabase.from("sesiones").select("notas, materiales_faltantes, combos_a4, combos_a3").eq("id", sesionId).single(),
       ]);
       const ventasMap: { [key: string]: number } = {};
       for (const v of (ventasRes.data || [])) {
@@ -305,6 +317,8 @@ export default function SesionPage() {
       setVentasOriginales({ ...ventasMap });
       setNotas(sesionRes.data?.notas || "");
       setMateriales(sesionRes.data?.materiales_faltantes || []);
+      setCombosA4(sesionRes.data?.combos_a4 || 0);
+      setCombosA3(sesionRes.data?.combos_a3 || 0);
     }
 
     setLoading(false);
@@ -425,7 +439,7 @@ export default function SesionPage() {
     if (modoEdicion) {
       // Actualizar mercado, fecha, trabajador, notas y materiales de la sesión
       await supabase.from("sesiones")
-        .update({ mercado_id: mercadoId, fecha, trabajador: trabajador.trim(), notas: notas.trim() || null, materiales_faltantes: materiales })
+        .update({ mercado_id: mercadoId, fecha, trabajador: trabajador.trim(), notas: notas.trim() || null, materiales_faltantes: materiales, combos_a4: combosA4, combos_a3: combosA3 })
         .eq("id", sesionId);
 
       const marketChanged = mercadoId !== sesionMercadoIdOriginal;
@@ -536,11 +550,11 @@ export default function SesionPage() {
       let nuevaSesionId: string;
       if (sesionExistente) {
         nuevaSesionId = sesionExistente.id;
-        await supabase.from("sesiones").update({ notas: notas.trim() || null, materiales_faltantes: materiales }).eq("id", nuevaSesionId);
+        await supabase.from("sesiones").update({ notas: notas.trim() || null, materiales_faltantes: materiales, combos_a4: combosA4, combos_a3: combosA3 }).eq("id", nuevaSesionId);
       } else {
         const { data: nuevaSesion, error } = await supabase
           .from("sesiones")
-          .insert({ mercado_id: mercadoId, fecha, trabajador: trabajador.trim(), notas: notas.trim() || null, materiales_faltantes: materiales })
+          .insert({ mercado_id: mercadoId, fecha, trabajador: trabajador.trim(), notas: notas.trim() || null, materiales_faltantes: materiales, combos_a4: combosA4, combos_a3: combosA3 })
           .select()
           .single();
         if (error || !nuevaSesion) {
@@ -695,6 +709,10 @@ export default function SesionPage() {
           notas: notas.trim(),
           ideas: ideas.trim(),
           materiales: materiales.map(k => t[k as MaterialKey]),
+          totalA4,
+          totalA3,
+          combosA4,
+          combosA3,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -717,6 +735,11 @@ export default function SesionPage() {
     const ib = SERIES_ORDER.indexOf(serieB?.nombre || "");
     return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
   });
+
+  const totalVentas = Object.values(ventas).reduce((a, b) => a + b, 0);
+  // Desglose por talla: cuántos A4 y cuántos A3 lleva el cierre
+  const totalA4 = Object.entries(ventas).reduce((a, [k, n]) => a + (k.endsWith("-A4") ? n : 0), 0);
+  const totalA3 = Object.entries(ventas).reduce((a, [k, n]) => a + (k.endsWith("-A3") ? n : 0), 0);
 
   if (step === "confirmado") {
     const mercado = mercados.find((m) => m.id === mercadoId);
@@ -774,6 +797,28 @@ export default function SesionPage() {
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+        )}
+
+        {/* Desglose del día: totales por talla y combos */}
+        {(totalVentas > 0 || combosA4 > 0 || combosA3 > 0) && (
+          <div className="bg-white border border-gray-200 rounded-2xl p-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">{t.dayBreakdown}</p>
+            <div className="grid grid-cols-2 gap-3 text-center">
+              <div className="bg-yellow-50 rounded-xl py-3">
+                <p className="text-2xl font-bold text-yellow-600">{totalA4}</p>
+                <p className="text-xs text-gray-500">{t.sizeA4}</p>
+              </div>
+              <div className="bg-blue-50 rounded-xl py-3">
+                <p className="text-2xl font-bold text-blue-600">{totalA3}</p>
+                <p className="text-xs text-gray-500">{t.sizeA3}</p>
+              </div>
+            </div>
+            {(combosA4 > 0 || combosA3 > 0) && (
+              <p className="text-sm text-gray-700 mt-3 text-center">
+                {t.combosTitle}: <span className="font-semibold text-yellow-600">{combosA4} A4</span> · <span className="font-semibold text-blue-600">{combosA3} A3</span>
+              </p>
             )}
           </div>
         )}
@@ -857,7 +902,8 @@ export default function SesionPage() {
                 const materialesBlock = materiales.length > 0 ? `\n\n— MATERIALES —\n${materiales.map(k => `⚠ ${t[k as MaterialKey]}`).join("\n")}` : "";
                 const notasBlock = notas.trim() ? `\n\n— COMISIONES —\n${notas.trim()}` : "";
                 const ideasBlock = ideas.trim() ? `\n\n— IDEAS —\n${ideas.trim()}` : "";
-                const texto = `REPORTE DE SESIÓN\n${mercado?.nombre || ""}\n${fechaFmt}\n${trabajador}\n\n${linesA4 ? `— A4 —\n${linesA4}\n\n` : ""}${linesA3 ? `— A3 —\n${linesA3}` : ""}${materialesBlock}${notasBlock}${ideasBlock}`.trim();
+                const desgloseBlock = totalVentas > 0 ? `\n\n— TOTALES —\nA4: ${totalA4} · A3: ${totalA3}${combosA4 > 0 || combosA3 > 0 ? `\nCombos x3: ${combosA4} A4 · ${combosA3} A3` : ""}` : "";
+                const texto = `REPORTE DE SESIÓN\n${mercado?.nombre || ""}\n${fechaFmt}\n${trabajador}\n\n${linesA4 ? `— A4 —\n${linesA4}\n\n` : ""}${linesA3 ? `— A3 —\n${linesA3}` : ""}${desgloseBlock}${materialesBlock}${notasBlock}${ideasBlock}`.trim();
 
                 if (navigator.share) {
                   try {
@@ -925,6 +971,8 @@ export default function SesionPage() {
             setNotas("");
             setIdeas("");
             setMateriales([]);
+            setCombosA4(0);
+            setCombosA3(0);
             setReporteImpresion({ a4: [], a3: [] });
             setSesionId("");
             setEmailEnviado(false);
@@ -1100,6 +1148,24 @@ export default function SesionPage() {
                         </>
                       ))}
                     </div>
+                    {/* Totales por talla y combos del día */}
+                    <div className="border-t border-gray-100 pt-2 text-xs font-medium">
+                      <span className="text-yellow-600">A4: {s.lineas.filter(l => l.talla === "A4").reduce((a, l) => a + l.cantidad, 0)}</span>
+                      <span className="text-gray-300"> · </span>
+                      <span className="text-blue-600">A3: {s.lineas.filter(l => l.talla === "A3").reduce((a, l) => a + l.cantidad, 0)}</span>
+                      {(s.combosA4 > 0 || s.combosA3 > 0) && (
+                        <span className="text-gray-600"> · {t.combosTitle}: {s.combosA4} A4 / {s.combosA3} A3</span>
+                      )}
+                    </div>
+                    {/* Materiales que faltaban en la caja ese día */}
+                    {s.materiales.length > 0 && (
+                      <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2 space-y-0.5">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-red-500">{t.standMaterials}</p>
+                        {s.materiales.map(k => (
+                          <p key={k} className="text-xs text-red-800">⚠ {t[k as MaterialKey]}</p>
+                        ))}
+                      </div>
+                    )}
                     <div className="flex gap-2">
                       <button
                         onClick={() => editarSesionDesdeHistorial(s)}
@@ -1307,7 +1373,6 @@ export default function SesionPage() {
   }
 
   const mercado = mercados.find((m) => m.id === mercadoId);
-  const totalVentas = Object.values(ventas).reduce((a, b) => a + b, 0);
 
   return (
     <div className="space-y-6">
@@ -1428,6 +1493,34 @@ export default function SesionPage() {
             </div>
           </div>
 
+          {/* Combos vendidos (packs de 3 con descuento) */}
+          <div className="bg-white border border-gray-200 rounded-2xl p-4">
+            <p className="text-sm font-semibold text-gray-700">{t.combosTitle}</p>
+            <p className="text-xs text-gray-400 mb-3">{t.combosHint}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-yellow-600 uppercase tracking-widest mb-1">{t.combosA4Label}</label>
+                <input
+                  type="number" inputMode="numeric" pattern="[0-9]*" min={0}
+                  value={combosA4 || ""} placeholder="0"
+                  onChange={(e) => setCombosA4(Math.max(0, parseInt(e.target.value) || 0))}
+                  onFocus={(e) => e.target.select()}
+                  className="w-full text-center text-gray-900 border border-gray-300 rounded-xl py-2.5 focus:outline-none focus:border-black"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-blue-600 uppercase tracking-widest mb-1">{t.combosA3Label}</label>
+                <input
+                  type="number" inputMode="numeric" pattern="[0-9]*" min={0}
+                  value={combosA3 || ""} placeholder="0"
+                  onChange={(e) => setCombosA3(Math.max(0, parseInt(e.target.value) || 0))}
+                  onFocus={(e) => e.target.select()}
+                  className="w-full text-center text-gray-900 border border-gray-300 rounded-xl py-2.5 focus:outline-none focus:border-black"
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Comisiones */}
           <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-2">
             <div className="flex items-center justify-between">
@@ -1461,6 +1554,13 @@ export default function SesionPage() {
           <div className="sticky bottom-20 bg-white border border-gray-200 rounded-2xl p-4 flex items-center justify-between">
             <div>
               <p className="font-bold text-gray-900">{tr("totalSales", { n: totalVentas })}</p>
+              {totalVentas > 0 && (
+                <p className="text-xs font-medium">
+                  <span className="text-yellow-600">A4: {totalA4}</span>
+                  <span className="text-gray-300"> · </span>
+                  <span className="text-blue-600">A3: {totalA3}</span>
+                </p>
+              )}
               <p className="text-xs text-gray-500">{t.confirmUpdate}</p>
             </div>
             <button
@@ -1481,7 +1581,10 @@ export default function SesionPage() {
             <div className="p-5 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
               <div>
                 <h3 className="font-bold text-gray-900 text-lg">{t.reviewTitle}</h3>
-                <p className="text-xs text-gray-400">{tr("totalSales", { n: Object.values(ventas).reduce((a, b) => a + b, 0) })}</p>
+                <p className="text-xs text-gray-400">
+                  {tr("totalSales", { n: totalVentas })}
+                  {totalVentas > 0 && <> · <span className="text-yellow-600 font-medium">A4: {totalA4}</span> · <span className="text-blue-600 font-medium">A3: {totalA3}</span></>}
+                </p>
               </div>
               <button
                 onClick={() => setShowReview(false)}
