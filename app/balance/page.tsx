@@ -159,6 +159,18 @@ export default function BalancePage() {
   });
 
   const mercadoNombre = mercadoId === ESPECIAL ? (mercadoCustom.trim() || "Especial") : (mercados.find((m) => m.id === mercadoId)?.nombre || "");
+  // Regla Mauerpark: el mercado es siempre en domingo. Si el balance se
+  // rellena otro día (p. ej. el lunes siguiente), la fecha del cierre se
+  // ajusta sola al domingo anterior para que el historial cuadre por semanas.
+  const esMauerpark = mercadoNombre.trim().toLowerCase() === "mauerpark";
+  const fechaCierre = (() => {
+    if (!esMauerpark || !fecha) return fecha;
+    const d = new Date(fecha + "T00:00:00Z");
+    if (isNaN(d.getTime())) return fecha;
+    const dia = d.getUTCDay();
+    if (dia !== 0) d.setUTCDate(d.getUTCDate() - dia);
+    return d.toISOString().slice(0, 10);
+  })();
   const turnoCosto = turnoTipo === "horas" ? turnoHoras * turnoTarifa : 0;
   // Las ventas de SumUp ya incluyen el IVA (importe bruto): para extraer la parte
   // de IVA de un bruto se divide entre 1,19, no se multiplica por 0,19.
@@ -197,7 +209,7 @@ export default function BalancePage() {
     const fila = {
       mercado_id: mercadoId === ESPECIAL ? null : mercadoId,
       mercado_nombre: mercadoNombre,
-      fecha,
+      fecha: fechaCierre,
       trabajador: trabajador.trim(),
       turno_tipo: turnoTipo,
       turno_horas: turnoTipo === "horas" ? turnoHoras : 0,
@@ -321,6 +333,11 @@ export default function BalancePage() {
               <div>
                 <label className="block text-xs text-gray-500 mb-1">{t.date}</label>
                 <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className={inputClass} />
+                {fechaCierre !== fecha && (
+                  <p className="text-[11px] text-purple-700 bg-purple-50 rounded-lg px-2 py-1 mt-1">
+                    {tr("sundayRuleHint", { date: fechaCierre })}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">{t.worker}</label>
