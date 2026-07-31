@@ -40,6 +40,10 @@ interface MercadoStats {
   minMedio: number;
   minTop: number;
   topN: number;
+  precioA4: number;
+  precioA3: number;
+  precioComboA4: number;
+  precioComboA3: number;
   porMes: number[];
   porSemana: number[];
   topPosters: { nombre: string; total: number; a4: number; a3: number }[];
@@ -114,7 +118,7 @@ export default function EstadisticasPage() {
   const [showAllPosters, setShowAllPosters] = useState(false);
   const [mercadoStats, setMercadoStats] = useState<MercadoStats[]>([]);
   const [mercadoSeleccionado, setMercadoSeleccionado] = useState<string | null>(null);
-  const [restockMinsEdit, setRestockMinsEdit] = useState<{ id: string; minBajo: number; minMedio: number; minTop: number; topN: number } | null>(null);
+  const [restockMinsEdit, setRestockMinsEdit] = useState<{ id: string; minBajo: number; minMedio: number; minTop: number; topN: number; precioA4: number; precioA3: number; precioComboA4: number; precioComboA3: number } | null>(null);
   const [savingMins, setSavingMins] = useState(false);
   const [saveMinsOk, setSaveMinsOk] = useState(false);
   const [saveMinsError, setSaveMinsError] = useState("");
@@ -139,7 +143,7 @@ export default function EstadisticasPage() {
     setSaveMinsError("");
     const { error } = await supabase
       .from("mercados")
-      .update({ min_bajo: restockMinsEdit.minBajo, min_medio: restockMinsEdit.minMedio, min_top: restockMinsEdit.minTop, top_n: restockMinsEdit.topN })
+      .update({ min_bajo: restockMinsEdit.minBajo, min_medio: restockMinsEdit.minMedio, min_top: restockMinsEdit.minTop, top_n: restockMinsEdit.topN, precio_a4: restockMinsEdit.precioA4, precio_a3: restockMinsEdit.precioA3, precio_combo_a4: restockMinsEdit.precioComboA4, precio_combo_a3: restockMinsEdit.precioComboA3 })
       .eq("id", restockMinsEdit.id);
     setSavingMins(false);
     if (error) { setSaveMinsError(error.message); }
@@ -262,10 +266,10 @@ export default function EstadisticasPage() {
     // Posters con inventario pero sin ventas en el período + config de mercados
     const [postersRes, mercadosRes] = await Promise.all([
       supabase.from("posters").select("nombre, activo, series(nombre, color)").eq("activo", true),
-      supabase.from("mercados").select("id, nombre, min_bajo, min_medio, min_top, top_n"),
+      supabase.from("mercados").select("id, nombre, min_bajo, min_medio, min_top, top_n, precio_a4, precio_a3, precio_combo_a4, precio_combo_a3"),
     ]);
     const { data: todosPosters } = postersRes;
-    type MercConf = { id: string; nombre: string; min_bajo: number; min_medio: number; min_top: number; top_n: number };
+    type MercConf = { id: string; nombre: string; min_bajo: number; min_medio: number; min_top: number; top_n: number; precio_a4: number; precio_a3: number; precio_combo_a4: number; precio_combo_a3: number };
     const mercadosConf = (mercadosRes.data || []) as unknown as MercConf[];
     type PosterRow = { nombre: string; series: { nombre: string; color: string } | null };
     const vendidosSet = new Set(Object.keys(porPoster).map((id) => porPoster[id].nombre));
@@ -482,6 +486,10 @@ export default function EstadisticasPage() {
             minMedio: conf?.min_medio ?? 4,
             minTop: conf?.min_top ?? 8,
             topN: conf?.top_n ?? 5,
+            precioA4: conf?.precio_a4 ?? 0,
+            precioA3: conf?.precio_a3 ?? 0,
+            precioComboA4: conf?.precio_combo_a4 ?? 0,
+            precioComboA3: conf?.precio_combo_a3 ?? 0,
             porMes: d.porMes,
             porSemana: d.porSemana,
             topPosters: Object.entries(d.topPosters)
@@ -833,7 +841,7 @@ export default function EstadisticasPage() {
                     onClick={() => {
                       setMercadoSeleccionado(m.mercado);
                       setMesMercado("todo");
-                      setRestockMinsEdit({ id: m.id, minBajo: m.minBajo, minMedio: m.minMedio, minTop: m.minTop, topN: m.topN });
+                      setRestockMinsEdit({ id: m.id, minBajo: m.minBajo, minMedio: m.minMedio, minTop: m.minTop, topN: m.topN, precioA4: m.precioA4, precioA3: m.precioA3, precioComboA4: m.precioComboA4, precioComboA3: m.precioComboA3 });
                       setSaveMinsOk(false);
                       setSaveMinsError("");
                     }}
@@ -1340,12 +1348,64 @@ export default function EstadisticasPage() {
                       </div>
                     </div>
 
+                    {/* Precios de venta: para cuadrar el cierre con el dinero */}
+                    <div className="border-t border-gray-100 pt-4 mt-1 mb-4">
+                      <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1">Precios de venta (EUR)</p>
+                      <p className="text-xs text-gray-400 mb-4">Con esto la app cuadra el cierre de pósters con el dinero del balance. El combo x3 es el precio del pack de 3.</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="text-center">
+                          <p className="text-xs font-semibold text-yellow-600 mb-1.5">A4 suelto</p>
+                          <input
+                            type="number" inputMode="decimal" min={0} step="0.5"
+                            value={restockMinsEdit.precioA4 || ""}
+                            placeholder="0"
+                            onChange={(e) => setRestockMinsEdit(prev => prev ? { ...prev, precioA4: parseFloat(e.target.value) || 0 } : null)}
+                            onFocus={(e) => e.target.select()}
+                            className="w-full text-center border-2 border-yellow-200 bg-yellow-50 rounded-xl py-2.5 text-lg font-bold focus:outline-none focus:border-yellow-400"
+                          />
+                        </div>
+                        <div className="text-center">
+                          <p className="text-xs font-semibold text-blue-600 mb-1.5">A3 suelto</p>
+                          <input
+                            type="number" inputMode="decimal" min={0} step="0.5"
+                            value={restockMinsEdit.precioA3 || ""}
+                            placeholder="0"
+                            onChange={(e) => setRestockMinsEdit(prev => prev ? { ...prev, precioA3: parseFloat(e.target.value) || 0 } : null)}
+                            onFocus={(e) => e.target.select()}
+                            className="w-full text-center border-2 border-blue-200 bg-blue-50 rounded-xl py-2.5 text-lg font-bold focus:outline-none focus:border-blue-400"
+                          />
+                        </div>
+                        <div className="text-center">
+                          <p className="text-xs font-semibold text-yellow-600 mb-1.5">Combo x3 A4</p>
+                          <input
+                            type="number" inputMode="decimal" min={0} step="0.5"
+                            value={restockMinsEdit.precioComboA4 || ""}
+                            placeholder="0"
+                            onChange={(e) => setRestockMinsEdit(prev => prev ? { ...prev, precioComboA4: parseFloat(e.target.value) || 0 } : null)}
+                            onFocus={(e) => e.target.select()}
+                            className="w-full text-center border-2 border-yellow-200 bg-yellow-50 rounded-xl py-2.5 text-lg font-bold focus:outline-none focus:border-yellow-400"
+                          />
+                        </div>
+                        <div className="text-center">
+                          <p className="text-xs font-semibold text-blue-600 mb-1.5">Combo x3 A3</p>
+                          <input
+                            type="number" inputMode="decimal" min={0} step="0.5"
+                            value={restockMinsEdit.precioComboA3 || ""}
+                            placeholder="0"
+                            onChange={(e) => setRestockMinsEdit(prev => prev ? { ...prev, precioComboA3: parseFloat(e.target.value) || 0 } : null)}
+                            onFocus={(e) => e.target.select()}
+                            className="w-full text-center border-2 border-blue-200 bg-blue-50 rounded-xl py-2.5 text-lg font-bold focus:outline-none focus:border-blue-400"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
                     <button
                       onClick={saveMercadoMins}
                       disabled={savingMins}
                       className={`w-full py-3 rounded-2xl font-semibold text-sm transition-colors disabled:opacity-40 ${saveMinsOk ? "bg-green-600 text-white" : "bg-black text-white hover:bg-gray-900"}`}
                     >
-                      {savingMins ? "Guardando..." : saveMinsOk ? "✓ Guardado" : "Guardar mínimos"}
+                      {savingMins ? "Guardando..." : saveMinsOk ? "✓ Guardado" : "Guardar ajustes"}
                     </button>
                     {saveMinsError && <p className="text-xs text-red-500 mt-2 text-center">{saveMinsError}</p>}
                   </div>

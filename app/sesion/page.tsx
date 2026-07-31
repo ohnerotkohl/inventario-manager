@@ -70,6 +70,9 @@ const MATERIALES_KEYS = [
 ] as const;
 type MaterialKey = typeof MATERIALES_KEYS[number];
 
+// Formato de euros para el cuadre (2 decimales, símbolo €)
+const eur = (n: number) => `${(Math.round(n * 100) / 100).toLocaleString("es-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+
 type Step = "info" | "ventas" | "confirmado";
 type TabPrincipal = "nueva" | "historial";
 
@@ -89,6 +92,8 @@ interface SesionHistorial {
   materiales: string[];
   combosA4: number;
   combosA3: number;
+  // Cuadre del cierre con el dinero del balance (null si faltan precios o balance)
+  cuadre: { esperado: number; real: number; diff: number; ok: boolean } | null;
 }
 
 interface VentaEntry {
@@ -181,30 +186,68 @@ export default function SesionPage() {
       materiales_faltantes: string[] | null;
       combos_a4: number | null;
       combos_a3: number | null;
-      mercados: { id: string; nombre: string; caja_id: string } | null;
+      mercados: { id: string; nombre: string; caja_id: string; precio_a4: number; precio_a3: number; precio_combo_a4: number; precio_combo_a3: number } | null;
       ventas: { cantidad: number; talla: string; posters: { nombre: string } | null }[];
     };
-    const { data } = await supabase
-      .from("sesiones")
-      .select("id, fecha, trabajador, materiales_faltantes, combos_a4, combos_a3, mercados(id, nombre, caja_id), ventas(cantidad, talla, posters(nombre))")
-      .order("fecha", { ascending: false })
-      .limit(50);
-    const rows = (data || []) as unknown as SesionRow[];
-    setHistorial(rows.map((r) => ({
-      id: r.id,
-      fecha: r.fecha,
-      mercadoId: r.mercados?.id || "",
-      mercadoNombre: r.mercados?.nombre || "—",
-      cajaId: r.mercados?.caja_id || "",
-      trabajador: r.trabajador || "—",
-      totalVentas: r.ventas.reduce((a, v) => a + v.cantidad, 0),
-      lineas: r.ventas
-        .map((v) => ({ nombre: v.posters?.nombre || "—", talla: v.talla, cantidad: v.cantidad }))
-        .sort((a, b) => b.cantidad - a.cantidad),
-      materiales: r.materiales_faltantes || [],
-      combosA4: r.combos_a4 || 0,
-      combosA3: r.combos_a3 || 0,
-    })));
+    const [sesRes, preciosRes, balancesRes] = await Promise.all([
+      supabase
+        .from("sesiones")
+        .select("id, fecha, trabajador, materiales_faltantes, combos_a4, combos_a3, mercados(id, nombre, caja_id, precio_a4, precio_a3, precio_combo_a4, precio_combo_a3), ventas(cantidad, talla, posters(nombre))")
+        .order("fecha", { ascending: false })
+        .limit(50),
+      supabase.from("mercados").select("id, precio_a4, precio_a3, precio_combo_a4, precio_combo_a3"),
+      supabase.from("balances").select("mercado_nombre, fecha, total_ventas"),
+    ]);
+    type PrecioRow = { id: string; precio_a4: number; precio_a3: number; precio_combo_a4: number; precio_combo_a3: number };
+    const precios: Record<string, PrecioRow> = {};
+    for (const p of ((preciosRes.data || []) as PrecioRow[])) precios[p.id] = p;
+    // Dinero real por mercado+fecha (clave: "nombre|fecha")
+    const dinero: Record<string, number> = {};
+    for (const b of ((balancesRes.data || []) as { mercado_nombre: string; fecha: string; total_ventas: number }[])) {
+      dinero[`${b.mercado_nombre}|${b.fecha}`] = (dinero[`${b.mercado_nombre}|${b.fecha}`] || 0) + b.total_ventas;
+    }
+    const TOLERANCIA = 10; // EUR: diferencias menores se consideran cuadradas
+
+    const rows = (sesRes.data || []) as unknown as SesionRow[];
+    setHistorial(rows.map((r) => {
+      const mercadoId = r.mercados?.id || "";
+      const mercadoNombre = r.mercados?.nombre || "—";
+      const a4 = r.ventas.filter((v) => v.talla === "A4").reduce((a, v) => a + v.cantidad, 0);
+      const a3 = r.ventas.filter((v) => v.talla === "A3").reduce((a, v) => a + v.cantidad, 0);
+      const combosA4 = r.combos_a4 || 0;
+      const combosA3 = r.combos_a3 || 0;
+
+      // Cuadre: solo si el mercado tiene precios y existe balance de dinero ese día
+      let cuadre: SesionHistorial["cuadre"] = null;
+      const pr = precios[mercadoId];
+      const real = dinero[`${mercadoNombre}|${r.fecha}`];
+      if (pr && (pr.precio_a4 > 0 || pr.precio_a3 > 0) && real !== undefined) {
+        // Unidades sueltas = total menos las que van en combos (cada combo = 3 pósters)
+        const sueltasA4 = Math.max(0, a4 - 3 * combosA4);
+        const sueltasA3 = Math.max(0, a3 - 3 * combosA3);
+        const esperado = sueltasA4 * pr.precio_a4 + combosA4 * pr.precio_combo_a4
+                       + sueltasA3 * pr.precio_a3 + combosA3 * pr.precio_combo_a3;
+        const diff = Math.round((real - esperado) * 100) / 100;
+        cuadre = { esperado: Math.round(esperado * 100) / 100, real, diff, ok: Math.abs(diff) <= TOLERANCIA };
+      }
+
+      return {
+        id: r.id,
+        fecha: r.fecha,
+        mercadoId,
+        mercadoNombre,
+        cajaId: r.mercados?.caja_id || "",
+        trabajador: r.trabajador || "—",
+        totalVentas: r.ventas.reduce((a, v) => a + v.cantidad, 0),
+        lineas: r.ventas
+          .map((v) => ({ nombre: v.posters?.nombre || "—", talla: v.talla, cantidad: v.cantidad }))
+          .sort((a, b) => b.cantidad - a.cantidad),
+        materiales: r.materiales_faltantes || [],
+        combosA4,
+        combosA3,
+        cuadre,
+      };
+    }));
     setLoadingHistorial(false);
   }
 
@@ -1157,6 +1200,25 @@ export default function SesionPage() {
                         <span className="text-gray-600"> · {t.combosTitle}: {s.combosA4} A4 / {s.combosA3} A3</span>
                       )}
                     </div>
+                    {/* Cuadre del cierre con el dinero del balance */}
+                    {s.cuadre && (
+                      <div className={`rounded-xl px-3 py-2.5 border ${s.cuadre.ok ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
+                        <div className="flex items-center justify-between">
+                          <p className={`text-xs font-bold uppercase tracking-widest ${s.cuadre.ok ? "text-green-600" : "text-red-500"}`}>
+                            {s.cuadre.ok ? t.reconcileOk : t.reconcileOff}
+                          </p>
+                          <p className={`text-sm font-bold ${s.cuadre.ok ? "text-green-700" : "text-red-600"}`}>
+                            {s.cuadre.diff > 0 ? "+" : ""}{eur(s.cuadre.diff)}
+                          </p>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {t.reconcileExpected}: {eur(s.cuadre.esperado)} · {t.reconcileReal}: {eur(s.cuadre.real)}
+                        </p>
+                        {!s.cuadre.ok && (
+                          <p className="text-xs text-red-600 mt-1">{s.cuadre.diff > 0 ? t.reconcileMore : t.reconcileLess}</p>
+                        )}
+                      </div>
+                    )}
                     {/* Materiales que faltaban en la caja ese día */}
                     {s.materiales.length > 0 && (
                       <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2 space-y-0.5">
