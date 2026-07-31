@@ -85,6 +85,8 @@ export default function RestockPage() {
   const [samplesList, setSamplesList] = useState<{ posterId: string; nombre: string; talla: "A4" | "A3" }[]>([]);
   const [saveError, setSaveError] = useState("");
   const [mercadoMins, setMercadoMins] = useState({ minBajo: 3, minMedio: 4, minTop: 8, topN: 5, nombre: "" });
+  // Materiales marcados como faltantes en el último cierre de cada mercado de esta caja
+  const [materialesFaltan, setMaterialesFaltan] = useState<{ key: string; mercado: string; fecha: string }[]>([]);
 
   // El nombre del trabajador viene del usuario logueado
   useEffect(() => {
@@ -122,6 +124,7 @@ export default function RestockPage() {
 
   async function loadPrintData(ps: PosterConStock[], cid: string) {
     setPrintLoading(true);
+    setMaterialesFaltan([]);
 
     // 1. Mercados asociados a esta caja → obtener sus mínimos configurados
     type MercRow = { id: string; nombre: string; min_bajo: number; min_medio: number; min_top: number; top_n: number };
@@ -142,15 +145,31 @@ export default function RestockPage() {
 
     // 2. Sesiones en estos mercados
     const mercadoIds = mercs.map(m => m.id);
+    const mercNombre: { [id: string]: string } = Object.fromEntries(mercs.map(m => [m.id, m.nombre]));
     let newTop = new Set<string>();
     let newHasSales = new Set<string>();
 
     if (mercadoIds.length > 0) {
       const { data: sesionesData } = await supabase
         .from("sesiones")
-        .select("id")
-        .in("mercado_id", mercadoIds);
-      const sesionIds = ((sesionesData || []) as { id: string }[]).map(s => s.id);
+        .select("id, fecha, mercado_id, materiales_faltantes")
+        .in("mercado_id", mercadoIds)
+        .order("fecha", { ascending: false });
+      const sesiones = (sesionesData || []) as { id: string; fecha: string; mercado_id: string; materiales_faltantes: string[] | null }[];
+      const sesionIds = sesiones.map(s => s.id);
+
+      // Materiales del stand que faltaban en el ÚLTIMO cierre de cada mercado
+      // (se reponen; solo el cierre más reciente refleja qué falta ahora).
+      const vistos = new Set<string>();
+      const faltan: { key: string; mercado: string; fecha: string }[] = [];
+      for (const s of sesiones) {
+        if (vistos.has(s.mercado_id)) continue;
+        vistos.add(s.mercado_id);
+        for (const key of (s.materiales_faltantes || [])) {
+          faltan.push({ key, mercado: mercNombre[s.mercado_id] || "", fecha: s.fecha });
+        }
+      }
+      setMaterialesFaltan(faltan);
 
       if (sesionIds.length > 0) {
         // 3. Ventas históricas en estas sesiones → velocidad por póster.
@@ -750,6 +769,28 @@ export default function RestockPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Restock — {caja?.nombre}</h1>
       </div>
+
+      {/* Materiales del stand que faltaban en el último cierre: hay que reponerlos */}
+      {materialesFaltan.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+          <p className="text-xs font-bold uppercase tracking-widest text-red-500 mb-2 flex items-center gap-1.5">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            {t.materialsToRestock}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {materialesFaltan.map((m, i) => (
+              <span key={i} className="text-sm text-red-800 bg-white border border-red-200 rounded-lg px-2.5 py-1">
+                {t[m.key as keyof typeof t] || m.key}
+                {materialesFaltan.some((o) => o.key === m.key && o.mercado !== m.mercado) && (
+                  <span className="text-red-400 text-xs"> · {m.mercado}</span>
+                )}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Tab switcher Imprimir / Restock */}
       <div className="flex gap-2">
