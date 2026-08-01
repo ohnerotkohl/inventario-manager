@@ -68,6 +68,8 @@ export default function ImprimirPage() {
   const [generating, setGenerating] = useState(false);
   const [pdfWarnings, setPdfWarnings] = useState<string[]>([]);
   const [reloadKey, setReloadKey] = useState(0);
+  // Nombre de la caja/mercado, para nombrar el PDF descargado
+  const [mercadoNombre, setMercadoNombre] = useState("");
 
   useEffect(() => {
     async function init() {
@@ -75,6 +77,7 @@ export default function ImprimirPage() {
         setLoading(true);
         setError(null);
         const raw = localStorage.getItem("or_print_job");
+        setMercadoNombre(localStorage.getItem("or_print_mercado") || "");
         if (!raw) { setLoading(false); return; }
         const items: PrintItem[] = JSON.parse(raw);
         if (items.length === 0) { setLoading(false); return; }
@@ -191,8 +194,12 @@ export default function ImprimirPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       const fecha = new Date().toISOString().slice(0, 10);
+      // Mercado saneado para nombre de archivo (sin espacios ni acentos raros)
+      const mercadoSlug = mercadoNombre
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-+|-+$/g, "");
       a.href = url;
-      a.download = `imprimir-${talla}-${fecha}.pdf`;
+      a.download = `${mercadoSlug ? mercadoSlug + "-" : ""}imprimir-${talla}-${fecha}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();

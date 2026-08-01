@@ -904,6 +904,8 @@ export default function RestockPage() {
                 .filter((p) => aImprimir(`${p.id}-${talla}`) > 0 && (talla === "A4" ? p.tiene_a4 : p.tiene_a3))
                 .map((p) => ({ nombre: p.nombre, talla, qty: aImprimir(`${p.id}-${talla}`) }));
               localStorage.setItem("or_print_job", JSON.stringify(items));
+              // El nombre de la caja/mercado viaja aparte para nombrar el PDF
+              localStorage.setItem("or_print_mercado", caja?.nombre || "");
               window.open("/imprimir", "_blank");
             }
             return (
