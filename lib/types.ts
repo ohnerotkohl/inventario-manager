@@ -29,6 +29,7 @@ export interface Mercado {
   caja_id: string
   costo_stand?: number
   contabilidad?: 'negocio' | 'marcello' | 'nuria'
+  responsable?: string | null
   cajas?: Caja
 }
 

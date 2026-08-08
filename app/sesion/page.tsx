@@ -367,8 +367,24 @@ export default function SesionPage() {
     setLoading(false);
   }
 
-  function handleIniciar() {
+  async function handleIniciar() {
     if (!mercadoId || !trabajador.trim()) return;
+    const mercadoSel = mercados.find((m) => m.id === mercadoId);
+
+    // Aviso 1: no eres el responsable de este mercado (evita cerrar el equivocado)
+    const resp = mercadoSel?.responsable?.trim();
+    const quien = (user?.nombre || trabajador).trim();
+    if (resp && quien && resp.toLowerCase() !== quien.toLowerCase()) {
+      if (!confirm(tr("notResponsibleConfirm", { resp, market: mercadoSel?.nombre || "" }))) return;
+    }
+
+    // Aviso 2: ya hay un cierre de este mercado hoy (si sigues, se suma a ese)
+    const { data: yaExiste } = await supabase
+      .from("sesiones").select("trabajador").eq("mercado_id", mercadoId).eq("fecha", fecha).maybeSingle();
+    if (yaExiste && !modoEdicion) {
+      if (!confirm(tr("alreadyClosedConfirm", { market: mercadoSel?.nombre || "", worker: yaExiste.trabajador || "" }))) return;
+    }
+
     cargarPosters();
     setStep("ventas");
   }
