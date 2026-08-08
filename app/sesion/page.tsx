@@ -378,11 +378,17 @@ export default function SesionPage() {
       if (!confirm(tr("notResponsibleConfirm", { resp, market: mercadoSel?.nombre || "" }))) return;
     }
 
-    // Aviso 2: ya hay un cierre de este mercado hoy (si sigues, se suma a ese)
-    const { data: yaExiste } = await supabase
-      .from("sesiones").select("trabajador").eq("mercado_id", mercadoId).eq("fecha", fecha).maybeSingle();
-    if (yaExiste && !modoEdicion) {
-      if (!confirm(tr("alreadyClosedConfirm", { market: mercadoSel?.nombre || "", worker: yaExiste.trabajador || "" }))) return;
+    // Aviso 2: ya hay un cierre de este mercado hoy. Puede haber más de uno
+    // (uno por persona), por eso NO se usa maybeSingle: se traen todos.
+    const { data: cierresHoy } = await supabase
+      .from("sesiones").select("trabajador").eq("mercado_id", mercadoId).eq("fecha", fecha);
+    if (!modoEdicion && cierresHoy && cierresHoy.length > 0) {
+      const mismos = cierresHoy.some((c) => (c.trabajador || "").trim().toLowerCase() === quien.toLowerCase());
+      const otros = [...new Set(cierresHoy.map((c) => c.trabajador).filter(Boolean))].join(", ");
+      const msg = mismos
+        ? tr("alreadyClosedSameConfirm", { market: mercadoSel?.nombre || "" })
+        : tr("alreadyClosedOtherConfirm", { market: mercadoSel?.nombre || "", worker: otros });
+      if (!confirm(msg)) return;
     }
 
     cargarPosters();
@@ -598,12 +604,17 @@ export default function SesionPage() {
       setSesionMercadoIdOriginal("");
 
     } else {
-      // MODO NORMAL: buscar o crear sesión
+      // MODO NORMAL: buscar o crear sesión.
+      // Solo se fusiona con un cierre existente si es la MISMA persona añadiendo
+      // más ventas a su propio cierre. Si otra persona cierra el mismo mercado y
+      // día, se crea un cierre APARTE (así un cierre en el mercado equivocado
+      // queda suelto y se puede corregir desde Historial > Editar sin enredar).
       const { data: sesionExistente } = await supabase
         .from("sesiones")
         .select("id")
         .eq("mercado_id", mercadoId)
         .eq("fecha", fecha)
+        .eq("trabajador", trabajador.trim())
         .maybeSingle();
 
       let nuevaSesionId: string;
