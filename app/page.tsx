@@ -75,6 +75,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [configured, setConfigured] = useState(true);
   const [alertaAbierta, setAlertaAbierta] = useState<"out" | "stockBajo" | "sampleFalta" | "materiales" | "insumos" | null>(null);
+  // En el detalle de samples: mercado (caja) elegido, null = pantalla de elegir mercado
+  const [sampleMercado, setSampleMercado] = useState<string | null>(null);
   const [alertDetails, setAlertDetails] = useState<{ out: AlertDetail[]; stockBajo: AlertDetail[]; sampleFalta: AlertDetail[] }>({ out: [], stockBajo: [], sampleFalta: [] });
 
   // Prueba dark mode: el fondo oscuro se activa solo mientras estás en Inicio
@@ -260,7 +262,7 @@ export default function Dashboard() {
               </button>
             )}
             {alertas.sampleFalta > 0 && (
-              <button onClick={() => setAlertaAbierta("sampleFalta")} className="bg-orange-900/30 rounded-xl p-3 text-center hover:bg-orange-900/50 transition-colors active:scale-95">
+              <button onClick={() => { setSampleMercado(null); setAlertaAbierta("sampleFalta"); }} className="bg-orange-900/30 rounded-xl p-3 text-center hover:bg-orange-900/50 transition-colors active:scale-95">
                 <p className="text-2xl font-bold text-orange-400">{alertas.sampleFalta}</p>
                 <p className="text-xs text-orange-300">{t.missingSamples}</p>
               </button>
@@ -553,36 +555,86 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {/* Samples — agrupar A4+A3 en misma fila */}
+              {/* Samples — primero eliges mercado, luego ves el conteo A4/A3 */}
               {alertaAbierta === "sampleFalta" && (() => {
-                const grouped: { nombre: string; caja: string; a4: boolean; a3: boolean }[] = [];
-                const seen = new Map<string, number>();
+                // Agrupar por mercado (caja): conteo A4/A3 y lista de pósters
+                const porMercado = new Map<string, { a4: number; a3: number; items: { nombre: string; a4: boolean; a3: boolean }[]; seen: Map<string, number> }>();
                 for (const d of alertDetails.sampleFalta) {
-                  const key = `${d.nombre}|${d.caja}`;
-                  if (seen.has(key)) {
-                    const entry = grouped[seen.get(key)!];
-                    if (d.talla === "A4") entry.a4 = true;
-                    if (d.talla === "A3") entry.a3 = true;
+                  let m = porMercado.get(d.caja);
+                  if (!m) { m = { a4: 0, a3: 0, items: [], seen: new Map() }; porMercado.set(d.caja, m); }
+                  if (d.talla === "A4") m.a4++;
+                  if (d.talla === "A3") m.a3++;
+                  const k = d.nombre;
+                  if (m.seen.has(k)) {
+                    const it = m.items[m.seen.get(k)!];
+                    if (d.talla === "A4") it.a4 = true;
+                    if (d.talla === "A3") it.a3 = true;
                   } else {
-                    seen.set(key, grouped.length);
-                    grouped.push({ nombre: d.nombre, caja: d.caja, a4: d.talla === "A4", a3: d.talla === "A3" });
+                    m.seen.set(k, m.items.length);
+                    m.items.push({ nombre: d.nombre, a4: d.talla === "A4", a3: d.talla === "A3" });
                   }
                 }
+                const mercados = [...porMercado.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+
+                // NIVEL 1: elegir mercado
+                if (!sampleMercado) {
+                  return (
+                    <div className="space-y-2">
+                      <p className="text-xs text-gray-400 px-1 mb-1">{t.chooseMarketSamples}</p>
+                      {mercados.map(([caja, m]) => (
+                        <button
+                          key={caja}
+                          onClick={() => setSampleMercado(caja)}
+                          className="w-full flex items-center justify-between bg-gray-950/60 border border-gray-800 rounded-2xl px-4 py-4 hover:bg-gray-800/60 transition-colors active:scale-[0.99]"
+                        >
+                          <span className="font-semibold text-gray-100">{caja}</span>
+                          <span className="flex items-center gap-2">
+                            {m.a4 > 0 && <span className="text-xs font-bold px-2 py-1 rounded-md bg-yellow-900/40 text-yellow-300">{m.a4} A4</span>}
+                            {m.a3 > 0 && <span className="text-xs font-bold px-2 py-1 rounded-md bg-blue-900/40 text-blue-300">{m.a3} A3</span>}
+                            <span className="text-gray-500">›</span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  );
+                }
+
+                // NIVEL 2: mercado elegido → conteo grande + lista
+                const m = porMercado.get(sampleMercado);
+                if (!m) { return <p className="text-sm text-gray-400 text-center py-6">{t.noSamplesMarket}</p>; }
                 return (
-                  <div className="bg-gray-950/60 border border-gray-800 rounded-2xl overflow-hidden">
-                    {grouped.map((d, idx) => (
-                      <div key={idx} className={`flex items-center gap-3 px-4 py-3 ${idx < grouped.length - 1 ? "border-b border-gray-800" : ""}`}>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-orange-400 flex-shrink-0">
-                          <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
-                        </svg>
-                        <p className="flex-1 text-sm font-medium text-gray-200">{d.nombre}</p>
-                        <div className="flex gap-1 flex-shrink-0">
-                          {d.a4 && <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-yellow-900/40 text-yellow-300">A4</span>}
-                          {d.a3 && <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-blue-900/40 text-blue-300">A3</span>}
-                        </div>
-                        <span className="text-xs text-gray-400 flex-shrink-0">{d.caja}</span>
+                  <div className="space-y-4">
+                    <button onClick={() => setSampleMercado(null)} className="text-xs text-gray-400 hover:text-gray-200 flex items-center gap-1">
+                      ‹ {t.backToMarkets}
+                    </button>
+                    <p className="font-bold text-gray-100 text-lg">{sampleMercado}</p>
+                    {/* Cartones a llevar: conteo grande separado */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-yellow-900/20 border border-yellow-900/40 rounded-2xl py-4 text-center">
+                        <p className="text-3xl font-bold text-yellow-300">{m.a4}</p>
+                        <p className="text-xs text-yellow-200/70 mt-1">{t.samplesA4}</p>
                       </div>
-                    ))}
+                      <div className="bg-blue-900/20 border border-blue-900/40 rounded-2xl py-4 text-center">
+                        <p className="text-3xl font-bold text-blue-300">{m.a3}</p>
+                        <p className="text-xs text-blue-200/70 mt-1">{t.samplesA3}</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 px-1">{tr("cartonsToBring", { n: m.a4 + m.a3 })}</p>
+                    {/* Lista de qué pósters */}
+                    <div className="bg-gray-950/60 border border-gray-800 rounded-2xl overflow-hidden">
+                      {m.items.map((d, idx) => (
+                        <div key={idx} className={`flex items-center gap-3 px-4 py-3 ${idx < m.items.length - 1 ? "border-b border-gray-800" : ""}`}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-orange-400 flex-shrink-0">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                          </svg>
+                          <p className="flex-1 text-sm font-medium text-gray-200">{d.nombre}</p>
+                          <div className="flex gap-1 flex-shrink-0">
+                            {d.a4 && <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-yellow-900/40 text-yellow-300">A4</span>}
+                            {d.a3 && <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-blue-900/40 text-blue-300">A3</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 );
               })()}
