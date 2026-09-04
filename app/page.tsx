@@ -75,8 +75,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [configured, setConfigured] = useState(true);
   const [alertaAbierta, setAlertaAbierta] = useState<"out" | "stockBajo" | "sampleFalta" | "materiales" | "insumos" | null>(null);
-  // En el detalle de samples: mercado (caja) elegido, null = pantalla de elegir mercado
-  const [sampleMercado, setSampleMercado] = useState<string | null>(null);
+  // En el detalle de una alerta: mercado (caja) elegido, null = pantalla de elegir mercado
+  const [alertMercado, setAlertMercado] = useState<string | null>(null);
   const [alertDetails, setAlertDetails] = useState<{ out: AlertDetail[]; stockBajo: AlertDetail[]; sampleFalta: AlertDetail[] }>({ out: [], stockBajo: [], sampleFalta: [] });
 
   // Prueba dark mode: el fondo oscuro se activa solo mientras estás en Inicio
@@ -234,6 +234,77 @@ export default function Dashboard() {
 
   const totalAlertas = alertas.out + alertas.stockBajo + alertas.sampleFalta + alertas.materiales + alertas.insumos;
 
+  // Vista reutilizable "elegir mercado → ver el detalle de ese mercado".
+  // Se usa en todas las alertas para no mezclar mercados en una lista larga.
+  function GroupedByMarket({ items, tiles, renderRows }: {
+    items: AlertDetail[];
+    tiles: boolean; // mostrar los recuadros grandes A4/A3
+    renderRows: (items: AlertDetail[]) => React.ReactNode;
+  }) {
+    const groups = new Map<string, { a4: number; a3: number; items: AlertDetail[] }>();
+    for (const d of items) {
+      let g = groups.get(d.caja);
+      if (!g) { g = { a4: 0, a3: 0, items: [] }; groups.set(d.caja, g); }
+      if (d.talla === "A4") g.a4++; else if (d.talla === "A3") g.a3++;
+      g.items.push(d);
+    }
+    const lista = [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+
+    // NIVEL 1: elegir mercado
+    if (!alertMercado) {
+      return (
+        <div className="space-y-2">
+          <p className="text-xs text-gray-400 px-1 mb-1">{t.chooseMarketSamples}</p>
+          {lista.map(([caja, g]) => (
+            <button
+              key={caja}
+              onClick={() => setAlertMercado(caja)}
+              className="w-full flex items-center justify-between bg-gray-950/60 border border-gray-800 rounded-2xl px-4 py-4 hover:bg-gray-800/60 transition-colors active:scale-[0.99]"
+            >
+              <span className="font-semibold text-gray-100">{caja}</span>
+              <span className="flex items-center gap-2">
+                {tiles ? (
+                  <>
+                    {g.a4 > 0 && <span className="text-xs font-bold px-2 py-1 rounded-md bg-yellow-900/40 text-yellow-300">{g.a4} A4</span>}
+                    {g.a3 > 0 && <span className="text-xs font-bold px-2 py-1 rounded-md bg-blue-900/40 text-blue-300">{g.a3} A3</span>}
+                  </>
+                ) : (
+                  <span className="text-xs font-bold px-2 py-1 rounded-md bg-gray-800 text-gray-300">{g.items.length}</span>
+                )}
+                <span className="text-gray-500">›</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      );
+    }
+
+    // NIVEL 2: mercado elegido
+    const g = groups.get(alertMercado);
+    if (!g) return <p className="text-sm text-gray-400 text-center py-6">{t.noSamplesMarket}</p>;
+    return (
+      <div className="space-y-4">
+        <button onClick={() => setAlertMercado(null)} className="text-xs text-gray-400 hover:text-gray-200 flex items-center gap-1">
+          ‹ {t.backToMarkets}
+        </button>
+        <p className="font-bold text-gray-100 text-lg">{alertMercado}</p>
+        {tiles && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-yellow-900/20 border border-yellow-900/40 rounded-2xl py-4 text-center">
+              <p className="text-3xl font-bold text-yellow-300">{g.a4}</p>
+              <p className="text-xs text-yellow-200/70 mt-1">A4</p>
+            </div>
+            <div className="bg-blue-900/20 border border-blue-900/40 rounded-2xl py-4 text-center">
+              <p className="text-3xl font-bold text-blue-300">{g.a3}</p>
+              <p className="text-xs text-blue-200/70 mt-1">A3</p>
+            </div>
+          </div>
+        )}
+        {renderRows(g.items)}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -250,25 +321,25 @@ export default function Dashboard() {
           </p>
           <div className="grid grid-cols-2 gap-2">
             {alertas.out > 0 && (
-              <button onClick={() => setAlertaAbierta("out")} className="bg-red-900/40 rounded-xl p-3 text-center hover:bg-red-900/60 transition-colors active:scale-95">
+              <button onClick={() => { setAlertMercado(null); setAlertaAbierta("out"); }} className="bg-red-900/40 rounded-xl p-3 text-center hover:bg-red-900/60 transition-colors active:scale-95">
                 <p className="text-2xl font-bold text-red-400">{alertas.out}</p>
                 <p className="text-xs text-red-300">{t.soldOut}</p>
               </button>
             )}
             {alertas.stockBajo > 0 && (
-              <button onClick={() => setAlertaAbierta("stockBajo")} className="bg-yellow-900/30 rounded-xl p-3 text-center hover:bg-yellow-900/50 transition-colors active:scale-95">
+              <button onClick={() => { setAlertMercado(null); setAlertaAbierta("stockBajo"); }} className="bg-yellow-900/30 rounded-xl p-3 text-center hover:bg-yellow-900/50 transition-colors active:scale-95">
                 <p className="text-2xl font-bold text-yellow-400">{alertas.stockBajo}</p>
                 <p className="text-xs text-yellow-300">{t.lowStock}</p>
               </button>
             )}
             {alertas.sampleFalta > 0 && (
-              <button onClick={() => { setSampleMercado(null); setAlertaAbierta("sampleFalta"); }} className="bg-orange-900/30 rounded-xl p-3 text-center hover:bg-orange-900/50 transition-colors active:scale-95">
+              <button onClick={() => { setAlertMercado(null); setAlertaAbierta("sampleFalta"); }} className="bg-orange-900/30 rounded-xl p-3 text-center hover:bg-orange-900/50 transition-colors active:scale-95">
                 <p className="text-2xl font-bold text-orange-400">{alertas.sampleFalta}</p>
                 <p className="text-xs text-orange-300">{t.missingSamples}</p>
               </button>
             )}
             {alertas.materiales > 0 && (
-              <button onClick={() => setAlertaAbierta("materiales")} className="bg-yellow-900/30 rounded-xl p-3 text-center hover:bg-yellow-900/50 transition-colors active:scale-95">
+              <button onClick={() => { setAlertMercado(null); setAlertaAbierta("materiales"); }} className="bg-yellow-900/30 rounded-xl p-3 text-center hover:bg-yellow-900/50 transition-colors active:scale-95">
                 <p className="text-2xl font-bold text-yellow-400">{alertas.materiales}</p>
                 <p className="text-xs text-yellow-300">{t.boxMaterials}</p>
               </button>
@@ -527,129 +598,89 @@ export default function Dashboard() {
             {/* Lista */}
             <div className="overflow-y-auto flex-1 p-4">
 
-              {/* Sold Out */}
+              {/* Sold Out — por mercado */}
               {alertaAbierta === "out" && (
-                <div className="bg-gray-950/60 border border-gray-800 rounded-2xl overflow-hidden">
-                  {alertDetails.out.map((d, idx) => (
-                    <div key={idx} className={`flex items-center gap-3 px-4 py-3 ${idx < alertDetails.out.length - 1 ? "border-b border-gray-800" : ""}`}>
-                      <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
-                      <p className="flex-1 text-sm font-medium text-gray-200">{d.nombre}</p>
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${d.talla === "A4" ? "bg-yellow-900/40 text-yellow-300" : "bg-blue-900/40 text-blue-300"}`}>{d.talla}</span>
-                      <span className="text-xs text-gray-400 flex-shrink-0">{d.caja}</span>
-                    </div>
-                  ))}
-                </div>
+                <GroupedByMarket items={alertDetails.out} tiles renderRows={(items) => (
+                  <div className="bg-gray-950/60 border border-gray-800 rounded-2xl overflow-hidden">
+                    {items.map((d, idx) => (
+                      <div key={idx} className={`flex items-center gap-3 px-4 py-3 ${idx < items.length - 1 ? "border-b border-gray-800" : ""}`}>
+                        <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
+                        <p className="flex-1 text-sm font-medium text-gray-200">{d.nombre}</p>
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${d.talla === "A4" ? "bg-yellow-900/40 text-yellow-300" : "bg-blue-900/40 text-blue-300"}`}>{d.talla}</span>
+                      </div>
+                    ))}
+                  </div>
+                )} />
               )}
 
-              {/* Stock bajo */}
+              {/* Stock bajo — por mercado */}
               {alertaAbierta === "stockBajo" && (
-                <div className="bg-gray-950/60 border border-gray-800 rounded-2xl overflow-hidden">
-                  {alertDetails.stockBajo.map((d, idx) => (
-                    <div key={idx} className={`flex items-center gap-3 px-4 py-3 ${idx < alertDetails.stockBajo.length - 1 ? "border-b border-gray-800" : ""}`}>
-                      <span className={`text-xs font-bold px-2 py-1 rounded-lg min-w-[28px] text-center ${d.cantidad === 1 ? "bg-red-900/40 text-red-300" : "bg-yellow-900/40 text-yellow-300"}`}>{d.cantidad}</span>
-                      <p className="flex-1 text-sm font-medium text-gray-200">{d.nombre}</p>
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${d.talla === "A4" ? "bg-yellow-900/40 text-yellow-300" : "bg-blue-900/40 text-blue-300"}`}>{d.talla}</span>
-                      <span className="text-xs text-gray-400 flex-shrink-0">{d.caja}</span>
-                    </div>
-                  ))}
-                </div>
+                <GroupedByMarket items={alertDetails.stockBajo} tiles renderRows={(items) => (
+                  <div className="bg-gray-950/60 border border-gray-800 rounded-2xl overflow-hidden">
+                    {items.map((d, idx) => (
+                      <div key={idx} className={`flex items-center gap-3 px-4 py-3 ${idx < items.length - 1 ? "border-b border-gray-800" : ""}`}>
+                        <span className={`text-xs font-bold px-2 py-1 rounded-lg min-w-[28px] text-center ${d.cantidad === 1 ? "bg-red-900/40 text-red-300" : "bg-yellow-900/40 text-yellow-300"}`}>{d.cantidad}</span>
+                        <p className="flex-1 text-sm font-medium text-gray-200">{d.nombre}</p>
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${d.talla === "A4" ? "bg-yellow-900/40 text-yellow-300" : "bg-blue-900/40 text-blue-300"}`}>{d.talla}</span>
+                      </div>
+                    ))}
+                  </div>
+                )} />
               )}
 
-              {/* Samples — primero eliges mercado, luego ves el conteo A4/A3 */}
-              {alertaAbierta === "sampleFalta" && (() => {
-                // Agrupar por mercado (caja): conteo A4/A3 y lista de pósters
-                const porMercado = new Map<string, { a4: number; a3: number; items: { nombre: string; a4: boolean; a3: boolean }[]; seen: Map<string, number> }>();
-                for (const d of alertDetails.sampleFalta) {
-                  let m = porMercado.get(d.caja);
-                  if (!m) { m = { a4: 0, a3: 0, items: [], seen: new Map() }; porMercado.set(d.caja, m); }
-                  if (d.talla === "A4") m.a4++;
-                  if (d.talla === "A3") m.a3++;
-                  const k = d.nombre;
-                  if (m.seen.has(k)) {
-                    const it = m.items[m.seen.get(k)!];
-                    if (d.talla === "A4") it.a4 = true;
-                    if (d.talla === "A3") it.a3 = true;
-                  } else {
-                    m.seen.set(k, m.items.length);
-                    m.items.push({ nombre: d.nombre, a4: d.talla === "A4", a3: d.talla === "A3" });
+              {/* Samples — por mercado, con conteo A4/A3 para saber cuántos cartones llevar */}
+              {alertaAbierta === "sampleFalta" && (
+                <GroupedByMarket items={alertDetails.sampleFalta} tiles renderRows={(items) => {
+                  // Combinar A4+A3 del mismo póster en una fila
+                  const grouped: { nombre: string; a4: boolean; a3: boolean }[] = [];
+                  const seen = new Map<string, number>();
+                  for (const d of items) {
+                    if (seen.has(d.nombre)) {
+                      const it = grouped[seen.get(d.nombre)!];
+                      if (d.talla === "A4") it.a4 = true; else if (d.talla === "A3") it.a3 = true;
+                    } else {
+                      seen.set(d.nombre, grouped.length);
+                      grouped.push({ nombre: d.nombre, a4: d.talla === "A4", a3: d.talla === "A3" });
+                    }
                   }
-                }
-                const mercados = [...porMercado.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-
-                // NIVEL 1: elegir mercado
-                if (!sampleMercado) {
                   return (
-                    <div className="space-y-2">
-                      <p className="text-xs text-gray-400 px-1 mb-1">{t.chooseMarketSamples}</p>
-                      {mercados.map(([caja, m]) => (
-                        <button
-                          key={caja}
-                          onClick={() => setSampleMercado(caja)}
-                          className="w-full flex items-center justify-between bg-gray-950/60 border border-gray-800 rounded-2xl px-4 py-4 hover:bg-gray-800/60 transition-colors active:scale-[0.99]"
-                        >
-                          <span className="font-semibold text-gray-100">{caja}</span>
-                          <span className="flex items-center gap-2">
-                            {m.a4 > 0 && <span className="text-xs font-bold px-2 py-1 rounded-md bg-yellow-900/40 text-yellow-300">{m.a4} A4</span>}
-                            {m.a3 > 0 && <span className="text-xs font-bold px-2 py-1 rounded-md bg-blue-900/40 text-blue-300">{m.a3} A3</span>}
-                            <span className="text-gray-500">›</span>
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  );
-                }
-
-                // NIVEL 2: mercado elegido → conteo grande + lista
-                const m = porMercado.get(sampleMercado);
-                if (!m) { return <p className="text-sm text-gray-400 text-center py-6">{t.noSamplesMarket}</p>; }
-                return (
-                  <div className="space-y-4">
-                    <button onClick={() => setSampleMercado(null)} className="text-xs text-gray-400 hover:text-gray-200 flex items-center gap-1">
-                      ‹ {t.backToMarkets}
-                    </button>
-                    <p className="font-bold text-gray-100 text-lg">{sampleMercado}</p>
-                    {/* Cartones a llevar: conteo grande separado */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-yellow-900/20 border border-yellow-900/40 rounded-2xl py-4 text-center">
-                        <p className="text-3xl font-bold text-yellow-300">{m.a4}</p>
-                        <p className="text-xs text-yellow-200/70 mt-1">{t.samplesA4}</p>
-                      </div>
-                      <div className="bg-blue-900/20 border border-blue-900/40 rounded-2xl py-4 text-center">
-                        <p className="text-3xl font-bold text-blue-300">{m.a3}</p>
-                        <p className="text-xs text-blue-200/70 mt-1">{t.samplesA3}</p>
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-500 px-1">{tr("cartonsToBring", { n: m.a4 + m.a3 })}</p>
-                    {/* Lista de qué pósters */}
-                    <div className="bg-gray-950/60 border border-gray-800 rounded-2xl overflow-hidden">
-                      {m.items.map((d, idx) => (
-                        <div key={idx} className={`flex items-center gap-3 px-4 py-3 ${idx < m.items.length - 1 ? "border-b border-gray-800" : ""}`}>
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-orange-400 flex-shrink-0">
-                            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
-                          </svg>
-                          <p className="flex-1 text-sm font-medium text-gray-200">{d.nombre}</p>
-                          <div className="flex gap-1 flex-shrink-0">
-                            {d.a4 && <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-yellow-900/40 text-yellow-300">A4</span>}
-                            {d.a3 && <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-blue-900/40 text-blue-300">A3</span>}
+                    <>
+                      <p className="text-xs text-gray-500 px-1">{tr("cartonsToBring", { n: items.length })}</p>
+                      <div className="bg-gray-950/60 border border-gray-800 rounded-2xl overflow-hidden">
+                        {grouped.map((d, idx) => (
+                          <div key={idx} className={`flex items-center gap-3 px-4 py-3 ${idx < grouped.length - 1 ? "border-b border-gray-800" : ""}`}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-orange-400 flex-shrink-0">
+                              <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                            </svg>
+                            <p className="flex-1 text-sm font-medium text-gray-200">{d.nombre}</p>
+                            <div className="flex gap-1 flex-shrink-0">
+                              {d.a4 && <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-yellow-900/40 text-yellow-300">A4</span>}
+                              {d.a3 && <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-blue-900/40 text-blue-300">A3</span>}
+                            </div>
                           </div>
+                        ))}
+                      </div>
+                    </>
+                  );
+                }} />
+              )}
+
+              {/* Materiales de caja — por mercado */}
+              {alertaAbierta === "materiales" && (
+                <GroupedByMarket
+                  items={materialesPendientes.map((m) => ({ nombre: m.nombre, talla: "", caja: m.detalle || "Sin caja" }))}
+                  tiles={false}
+                  renderRows={(items) => (
+                    <div className="bg-gray-950/60 border border-gray-800 rounded-2xl overflow-hidden">
+                      {items.map((m, idx) => (
+                        <div key={idx} className={`flex items-center gap-3 px-4 py-3 ${idx < items.length - 1 ? "border-b border-gray-800" : ""}`}>
+                          <span className="w-2 h-2 rounded-full bg-yellow-500 flex-shrink-0" />
+                          <p className="flex-1 text-sm font-medium text-gray-200">{m.nombre}</p>
                         </div>
                       ))}
                     </div>
-                  </div>
-                );
-              })()}
-
-              {/* Materiales de caja */}
-              {alertaAbierta === "materiales" && (
-                <div className="bg-gray-950/60 border border-gray-800 rounded-2xl overflow-hidden">
-                  {materialesPendientes.map((m, idx) => (
-                    <div key={idx} className={`flex items-center gap-3 px-4 py-3 ${idx < materialesPendientes.length - 1 ? "border-b border-gray-800" : ""}`}>
-                      <span className="w-2 h-2 rounded-full bg-yellow-500 flex-shrink-0" />
-                      <p className="flex-1 text-sm font-medium text-gray-200">{m.nombre}</p>
-                      {m.detalle && <span className="text-xs text-gray-400 flex-shrink-0">{m.detalle}</span>}
-                    </div>
-                  ))}
-                </div>
+                  )}
+                />
               )}
 
               {/* Insumos estudio */}
