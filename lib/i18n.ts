@@ -317,6 +317,7 @@ const es = {
   deleteSupplyConfirm: "¿Eliminar \"{name}\" de la despensa?",
   // Prints del estudio
   prints: "Prints",
+  scanSheet: "Hoja escaneo",
   printsTitle: "Prints del estudio",
   printsSubtitle: "Stock de prints que hay para reponer las cajas",
   registerEntry: "+ Registrar entrada",
@@ -638,6 +639,7 @@ const en: typeof es = {
   unitLabel: "Unit", minStockLabel: "Minimum", currentQtyLabel: "Quantity",
   deleteSupplyConfirm: "Remove \"{name}\" from the pantry?",
   prints: "Prints",
+  scanSheet: "Scan sheet",
   printsTitle: "Studio prints",
   printsSubtitle: "Stock of prints available to restock the boxes",
   registerEntry: "+ Register entry",
