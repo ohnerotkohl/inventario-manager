@@ -697,10 +697,11 @@ export default function SesionPage() {
       const flagUpdates: PromiseLike<unknown>[] = [];
       for (const inv of inventario) {
         const key = `${inv.poster_id}-${inv.talla}`;
-        const update: { sample_falta?: boolean; out?: boolean } = {};
+        const update: { sample_falta?: boolean; out?: boolean; cantidad?: number } = {};
         if (samplesFaltantes.has(key) && !inv.sample_falta) update.sample_falta = true;
-        // sold out: aditivo — fuerza true en lo marcado; el resto lo decide la lógica de ventas
-        if (soldOut.has(key) && !inv.out) update.out = true;
+        // sold out: no queda ninguno en la caja, así que el stock baja a 0 y se
+        // marca agotado. Con stock 0 entra solo en la lista de imprimir/reponer.
+        if (soldOut.has(key)) { update.out = true; update.cantidad = 0; }
         if (Object.keys(update).length > 0) {
           flagUpdates.push(
             supabase.from("inventario").update(update).eq("id", inv.id).then(() => { return; })
