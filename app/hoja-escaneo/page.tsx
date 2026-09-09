@@ -168,6 +168,14 @@ export default function HojaEscaneoPage() {
           {generando ? "Generando PDF..." : "Descargar hoja en PDF"}
         </button>
       </div>
+
+      {/* Acceso a la prueba de escaneo (beta) */}
+      <a
+        href="/escanear"
+        className="block w-full text-center bg-purple-50 border-2 border-purple-200 text-purple-700 rounded-2xl py-3.5 font-semibold hover:bg-purple-100 transition-colors"
+      >
+        Probar escaneo (beta) →
+      </a>
     </div>
   );
 }
