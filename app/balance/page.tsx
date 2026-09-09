@@ -183,6 +183,9 @@ export default function BalancePage() {
   const ventaEfectivo = efectivoContado - floatInicial;
   const totalVentas = ventaSumup + ventaPaypal + ventaEfectivo + gastosEfectivo;
   const neto = totalVentas - totalGastos;
+  // Deuda al empleado: si el efectivo disponible (tras el float) no cubre el
+  // coste del turno, la diferencia se le quedó debiendo y hay que pagarla luego.
+  const deudaEmpleado = turnoTipo === "horas" ? Math.max(0, turnoCosto - ventaEfectivo) : 0;
 
   const puedeGuardar = mercadoId && fecha && trabajador.trim() && !saving;
 
@@ -225,6 +228,7 @@ export default function BalancePage() {
       total_gastos: totalGastos,
       total_ventas: totalVentas,
       neto,
+      deuda_empleado: deudaEmpleado,
     };
     const { data, error } = await supabase.from("balances").insert(fila).select().single();
     setSaving(false); savingRef.current = false;
@@ -433,6 +437,13 @@ export default function BalancePage() {
                 {ventaEfectivo < 0 ? ` · ${t.negativeCashHint}` : ""}
               </p>
             )}
+            {/* Deuda al empleado: el efectivo no cubrió su turno */}
+            {deudaEmpleado > 0 && (
+              <p className="text-[11px] rounded-lg px-3 py-2 text-amber-800 bg-amber-50 border border-amber-200">
+                {t.employeeDebt}: {eur(turnoCosto)} − {eur(Math.max(0, ventaEfectivo))} = <span className="font-semibold">{eur(deudaEmpleado)}</span>
+                <br />{t.employeeDebtHint}
+              </p>
+            )}
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">{t.paypalLabel}</span>
               <NumInput value={ventaPaypal} onChange={setVentaPaypal} />
@@ -523,6 +534,12 @@ export default function BalancePage() {
                     <div className="flex justify-between font-medium"><span className="text-gray-600">{t.totalExpensesLabel}</span><span className="text-red-600">{eur(b.total_gastos)}</span></div>
                     {b.float_inicial > 0 && (
                       <div className="flex justify-between"><span className="text-gray-400">{t.balanceFloat}</span><span className="text-gray-400">{eur(b.float_inicial)}</span></div>
+                    )}
+                    {Number(b.deuda_empleado) > 0 && (
+                      <div className="flex justify-between bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5 mt-1">
+                        <span className="text-amber-800 font-medium">{t.employeeDebt}</span>
+                        <span className="text-amber-800 font-bold">{eur(Number(b.deuda_empleado))}</span>
+                      </div>
                     )}
                     <div className="pt-2">
                       <button

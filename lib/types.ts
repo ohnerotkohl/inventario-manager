@@ -59,6 +59,7 @@ export interface Balance {
   total_gastos: number
   total_ventas: number
   neto: number
+  deuda_empleado?: number
   email_enviado: boolean
   created_at: string
 }

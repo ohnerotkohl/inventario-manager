@@ -73,6 +73,13 @@ export async function POST(req: NextRequest) {
           <p style="font-size:11px; color:#999; margin:6px 0 0;">${eur(b.total_ventas)} ventas − ${eur(b.total_gastos)} gastos</p>
         </div>
 
+        ${Number(b.deuda_empleado) > 0 ? `
+        <div style="margin-top:16px; background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:16px; text-align:center;">
+          <p style="font-size:11px; font-weight:bold; text-transform:uppercase; letter-spacing:0.08em; color:#b45309; margin:0;">Se le debe al empleado</p>
+          <p style="font-size:24px; font-weight:bold; color:#b45309; margin:4px 0 0;">${eur(b.deuda_empleado)}</p>
+          <p style="font-size:11px; color:#a16207; margin:6px 0 0;">El efectivo del día no cubrió su turno (${eur(b.turno_costo)}). Queda pendiente de pagar.</p>
+        </div>` : ""}
+
         <p style="margin-top:32px; color:#999; font-size:12px;">
           Generado automáticamente por la app de Ohne Rotkohl
         </p>
