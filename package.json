@@ -12,6 +12,8 @@
     "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.102.1",
     "@types/nodemailer": "^8.0.0",
+    "bwip-js": "^4.11.4",
+    "html5-qrcode": "^2.3.8",
     "next": "16.2.2",
     "nodemailer": "^8.0.5",
     "pdf-lib": "^1.17.1",
