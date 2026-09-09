@@ -15,9 +15,13 @@ export default function EscanearPruebaPage() {
   const [combos, setCombos] = useState<{ A4: number; A3: number }>({ A4: 0, A3: 0 });
   const [msg, setMsg] = useState<{ txt: string; combo?: boolean } | null>(null);
   const [scanning, setScanning] = useState(false);
+  const [leyendo, setLeyendo] = useState(false); // armado: esperando leer tras tocar
   const [error, setError] = useState("");
   const scannerRef = useRef<{ stop: () => Promise<void> } | null>(null);
-  const lastRef = useRef<Record<string, number>>({}); // anti-duplicado por código
+  // Solo se cuenta un escaneo si el usuario ha tocado la pantalla (captura manual).
+  // armedUntil = momento hasta el que una lectura vale tras el toque.
+  const armedUntilRef = useRef<number>(0);
+  const armTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     supabase.from("posters").select("id, nombre").eq("activo", true).then(({ data }) => {
@@ -27,11 +31,23 @@ export default function EscanearPruebaPage() {
     });
   }, []);
 
+  // Toca la pantalla para "armar" una lectura. La próxima decodificación (en
+  // ~1,6s) cuenta y se desarma. Sin tocar, la cámara ve el código pero no cuenta.
+  function armar() {
+    if (!scanning) return;
+    armedUntilRef.current = Date.now() + 1600;
+    setLeyendo(true);
+    if (armTimerRef.current) clearTimeout(armTimerRef.current);
+    armTimerRef.current = setTimeout(() => {
+      if (Date.now() >= armedUntilRef.current) { setLeyendo(false); flash("No se leyó ningún código, vuelve a tocar", false, false); }
+    }, 1600);
+  }
+
   function handleCode(text: string) {
-    // Anti-duplicado: la cámara lee el mismo código muchas veces por segundo
-    const now = Date.now();
-    if (lastRef.current[text] && now - lastRef.current[text] < 1500) return;
-    lastRef.current[text] = now;
+    // Solo cuenta si el usuario acaba de tocar la pantalla (captura manual)
+    if (Date.now() > armedUntilRef.current) return;
+    armedUntilRef.current = 0; // desarmar: un toque = una lectura
+    setLeyendo(false);
 
     const parts = text.split("|");
     if (parts[0] !== "OR" || parts.length < 3) { flash("Código no reconocido", false, true); return; }
@@ -78,10 +94,15 @@ export default function EscanearPruebaPage() {
 
   async function parar() {
     try { await scannerRef.current?.stop(); } catch { /* ya parado */ }
+    armedUntilRef.current = 0;
+    setLeyendo(false);
     setScanning(false);
   }
 
-  useEffect(() => () => { scannerRef.current?.stop().catch(() => {}); }, []);
+  useEffect(() => () => {
+    if (armTimerRef.current) clearTimeout(armTimerRef.current);
+    scannerRef.current?.stop().catch(() => {});
+  }, []);
 
   const filas = Object.entries(
     Object.entries(counts).reduce((acc, [key, n]) => {
@@ -99,10 +120,19 @@ export default function EscanearPruebaPage() {
     <div className="space-y-4 pb-24">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Escaneo (prueba)</h1>
-        <p className="text-gray-500 text-sm">Apunta la cámara a los códigos de la hoja. Para un combo: escanea los 3 pósters y luego el código de combo.</p>
+        <p className="text-gray-500 text-sm">Apunta al código y <strong>toca la pantalla</strong> encima de él para leerlo. Combo: lee los 3 pósters y luego el código de combo.</p>
       </div>
 
-      <div id="reader" className="w-full rounded-2xl overflow-hidden bg-black min-h-[240px]" />
+      <div className="relative w-full rounded-2xl overflow-hidden bg-black min-h-[240px]" onClick={armar}>
+        <div id="reader" className="w-full" />
+        {scanning && (
+          <div className={`pointer-events-none absolute inset-0 flex items-end justify-center pb-3 transition-colors ${leyendo ? "ring-4 ring-green-400 ring-inset" : ""}`}>
+            <span className={`text-xs font-semibold px-3 py-1.5 rounded-full ${leyendo ? "bg-green-500 text-white" : "bg-black/60 text-white"}`}>
+              {leyendo ? "Leyendo..." : "Toca aquí sobre el código"}
+            </span>
+          </div>
+        )}
+      </div>
 
       {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
 
