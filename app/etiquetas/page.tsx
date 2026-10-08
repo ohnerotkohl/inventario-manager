@@ -137,8 +137,18 @@ export default function EtiquetasPage() {
       <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-2">
         <p className="text-sm font-semibold text-gray-700">{t.labelStamp}</p>
         <p className="text-xs text-gray-400">{t.labelStampHint}</p>
-        <input ref={fileRef} type="file" accept="application/pdf" onChange={(e) => setStampFile(e.target.files?.[0] || null)} className="text-sm" />
-        {stampFile && <p className="text-xs text-green-600">✓ {stampFile.name}</p>}
+        <input ref={fileRef} type="file" accept="application/pdf" onChange={(e) => setStampFile(e.target.files?.[0] || null)} className="hidden" />
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          className={`w-full rounded-xl py-3.5 text-sm font-semibold transition-colors flex items-center justify-center gap-2 border-2 border-dashed ${stampFile ? "border-green-300 bg-green-50 text-green-700" : "border-gray-300 text-gray-600 hover:border-black hover:text-black"}`}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          {stampFile ? t.labelStampChange : t.labelStampUpload}
+        </button>
+        {stampFile && <p className="text-xs text-green-600 text-center">✓ {stampFile.name}</p>}
       </div>
 
       {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
