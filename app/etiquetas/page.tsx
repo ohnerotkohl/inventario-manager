@@ -25,6 +25,7 @@ export default function EtiquetasPage() {
   const [cpCiudad, setCpCiudad] = useState("");
   const [stampFile, setStampFile] = useState<File | null>(null);
   const [generando, setGenerando] = useState(false);
+  const [generada, setGenerada] = useState<string | null>(null); // nombre de la última etiqueta descargada
   const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -95,6 +96,11 @@ export default function EtiquetasPage() {
       a.href = url; a.download = `etiqueta-${slug || "envio"}.pdf`;
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
+
+      // Confirmación + dejar listo para la siguiente (el remitente se mantiene)
+      setGenerada(nombre.trim());
+      setNombre(""); setCalle(""); setCpCiudad(""); setStampFile(null);
+      if (fileRef.current) fileRef.current.value = "";
     } catch (e) {
       setError((e instanceof Error ? e.message : String(e)));
     } finally {
@@ -111,6 +117,27 @@ export default function EtiquetasPage() {
         <p className="text-gray-500 text-sm">{t.labelsSubtitle}</p>
       </div>
 
+      {generada && (
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-5 text-center space-y-3">
+          <div className="flex justify-center text-green-600">
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+          </div>
+          <div>
+            <p className="font-bold text-green-800">{t.labelDone}</p>
+            <p className="text-sm text-green-700">{generada}</p>
+          </div>
+          <button onClick={() => setGenerada(null)} className="w-full bg-black text-white rounded-2xl py-3 font-semibold hover:bg-gray-900 transition-colors">
+            {t.labelAnother}
+          </button>
+          <button onClick={() => router.push("/")} className="w-full text-sm text-gray-500 hover:text-gray-800 py-1">
+            {t.labelBackHome}
+          </button>
+        </div>
+      )}
+
+      {!generada && (<>
       {/* Remitente */}
       <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-2">
         <p className="text-sm font-semibold text-gray-700">{t.labelSender}</p>
@@ -161,6 +188,7 @@ export default function EtiquetasPage() {
         {generando ? t.labelGenerating : t.labelGenerate}
       </button>
       <p className="text-xs text-gray-400 text-center">{t.labelPrintHint}</p>
+      </>)}
     </div>
   );
 }
