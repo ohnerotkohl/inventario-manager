@@ -27,6 +27,13 @@ const ScanIcon = () => (
   </svg>
 );
 
+const EtiquetaIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/>
+    <line x1="7" y1="7" x2="7.01" y2="7"/>
+  </svg>
+);
+
 const NovedadesIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
@@ -151,6 +158,7 @@ export default function Nav() {
     { href: "/compras", label: t.purchases, Icon: ComprasIcon },
     { href: "/prints", label: t.prints, Icon: PrintsIcon },
     { href: "/hoja-escaneo", label: t.scanSheet, Icon: ScanIcon },
+    { href: "/etiquetas", label: t.labels, Icon: EtiquetaIcon },
     { href: "/admin", label: t.team, Icon: AdminIcon },
     { href: "/novedades", label: t.news, Icon: NovedadesIcon },
     { href: "/guia", label: t.guide, Icon: GuiaIcon },
