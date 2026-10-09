@@ -75,7 +75,7 @@ export default function RestockPage() {
   const [calendarMonth, setCalendarMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const [tabRestock, setTabRestock] = useState<"imprimir" | "restock">("imprimir");
+  const [tabRestock, setTabRestock] = useState<"imprimir" | "samples" | "restock">("imprimir");
   const [top8, setTop8] = useState<Set<string>>(new Set());
   const [hasSales, setHasSales] = useState<Set<string>>(new Set());
   const [printQty, setPrintQty] = useState<{ [key: string]: number }>({});
@@ -804,6 +804,12 @@ export default function RestockPage() {
           {t.printTab}
         </button>
         <button
+          onClick={() => setTabRestock("samples")}
+          className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-colors ${tabRestock === "samples" ? "bg-black text-white" : "bg-gray-100 text-gray-600"}`}
+        >
+          {t.samplesTab}
+        </button>
+        <button
           onClick={() => setTabRestock("restock")}
           className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-colors ${tabRestock === "restock" ? "bg-black text-white" : "bg-gray-100 text-gray-600"}`}
         >
@@ -906,6 +912,7 @@ export default function RestockPage() {
               localStorage.setItem("or_print_job", JSON.stringify(items));
               // El nombre de la caja/mercado viaja aparte para nombrar el PDF
               localStorage.setItem("or_print_mercado", caja?.nombre || "");
+              localStorage.setItem("or_print_kind", "restock");
               window.open("/imprimir", "_blank");
             }
             return (
@@ -953,48 +960,89 @@ export default function RestockPage() {
               </>
             );
           })()}
+        </div>
+      )}
 
-          {/* Samples — checklist al final: marca cada uno cuando lo hayas hecho */}
-          {samplesList.length > 0 && (() => {
-            const pendientes = samplesList.filter((s) => {
-              const p = posters.find((pp) => pp.id === s.posterId);
-              return s.talla === "A4" ? p?.a4SampleFalta : p?.a3SampleFalta;
-            }).length;
-            return (
-              <div className="pt-2">
-                <div className="flex items-center gap-2 mb-2">
-                  <p className="text-xs font-bold uppercase tracking-widest text-orange-600">{t.samplesTitle}</p>
-                  <span className="text-xs bg-orange-100 text-orange-600 font-bold px-1.5 py-0.5 rounded-full">{pendientes}</span>
-                </div>
+      {/* Tab Samples — dos tablas (A4 / A3) + descarga de PDF de samples por talla */}
+      {tabRestock === "samples" && (() => {
+        function openSamplesPrint(talla: "A4" | "A3") {
+          const items = samplesList
+            .filter((s) => s.talla === talla)
+            .filter((s) => { const p = posters.find((pp) => pp.id === s.posterId); return talla === "A4" ? p?.a4SampleFalta : p?.a3SampleFalta; })
+            .map((s) => ({ nombre: s.nombre, talla, qty: 1 }));
+          if (items.length === 0) return;
+          localStorage.setItem("or_print_job", JSON.stringify(items));
+          localStorage.setItem("or_print_mercado", "");
+          localStorage.setItem("or_print_kind", "samples");
+          window.open("/imprimir", "_blank");
+        }
+
+        const SampleTable = ({ talla }: { talla: "A4" | "A3" }) => {
+          const lista = samplesList.filter((s) => s.talla === talla);
+          const pendientes = lista.filter((s) => { const p = posters.find((pp) => pp.id === s.posterId); return talla === "A4" ? p?.a4SampleFalta : p?.a3SampleFalta; }).length;
+          const colorBadge = talla === "A4" ? "bg-yellow-100 text-yellow-700" : "bg-blue-100 text-blue-700";
+          return (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <p className="text-xs font-bold uppercase tracking-widest text-gray-500">{tr("samplesSize", { talla })}</p>
+                <span className="text-xs bg-orange-100 text-orange-600 font-bold px-1.5 py-0.5 rounded-full">{pendientes}</span>
+              </div>
+              {lista.length === 0 ? (
+                <div className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-5 text-center text-sm text-gray-400">{tr("samplesNone", { talla })}</div>
+              ) : (
                 <div className="bg-orange-50 border border-orange-200 rounded-2xl overflow-hidden">
-                  {samplesList.map((s, idx) => {
+                  {lista.map((s, idx) => {
                     const p = posters.find((pp) => pp.id === s.posterId);
-                    const falta = s.talla === "A4" ? p?.a4SampleFalta : p?.a3SampleFalta;
-                    const hecho = !falta;
+                    const hecho = !(talla === "A4" ? p?.a4SampleFalta : p?.a3SampleFalta);
                     return (
                       <button
                         key={`${s.posterId}-${s.talla}`}
                         onClick={() => toggleSample(s.posterId, s.talla)}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${idx < samplesList.length - 1 ? "border-b border-orange-100" : ""} ${hecho ? "bg-orange-50/40" : "hover:bg-orange-100/50"}`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${idx < lista.length - 1 ? "border-b border-orange-100" : ""} ${hecho ? "bg-orange-50/40" : "hover:bg-orange-100/50"}`}
                       >
                         <span className={`flex-shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${hecho ? "bg-green-500 border-green-500 text-white" : "border-orange-300 bg-white"}`}>
-                          {hecho && (
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="20 6 9 17 4 12"/>
-                            </svg>
-                          )}
+                          {hecho && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
                         </span>
                         <span className={`flex-1 text-sm font-medium ${hecho ? "text-gray-400 line-through" : "text-gray-900"}`}>{s.nombre}</span>
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-md flex-shrink-0 ${s.talla === "A4" ? "bg-yellow-100 text-yellow-700" : "bg-blue-100 text-blue-700"}`}>{s.talla}</span>
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-md flex-shrink-0 ${colorBadge}`}>{talla}</span>
                       </button>
                     );
                   })}
                 </div>
+              )}
+              <button
+                onClick={() => openSamplesPrint(talla)}
+                disabled={pendientes === 0}
+                className="w-full mt-2 py-3 bg-gray-900 text-white rounded-2xl font-semibold hover:bg-black transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+                </svg>
+                {talla}
+              </button>
+            </div>
+          );
+        };
+
+        return (
+          <div className="space-y-5">
+            <p className="text-xs text-gray-500">{t.samplesTabDesc}</p>
+            {samplesList.length === 0 ? (
+              <div className="text-center py-12 text-gray-400">
+                <svg className="mx-auto mb-3 text-green-400" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                <p className="font-medium text-gray-500">{t.samplesNoneAll}</p>
               </div>
-            );
-          })()}
-        </div>
-      )}
+            ) : (
+              <>
+                <SampleTable talla="A4" />
+                <SampleTable talla="A3" />
+              </>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Tab Restock */}
       {tabRestock === "restock" && <div className="space-y-6">

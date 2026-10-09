@@ -194,12 +194,16 @@ export default function ImprimirPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       const fecha = new Date().toISOString().slice(0, 10);
+      // Si el trabajo es de samples, el archivo se llama "samples-..."
+      const esSamples = (() => { try { return localStorage.getItem("or_print_kind") === "samples"; } catch { return false; } })();
       // Mercado saneado para nombre de archivo (sin espacios ni acentos raros)
       const mercadoSlug = mercadoNombre
         .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
         .replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-+|-+$/g, "");
       a.href = url;
-      a.download = `${mercadoSlug ? mercadoSlug + "-" : ""}imprimir-${talla}-${fecha}.pdf`;
+      a.download = esSamples
+        ? `samples-${talla}-${fecha}.pdf`
+        : `${mercadoSlug ? mercadoSlug + "-" : ""}imprimir-${talla}-${fecha}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
