@@ -379,9 +379,11 @@ body.body-dark {
   }
   /* fondos blancos: cristal oscuro; negros (botones): morado */
   body.invertir .bg-white { background-color: rgba(20, 22, 27, 0.6); }
-  /* lo que se abre por encima (menús, ventanas) va sólido para que se lea bien */
+  /* lo que se abre o flota por encima (menús, ventanas, barras de Guardar) va sólido
+     para que no se mezcle con el texto de detrás */
   body.invertir .fixed .bg-white,
   body.invertir .fixed.bg-white,
+  body.invertir .sticky .bg-white,
   body.invertir .sticky.bg-white { background-color: #17181e; }
   body.invertir .bg-black { background-color: #5b4bc4; }
   /* botón morado que aún no se puede pulsar: texto blanco y algo más tenue, no gris */
