@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import Nav from "./components/Nav";
@@ -22,12 +22,15 @@ export const metadata: Metadata = {
   icons: {
     apple: "/apple-touch-icon.png",
   },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-  },
+};
+
+// La barra de arriba del móvil (hora, batería) va del mismo negro que el fondo, no blanca
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#0b0c0f",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

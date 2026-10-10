@@ -20,6 +20,9 @@
 html {
   color-scheme: light;
 }
+@media screen {
+  html { background: #0b0c0f; }
+}
 
 body {
   background-color: #f9fafb;
@@ -132,6 +135,8 @@ body.body-dark {
     color: #eceef2;
   }
   body.tema > main { position: relative; z-index: 1; }
+  /* en el iPhone el campo de fecha tenía un ancho propio y se salía de la tarjeta */
+  body.tema input[type="date"] { display: block; width: 100%; max-width: 100%; min-width: 0; -webkit-appearance: none; appearance: none; }
 
   /* paleta invertida: los grises claros pasan a oscuros (y al revés) */
   body.invertir {
