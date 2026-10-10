@@ -399,7 +399,8 @@ body.body-dark {
   body.invertir textarea::placeholder { color: #6f7480 !important; }
 
   /* tarjetas (rounded-2xl con borde): borde que se ilumina donde está el dedo o el ratón */
-  body.tema .rounded-2xl.border { position: relative; }
+  /* (no se toca lo que ya flota: ventanas, menús, cabeceras pegadas) */
+  body.tema .rounded-2xl.border:not(.fixed):not(.absolute):not(.sticky) { position: relative; }
   body.tema .rounded-2xl.border::after {
     content: "";
     position: absolute;
