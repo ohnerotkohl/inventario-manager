@@ -147,19 +147,19 @@ body.body-dark {
 
 /* al cambiar de página, cada bloque entra deslizándose, uno tras otro */
 @keyframes bloqueEntra {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; transform: translateY(5px); filter: blur(5px); }
+  to { opacity: 1; transform: none; filter: none; }
 }
 @media screen {
   body.tema main > div > :not(.fixed):not(.sticky) {
-    animation: bloqueEntra 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    animation: bloqueEntra 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
-  body.tema main > div > :not(.fixed):not(.sticky):nth-child(2) { animation-delay: 0.05s; }
-  body.tema main > div > :not(.fixed):not(.sticky):nth-child(3) { animation-delay: 0.1s; }
-  body.tema main > div > :not(.fixed):not(.sticky):nth-child(4) { animation-delay: 0.15s; }
-  body.tema main > div > :not(.fixed):not(.sticky):nth-child(5) { animation-delay: 0.2s; }
-  body.tema main > div > :not(.fixed):not(.sticky):nth-child(6) { animation-delay: 0.25s; }
-  body.tema main > div > :not(.fixed):not(.sticky):nth-child(n + 7) { animation-delay: 0.3s; }
+  body.tema main > div > :not(.fixed):not(.sticky):nth-child(2) { animation-delay: 0.08s; }
+  body.tema main > div > :not(.fixed):not(.sticky):nth-child(3) { animation-delay: 0.16s; }
+  body.tema main > div > :not(.fixed):not(.sticky):nth-child(4) { animation-delay: 0.24s; }
+  body.tema main > div > :not(.fixed):not(.sticky):nth-child(5) { animation-delay: 0.32s; }
+  body.tema main > div > :not(.fixed):not(.sticky):nth-child(6) { animation-delay: 0.4s; }
+  body.tema main > div > :not(.fixed):not(.sticky):nth-child(n + 7) { animation-delay: 0.48s; }
 }
 
 .mas-velo { animation: fadeIn 0.25s ease-out; }
