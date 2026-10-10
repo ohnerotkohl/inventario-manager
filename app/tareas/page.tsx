@@ -8,9 +8,8 @@ import { useLang } from "@/app/components/LangProvider";
 import { SkeletonPage } from "@/app/components/Skeleton";
 import { veMercado } from "@/lib/perfil";
 
-type Tab = "activas" | "pendientes" | "completadas" | "coles";
+type Tab = "activas" | "pendientes" | "completadas";
 type Frecuencia = "diaria" | "semanal" | "mensual" | "puntual";
-type Dificultad = "simple" | "media" | "compleja";
 
 interface UsuarioMin { id: string; nombre: string; rol: string }
 
@@ -22,8 +21,6 @@ interface Tarea {
   asignada_a: string | null;
   frecuencia: Frecuencia;
   proxima_fecha: string | null;
-  dificultad: Dificultad;
-  puntos_coles: number;
   estado: "pendiente" | "atrasada" | "completada" | "urgente";
   rotacion: boolean;
   orden_rotacion: string[];
@@ -31,27 +28,6 @@ interface Tarea {
   created_at: string;
   updated_at: string;
 }
-
-interface ColesMove {
-  id: string;
-  usuario_nombre: string;
-  coles_delta: number;
-  motivo: string;
-  created_at: string;
-}
-
-const COLES_MES = 100;
-
-const TrofeoIcon = ({ size = 14 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="inline -mt-0.5 mr-1 text-purple-600">
-    <path d="M6 9H4.5a2.5 2.5 0 010-5H6"/>
-    <path d="M18 9h1.5a2.5 2.5 0 000-5H18"/>
-    <path d="M4 22h16"/>
-    <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
-    <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
-    <path d="M18 2H6v7a6 6 0 0012 0V2z"/>
-  </svg>
-);
 
 function hoy(): string {
   const d = new Date();
@@ -65,7 +41,6 @@ export default function TareasPage() {
   const [tab, setTab] = useState<Tab>("activas");
   const [tareas, setTareas] = useState<Tarea[]>([]);
   const [usuarios, setUsuarios] = useState<UsuarioMin[]>([]);
-  const [coles, setColes] = useState<ColesMove[]>([]);
   const [loading, setLoading] = useState(true);
   const [formAbierto, setFormAbierto] = useState(false);
   const [completando, setCompletando] = useState<string | null>(null);
@@ -80,8 +55,6 @@ export default function TareasPage() {
   const [fAsignada, setFAsignada] = useState("");
   const [fFrecuencia, setFFrecuencia] = useState<Frecuencia>("puntual");
   const [fFecha, setFFecha] = useState("");
-  const [fDificultad, setFDificultad] = useState<Dificultad>("media");
-  const [fColes, setFColes] = useState(2);
   const [fRotacion, setFRotacion] = useState(false);
   const [fEmpieza, setFEmpieza] = useState("");
   const [fCiclos, setFCiclos] = useState(2);
@@ -94,15 +67,13 @@ export default function TareasPage() {
   }, [user]);
 
   async function fetchData() {
-    const [tRes, uRes, cRes] = await Promise.all([
+    const [tRes, uRes] = await Promise.all([
       supabase.from("tareas").select("*").order("created_at", { ascending: false }),
       supabase.from("usuarios").select("id, nombre, rol").eq("activo", true),
-      supabase.from("coles_log").select("*").order("created_at", { ascending: false }).limit(200),
     ]);
     // Separación por perfil: cada quien ve solo sus tareas (y las de "ambos").
     setTareas(((tRes.data as (Tarea & { perfil?: string | null })[]) || []).filter((t) => veMercado(user?.perfil, t.perfil)));
     setUsuarios((uRes.data as UsuarioMin[]) || []);
-    setColes((cRes.data as ColesMove[]) || []);
     setLoading(false);
   }
 
@@ -131,11 +102,6 @@ export default function TareasPage() {
     });
   }
 
-  function setDificultad(d: Dificultad) {
-    setFDificultad(d);
-    setFColes(d === "simple" ? 1 : d === "media" ? 2 : 3);
-  }
-
   async function crearTarea() {
     if (!fNombre.trim() || creando) return;
     setCreando(true);
@@ -154,8 +120,6 @@ export default function TareasPage() {
       asignada_a: rotacionActiva ? orden[0] : (fAsignada || null),
       frecuencia: fFrecuencia,
       proxima_fecha: fFecha || null,
-      dificultad: fDificultad,
-      puntos_coles: fColes,
       rotacion: rotacionActiva,
       orden_rotacion: orden,
       // asignada_a se fija a orden[0], así que el índice de rotación debe volver a
@@ -169,7 +133,7 @@ export default function TareasPage() {
     setCreando(false);
     if (error) { alert(t.saveError); return; }
     setFNombre(""); setFDescripcion(""); setFCategoria("Otra"); setFAsignada("");
-    setFFrecuencia("puntual"); setFFecha(""); setDificultad("media");
+    setFFrecuencia("puntual"); setFFecha("");
     setFRotacion(false); setFEmpieza(""); setFCiclos(2);
     setFormAbierto(false); setEditandoId(null);
     fetchData();
@@ -183,8 +147,6 @@ export default function TareasPage() {
     setFAsignada(tarea.asignada_a || "");
     setFFrecuencia(tarea.frecuencia);
     setFFecha(tarea.proxima_fecha || "");
-    setFDificultad(tarea.dificultad);
-    setFColes(tarea.puntos_coles);
     if (tarea.rotacion && (tarea.orden_rotacion || []).length > 0) {
       setFRotacion(true);
       setFEmpieza(tarea.orden_rotacion[0]);
@@ -242,13 +204,6 @@ export default function TareasPage() {
     } else {
       await supabase.from("tareas").update({ estado: "completada" }).eq("id", tarea.id);
     }
-    await supabase.from("coles_log").insert({
-      usuario_id: quien.id,
-      usuario_nombre: quien.nombre,
-      coles_delta: -tarea.puntos_coles,
-      motivo: `Completó "${tarea.nombre}"`,
-      tarea_id: tarea.id,
-    });
     setCompletando(null);
     setAviso(tr("taskCompletedMsg", { name: tarea.nombre }) + mensajeExtra);
     setTimeout(() => setAviso(""), 3500);
@@ -261,53 +216,12 @@ export default function TareasPage() {
     fetchData();
   }
 
-  // Eliminar un movimiento del historial de coles (devuelve esas coles al marcador)
-  async function eliminarMovimiento(m: ColesMove) {
-    if (!confirm(t.deleteMoveConfirm)) return;
-    await supabase.from("coles_log").delete().eq("id", m.id);
-    fetchData();
-  }
-
-  // Deshacer una tarea completada por error: vuelve a pendiente y devuelve las coles
+  // Deshacer una tarea completada por error: vuelve a pendiente
   async function deshacerCompletada(tarea: Tarea) {
     if (!confirm(tr("undoTaskConfirm", { name: tarea.nombre }))) return;
-    // Borrar el último movimiento de coles de esta tarea (le devuelve las coles a quien la completó)
-    const { data: ultimoMov } = await supabase
-      .from("coles_log")
-      .select("id")
-      .eq("tarea_id", tarea.id)
-      .lt("coles_delta", 0)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (ultimoMov) await supabase.from("coles_log").delete().eq("id", ultimoMov.id);
     await supabase.from("tareas").update({ estado: "pendiente" }).eq("id", tarea.id);
     fetchData();
   }
-
-  // ── Coles del mes actual ──
-  const mesActual = hoy().slice(0, 7);
-  const movsMes = coles.filter((c) => c.created_at.slice(0, 7) === mesActual);
-  const reducidasPor = new Map<string, number>();
-  for (const m of movsMes) {
-    reducidasPor.set(m.usuario_nombre, (reducidasPor.get(m.usuario_nombre) || 0) - m.coles_delta);
-  }
-  for (const a of admins) {
-    if (!reducidasPor.has(a.nombre)) reducidasPor.set(a.nombre, 0);
-  }
-  const ranking = [...reducidasPor.entries()].sort((a, b) => b[1] - a[1]);
-  const nombreMesActual = `${t.months[parseInt(mesActual.slice(5)) - 1]} ${mesActual.slice(0, 4)}`;
-
-  // ── Historial de coles mes a mes (meses anteriores) ──
-  const porMesColes = new Map<string, Map<string, number>>();
-  for (const m of coles) {
-    const ym = m.created_at.slice(0, 7);
-    if (ym === mesActual) continue;
-    const mes = porMesColes.get(ym) || new Map<string, number>();
-    mes.set(m.usuario_nombre, (mes.get(m.usuario_nombre) || 0) - m.coles_delta);
-    porMesColes.set(ym, mes);
-  }
-  const historialColes = [...porMesColes.entries()].sort((a, b) => b[0].localeCompare(a[0]));
 
   const freqLabel: Record<Frecuencia, string> = {
     diaria: t.freqDaily, semanal: t.freqWeekly, mensual: t.freqMonthly, puntual: t.freqOnce,
@@ -325,9 +239,6 @@ export default function TareasPage() {
             <p className="text-sm font-semibold text-gray-900">{tarea.nombre}</p>
             {tarea.descripcion && <p className="text-xs text-gray-500 mt-0.5">{tarea.descripcion}</p>}
           </div>
-          <span className="shrink-0 text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200 rounded-full px-2 py-0.5">
-            {tr("colesN", { n: tarea.puntos_coles })}
-          </span>
         </div>
         <div className="flex flex-wrap gap-1.5 text-[10px]">
           <span className="bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">{tarea.categoria}</span>
@@ -396,7 +307,6 @@ export default function TareasPage() {
           { id: "activas", label: t.activeTab, badge: activas.filter(estaAtrasada).length },
           { id: "pendientes", label: t.pendingTab, badge: pendientes.length },
           { id: "completadas", label: t.completedTab, badge: 0 },
-          { id: "coles", label: t.colesTab, badge: 0 },
         ] as { id: Tab; label: string; badge: number }[]).map((tb) => (
           <button
             key={tb.id}
@@ -466,37 +376,6 @@ export default function TareasPage() {
                   )}
                 </div>
               )}
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">{t.difficulty}</label>
-                <div className="flex gap-2">
-                  {([
-                    { d: "simple", label: t.diffSimple },
-                    { d: "media", label: t.diffMedia },
-                    { d: "compleja", label: t.diffCompleja },
-                  ] as { d: Dificultad; label: string }[]).map(({ d, label }) => (
-                    <button
-                      key={d}
-                      onClick={() => setDificultad(d)}
-                      className={`flex-1 py-2 rounded-lg text-[11px] font-medium transition-colors ${fDificultad === d ? "bg-black text-white" : "bg-gray-100 text-gray-600"}`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                {fDificultad === "compleja" && (
-                  <div className="flex gap-2 mt-2">
-                    {[3, 4].map((n) => (
-                      <button
-                        key={n}
-                        onClick={() => setFColes(n)}
-                        className={`flex-1 py-1.5 rounded-lg text-xs font-medium ${fColes === n ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-500"}`}
-                      >
-                        −{n}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
               <div className="flex gap-2">
                 <button
                   onClick={crearTarea}
@@ -514,7 +393,7 @@ export default function TareasPage() {
                 // Nueva tarea desde cero: limpiar cualquier rastro de edición
                 setEditandoId(null);
                 setFNombre(""); setFDescripcion(""); setFCategoria("Otra"); setFAsignada("");
-                setFFrecuencia("puntual"); setFFecha(""); setDificultad("media");
+                setFFrecuencia("puntual"); setFFecha("");
                 setFRotacion(false); setFEmpieza(""); setFCiclos(2);
                 setFormAbierto(true);
               }}
@@ -550,7 +429,6 @@ export default function TareasPage() {
                     <p className="text-[11px] text-gray-400">{t.completedOn} · {tarea.updated_at.slice(0, 10)}</p>
                   </button>
                   <div className="shrink-0 flex items-center gap-2">
-                    <span className="text-xs font-semibold text-purple-600">{tr("colesN", { n: tarea.puntos_coles })}</span>
                     <button
                       onClick={() => deshacerCompletada(tarea)}
                       title={t.undoCompleted}
@@ -576,102 +454,6 @@ export default function TareasPage() {
         </div>
       )}
 
-      {tab === "coles" && (
-        <div className="space-y-4">
-          <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-4">
-            <div>
-              <p className="text-sm font-bold text-gray-900">{tr("colesMonthTitle", { month: nombreMesActual })}</p>
-              <p className="text-xs text-gray-400 mt-1">{t.colesExplain}</p>
-              {/* Leyenda de cómo se asignan las coles */}
-              <div className="mt-3 bg-gray-50 rounded-xl p-3 space-y-1.5">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">{t.colesRuleTitle}</p>
-                {[{ n: "−1", d: t.colesRule1 }, { n: "−2", d: t.colesRule2 }, { n: "−3 / −4", d: t.colesRule34 }].map((r) => (
-                  <div key={r.n} className="flex gap-2 text-xs">
-                    <span className="shrink-0 w-12 font-bold text-purple-600">{r.n}</span>
-                    <span className="text-gray-600">{r.d}</span>
-                  </div>
-                ))}
-                <p className="text-[11px] text-gray-400 pt-1">{t.colesRuleNote}</p>
-              </div>
-            </div>
-            {ranking.map(([nombre, reducidas]) => {
-              const restantes = Math.max(0, COLES_MES - reducidas);
-              const pct = Math.min(100, Math.round((reducidas / COLES_MES) * 100));
-              return (
-                <div key={nombre}>
-                  <div className="flex justify-between items-baseline mb-1">
-                    <span className="text-sm text-gray-800">
-                      {reducidas > 0 && reducidas === ranking[0][1] && <TrofeoIcon />}{nombre}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      <span className="font-semibold text-purple-600">{tr("colesReduced", { n: reducidas })}</span>
-                      {" · "}{tr("colesLeft", { n: restantes })}
-                    </span>
-                  </div>
-                  <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full bg-purple-500" style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Historial mes a mes */}
-          {historialColes.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-4">
-              <p className="text-xs font-bold uppercase tracking-wider text-gray-500">{t.colesHistoryTitle}</p>
-              {historialColes.map(([ym, porPersona]) => {
-                const filas = [...porPersona.entries()].sort((a, b) => b[1] - a[1]);
-                const max = Math.max(1, ...filas.map(([, n]) => n));
-                return (
-                  <div key={ym}>
-                    <p className="text-sm font-semibold text-gray-800 mb-1.5">
-                      {t.months[parseInt(ym.slice(5)) - 1]} {ym.slice(0, 4)}
-                    </p>
-                    {filas.map(([nombre, reducidas]) => (
-                      <div key={nombre} className="mb-1.5">
-                        <div className="flex justify-between items-baseline mb-0.5">
-                          <span className="text-xs text-gray-700">{reducidas > 0 && reducidas === filas[0][1] && <TrofeoIcon size={12} />}{nombre}</span>
-                          <span className="text-xs font-semibold text-purple-600">−{reducidas}</span>
-                        </div>
-                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full bg-purple-400" style={{ width: `${Math.round((reducidas / max) * 100)}%` }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-            <p className="text-xs font-bold uppercase tracking-wider text-gray-500 px-4 pt-4 pb-2">{t.latestColesMoves}</p>
-            {coles.slice(0, 15).map((m, idx) => (
-              <div key={m.id} className={`flex justify-between items-center px-4 py-2.5 gap-2 ${idx < 14 ? "border-b border-gray-100" : ""}`}>
-                <div className="min-w-0">
-                  <p className="text-xs text-gray-700 truncate">{m.motivo}</p>
-                  <p className="text-[10px] text-gray-400">{m.usuario_nombre} · {m.created_at.slice(0, 10)}</p>
-                </div>
-                <div className="shrink-0 flex items-center gap-2">
-                  <span className={`text-xs font-bold ${m.coles_delta < 0 ? "text-purple-600" : "text-gray-500"}`}>
-                    {m.coles_delta}
-                  </span>
-                  <button
-                    onClick={() => eliminarMovimiento(m)}
-                    title={t.delete}
-                    className="text-gray-300 hover:text-red-500 transition-colors p-0.5"
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
