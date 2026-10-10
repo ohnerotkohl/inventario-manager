@@ -131,11 +131,43 @@ body.body-dark {
   70% { transform: translateY(-2px) scale(1.06); opacity: 1; }
   100% { transform: none; opacity: 1; }
 }
+/* brillo suave donde tocas el menú */
+@keyframes toqueBrillo {
+  0% { transform: scale(0.3); opacity: 0.55; }
+  100% { transform: scale(1); opacity: 0; }
+}
+.toque-brillo {
+  position: fixed;
+  z-index: 20;
+  pointer-events: none;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(179, 136, 255, 0.35) 0%, rgba(144, 133, 233, 0.12) 45%, transparent 70%);
+  animation: toqueBrillo 0.6s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+}
+
+/* al cambiar de página, cada bloque entra deslizándose, uno tras otro */
+@keyframes bloqueEntra {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+@media screen {
+  body.tema main > div > :not(.fixed):not(.sticky) {
+    animation: bloqueEntra 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  body.tema main > div > :not(.fixed):not(.sticky):nth-child(2) { animation-delay: 0.05s; }
+  body.tema main > div > :not(.fixed):not(.sticky):nth-child(3) { animation-delay: 0.1s; }
+  body.tema main > div > :not(.fixed):not(.sticky):nth-child(4) { animation-delay: 0.15s; }
+  body.tema main > div > :not(.fixed):not(.sticky):nth-child(5) { animation-delay: 0.2s; }
+  body.tema main > div > :not(.fixed):not(.sticky):nth-child(6) { animation-delay: 0.25s; }
+  body.tema main > div > :not(.fixed):not(.sticky):nth-child(n + 7) { animation-delay: 0.3s; }
+}
+
 .mas-velo { animation: fadeIn 0.25s ease-out; }
 .mas-sube { animation: masSube 0.45s cubic-bezier(0.2, 0.9, 0.3, 1); }
 .mas-icono { animation: masIcono 0.45s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
 @media (prefers-reduced-motion: reduce) {
-  .mas-velo, .mas-sube, .mas-icono { animation: none; }
+  .mas-velo, .mas-sube, .mas-icono, .toque-brillo { animation: none; }
+  body.tema main > div > * { animation: none !important; }
 }
 
 /* ======================================================================

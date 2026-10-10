@@ -31,6 +31,8 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   themeColor: "#0b0c0f",
+  // la cabecera llega hasta arriba del todo (detrás de la hora y la batería)
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

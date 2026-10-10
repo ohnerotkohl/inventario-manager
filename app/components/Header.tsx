@@ -14,7 +14,7 @@ export default function Header() {
   if (pathname === "/login") return null;
 
   return (
-    <header className="bg-[rgba(11,12,15,.6)] backdrop-blur-md border-b border-white/[.07] px-4 py-3 flex items-center justify-between sticky top-0 z-10">
+    <header className="bg-[#0b0c0f] border-b border-white/[.07] px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)] flex items-center justify-between sticky top-0 z-10">
       <img
         src="https://cdn.shopify.com/s/files/1/0955/8471/5077/files/logo-Blanco.png?v=1776366740"
         alt="Ohne Rotkohl"
