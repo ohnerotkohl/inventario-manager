@@ -154,10 +154,16 @@ export async function POST(req: NextRequest) {
   </div>
   `;
 
+  // Separación Marcello / Nuria: el cierre de los mercados de Nuria va a su correo.
+  const mercadosNuria = ["Boxhagener Platz", "Hackescher Markt", "RAW"];
+  const destinatario =
+    mercadosNuria.includes(mercado) ? "nuriajuncamarti@gmail.com"
+    : process.env.EMAIL_TO;
+
   try {
     await transporter.sendMail({
       from: `"Ohne Rotkohl App" <${process.env.EMAIL_USER}>`,
-      to: process.env.EMAIL_TO,
+      to: destinatario,
       subject: `Reporte de cierre — ${mercado} — ${fechaFormateada}`,
       html,
     });

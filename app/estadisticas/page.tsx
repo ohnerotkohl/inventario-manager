@@ -6,6 +6,7 @@ import { supabase, fetchAllRows } from "@/lib/supabase";
 import { useAuth } from "@/app/components/AuthProvider";
 import { useLang } from "@/app/components/LangProvider";
 import { SkeletonCard, SkeletonList } from "@/app/components/Skeleton";
+import { veMercado } from "@/lib/perfil";
 
 interface TopPoster {
   nombre: string;
@@ -152,22 +153,34 @@ export default function EstadisticasPage() {
 
   async function fetchStats() {
     setLoading(true);
+    if (!user) { setLoading(false); return; }
+    // Mercados visibles para el perfil del usuario (separación Marcello / Nuria)
+    const { data: mercPerfilRows } = await supabase.from("mercados").select("nombre, perfil");
+    const nombresVis = new Set(((mercPerfilRows || []) as { nombre: string; perfil: string | null }[])
+      .filter((m) => veMercado(user.perfil, m.perfil)).map((m) => m.nombre));
+    const veNombre = (n: string | undefined | null) => !!n && nombresVis.has(n);
 
-    const data = await fetchAllRows(() => supabase
+    const dataAll = await fetchAllRows(() => supabase
       .from("ventas")
       .select("cantidad, talla, poster_id, sesion_id, posters(nombre, series(nombre, color)), sesiones(id, fecha, trabajador, mercados(nombre))"));
+    const data = (dataAll as unknown as { sesiones?: { mercados?: { nombre?: string } | null } | null }[])
+      .filter((v) => veNombre(v.sesiones?.mercados?.nombre)) as typeof dataAll;
 
     // Balance económico detallado por mercado: balances (con desglose de gastos)
     // + ingresos históricos, agrupado por mes, respetando el periodo
     type BalRow = { mercado_nombre: string; fecha: string; total_ventas: number; total_gastos: number; neto: number; gastos: GastoItem[] | null; turno_costo: number; iva_aplicado: boolean; iva_monto: number };
     type HistRow = { evento: string; fecha: string; total: number };
-    const [balances, mercContabRes, historicos, cancRes] = await Promise.all([
+    const [balancesAll, mercContabRes, historicosAll, cancRes] = await Promise.all([
       fetchAllRows<BalRow>(() => supabase.from("balances").select("mercado_nombre, fecha, total_ventas, total_gastos, neto, gastos, turno_costo, iva_aplicado, iva_monto")),
       supabase.from("mercados").select("nombre, contabilidad"),
       fetchAllRows<HistRow>(() => supabase.from("ingresos_historicos").select("evento, fecha, total")),
       supabase.from("cancelaciones").select("id, mercado_nombre, fecha, motivo").order("fecha", { ascending: false }),
     ]);
-    setCancelaciones(cancRes.data || []);
+    // Filtrar por perfil: balances y cancelaciones por nombre exacto; históricos
+    // por coincidencia del nombre del mercado dentro del texto del evento.
+    const balances = balancesAll.filter((b) => veNombre(b.mercado_nombre));
+    const historicos = historicosAll.filter((h) => [...nombresVis].some((n) => (h.evento || "").toLowerCase().includes(n.toLowerCase())));
+    setCancelaciones((cancRes.data || []).filter((c) => veNombre(c.mercado_nombre)));
     const contabPorNombre: Record<string, string> = {};
     for (const m of (mercContabRes.data || [])) contabPorNombre[m.nombre] = m.contabilidad || "negocio";
 
@@ -266,11 +279,11 @@ export default function EstadisticasPage() {
     // Posters con inventario pero sin ventas en el período + config de mercados
     const [postersRes, mercadosRes] = await Promise.all([
       supabase.from("posters").select("nombre, activo, series(nombre, color)").eq("activo", true),
-      supabase.from("mercados").select("id, nombre, min_bajo, min_medio, min_top, top_n, precio_a4, precio_a3, precio_combo_a4, precio_combo_a3"),
+      supabase.from("mercados").select("id, nombre, min_bajo, min_medio, min_top, top_n, precio_a4, precio_a3, precio_combo_a4, precio_combo_a3, perfil"),
     ]);
     const { data: todosPosters } = postersRes;
-    type MercConf = { id: string; nombre: string; min_bajo: number; min_medio: number; min_top: number; top_n: number; precio_a4: number; precio_a3: number; precio_combo_a4: number; precio_combo_a3: number };
-    const mercadosConf = (mercadosRes.data || []) as unknown as MercConf[];
+    type MercConf = { id: string; nombre: string; min_bajo: number; min_medio: number; min_top: number; top_n: number; precio_a4: number; precio_a3: number; precio_combo_a4: number; precio_combo_a3: number; perfil?: string | null };
+    const mercadosConf = ((mercadosRes.data || []) as unknown as MercConf[]).filter((m) => veMercado(user.perfil, m.perfil));
     type PosterRow = { nombre: string; series: { nombre: string; color: string } | null };
     const vendidosSet = new Set(Object.keys(porPoster).map((id) => porPoster[id].nombre));
     setSinVentas(

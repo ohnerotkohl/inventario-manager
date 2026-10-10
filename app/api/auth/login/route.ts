@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
   const { data: usuario, error } = await admin
     .from("usuarios")
-    .select("id, nombre, rol, puede_inventario, cajas_permitidas, pin_hash, activo")
+    .select("id, nombre, rol, puede_inventario, cajas_permitidas, perfil, pin_hash, activo")
     .eq("id", userId)
     .eq("activo", true)
     .maybeSingle();
@@ -81,6 +81,7 @@ export async function POST(req: NextRequest) {
       rol: usuario.rol,
       puede_inventario: usuario.puede_inventario,
       cajas_permitidas: usuario.cajas_permitidas ?? null,
+      perfil: usuario.perfil ?? "marcello",
     },
   });
 }

@@ -8,6 +8,7 @@ import type { Caja, Serie, Poster, Inventario } from "@/lib/types";
 import { SkeletonPage } from "@/app/components/Skeleton";
 import { useAuth } from "@/app/components/AuthProvider";
 import { useLang } from "@/app/components/LangProvider";
+import { veMercado } from "@/lib/perfil";
 
 const SERIES_ORDER = [
   "Life is Food - Kitchen",
@@ -104,16 +105,19 @@ function InventarioInner() {
   }
 
   useEffect(() => {
+    if (!user) return;
     supabase.from("cajas").select("*").then(({ data }) => {
       if (data && data.length > 0) {
-        setCajas(data);
+        // Solo las cajas del perfil del usuario (separación Marcello / Nuria)
+        const visibles = data.filter((c) => veMercado(user.perfil, c.perfil));
+        setCajas(visibles);
         // Solo preseleccionar si viene por URL; si no, mostrar el panel de selección
         const paramCaja = params.get("caja");
-        const found = data.find((c) => c.nombre.replace(/ /g, '-') === paramCaja || c.id === paramCaja);
+        const found = visibles.find((c) => c.nombre.replace(/ /g, '-') === paramCaja || c.id === paramCaja);
         if (found) setCajaId(found.id);
       }
     });
-  }, [params]);
+  }, [params, user]);
 
   const fetchInventario = useCallback(async () => {
     if (!cajaId) return;

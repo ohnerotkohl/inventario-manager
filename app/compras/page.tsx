@@ -8,6 +8,7 @@ import type { Caja, MaterialCaja, InsumoEstudio } from "@/lib/types";
 import { SkeletonPage } from "@/app/components/Skeleton";
 import { AlertTriangle, Check, Mail } from "@/app/components/Icons";
 import { useLang } from "@/app/components/LangProvider";
+import { veMercado, veEstudio } from "@/lib/perfil";
 
 type Tab = "cajas" | "estudio";
 
@@ -45,9 +46,14 @@ export default function ComprasPage() {
       supabase.from("materiales_caja").select("*, cajas(nombre)"),
       supabase.from("insumos_estudio").select("*").order("nombre"),
     ]);
-    setCajas(cajasRes.data || []);
-    setMateriales(matRes.data || []);
-    setInsumos(insRes.data || []);
+    // Separación por perfil: cajas/materiales de sus mercados; el estudio solo Marcello.
+    const cajasVis = (cajasRes.data || []).filter((c) => veMercado(user?.perfil, (c as Caja).perfil));
+    const cajasVisIds = new Set(cajasVis.map((c) => c.id));
+    const puedeEstudio = veEstudio(user?.perfil);
+    setCajas(cajasVis);
+    setMateriales((matRes.data || []).filter((m) => m.caja_id != null && cajasVisIds.has(m.caja_id)));
+    setInsumos(puedeEstudio ? (insRes.data || []) : []);
+    if (!puedeEstudio) setTab("cajas");
     setLoading(false);
   }
 
@@ -156,6 +162,7 @@ export default function ComprasPage() {
 
       {/* Tabs */}
       <div className="flex gap-2">
+        {veEstudio(user?.perfil) && (
         <button
           onClick={() => setTab("estudio")}
           className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-colors ${
@@ -167,6 +174,7 @@ export default function ComprasPage() {
             <span className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">{totalAlertasIns}</span>
           )}
         </button>
+        )}
         <button
           onClick={() => setTab("cajas")}
           className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-colors ${

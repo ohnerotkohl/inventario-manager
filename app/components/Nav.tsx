@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "./AuthProvider";
 import { useLang } from "./LangProvider";
+import { veEstudio } from "@/lib/perfil";
 
 const GuiaIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -151,14 +152,16 @@ export default function Nav() {
     { href: "/tareas", label: t.tasks, Icon: TareasIcon },
   ];
 
+  // El estudio (prints) y el generador de etiquetas son solo de Marcello.
+  const soloEstudio = veEstudio(user.perfil);
   const masLinks = [
     { href: "/finanzas", label: t.finance, Icon: FinanzasIcon },
     { href: "/turnos", label: t.shifts, Icon: TurnosIcon },
     { href: "/estadisticas", label: t.stats, Icon: StatsIcon },
     { href: "/compras", label: t.purchases, Icon: ComprasIcon },
-    { href: "/prints", label: t.prints, Icon: PrintsIcon },
+    ...(soloEstudio ? [{ href: "/prints", label: t.prints, Icon: PrintsIcon }] : []),
     { href: "/hoja-escaneo", label: t.scanSheet, Icon: ScanIcon },
-    { href: "/etiquetas", label: t.labels, Icon: EtiquetaIcon },
+    ...(soloEstudio ? [{ href: "/etiquetas", label: t.labels, Icon: EtiquetaIcon }] : []),
     { href: "/admin", label: t.team, Icon: AdminIcon },
     { href: "/novedades", label: t.news, Icon: NovedadesIcon },
     { href: "/guia", label: t.guide, Icon: GuiaIcon },

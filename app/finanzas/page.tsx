@@ -7,6 +7,7 @@ import { useAuth } from "@/app/components/AuthProvider";
 import { useLang } from "@/app/components/LangProvider";
 import { SkeletonPage } from "@/app/components/Skeleton";
 import type { Mercado, Balance } from "@/lib/types";
+import { veMercado, veEstudio } from "@/lib/perfil";
 
 type Tab = "negocio" | "personal" | "gastos";
 
@@ -121,11 +122,18 @@ export default function FinanzasPage() {
       fetchAllRows<IngresoHistorico>(() => supabase.from("ingresos_historicos").select("*").order("fecha", { ascending: false })),
       supabase.from("cancelaciones").select("id, mercado_nombre, fecha, motivo").order("fecha", { ascending: false }),
     ]);
-    setMercados(mRes.data || []);
-    setBalances(balances);
-    setGastos(gastos);
-    setHistoricos(historicos);
-    setCancelaciones((cancRes.data as Cancelacion[]) || []);
+    // Separación por perfil: cada quien ve solo las finanzas de sus mercados.
+    // Los gastos del estudio son del almacén (solo Marcello / ambos).
+    const mercVis = ((mRes.data || []) as Mercado[]).filter((m) => veMercado(user?.perfil, m.perfil));
+    const idsVis = new Set(mercVis.map((m) => m.id));
+    const nombresVis = new Set(mercVis.map((m) => m.nombre));
+    const veBal = (b: Balance) => (b.mercado_id && idsVis.has(b.mercado_id)) || (!!b.mercado_nombre && nombresVis.has(b.mercado_nombre));
+    const veEvento = (ev: string) => [...nombresVis].some((n) => (ev || "").toLowerCase().includes(n.toLowerCase()));
+    setMercados(mercVis);
+    setBalances(balances.filter(veBal));
+    setGastos(veEstudio(user?.perfil) ? gastos : []);
+    setHistoricos(historicos.filter((h) => veEvento(h.evento)));
+    setCancelaciones(((cancRes.data as Cancelacion[]) || []).filter((c) => nombresVis.has(c.mercado_nombre)));
     setLoading(false);
   }
 

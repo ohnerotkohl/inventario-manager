@@ -8,6 +8,7 @@ import { useAuth } from "@/app/components/AuthProvider";
 import { useLang } from "@/app/components/LangProvider";
 import { SkeletonCard, SkeletonList } from "@/app/components/Skeleton";
 import { AlertTriangle, Check, CheckCircle, Settings, Dot } from "@/app/components/Icons";
+import { veMercado, veEstudio } from "@/lib/perfil";
 
 interface AlertCounts {
   out: number;
@@ -100,41 +101,50 @@ export default function Dashboard() {
     try {
       const [invRes, matRes, insRes, cajasRes, sesRes, comRes, ideasRes] = await Promise.all([
         supabase.from("inventario").select("out, sample_falta, caja_id, cantidad, talla, posters(nombre)"),
-        supabase.from("materiales_caja").select("nombre, cajas(nombre)").eq("necesita_restock", true),
+        supabase.from("materiales_caja").select("nombre, cajas(nombre, perfil)").eq("necesita_restock", true),
         supabase.from("insumos_estudio").select("nombre, cantidad, unidad").eq("necesita_compra", true),
-        supabase.from("cajas").select("id, nombre, descripcion"),
-        supabase.from("sesiones").select("fecha, trabajador, mercados(nombre)").order("created_at", { ascending: false }).limit(5),
-        supabase.from("comisiones").select("id, texto, fecha, mercado, completada").order("created_at", { ascending: false }),
-        supabase.from("ideas").select("id, texto, fecha, mercado").order("created_at", { ascending: false }),
+        supabase.from("cajas").select("id, nombre, descripcion, perfil"),
+        supabase.from("sesiones").select("fecha, trabajador, mercados(nombre, perfil)").order("created_at", { ascending: false }).limit(30),
+        supabase.from("comisiones").select("id, texto, fecha, mercado, completada, perfil").order("created_at", { ascending: false }),
+        supabase.from("ideas").select("id, texto, fecha, mercado, perfil").order("created_at", { ascending: false }),
       ]);
 
+      // Separación por perfil: cada quien ve solo sus cajas/mercados.
+      const verPerfil = (p: string | null | undefined) => veMercado(user?.perfil, p);
+      const cajasVisibles = (cajasRes.data || []).filter((c) => verPerfil((c as { perfil?: string | null }).perfil));
+      const cajasVisiblesIds = new Set(cajasVisibles.map((c) => c.id));
+
       type InvRow = { out: boolean; sample_falta: boolean; caja_id: string; cantidad: number; talla: string; posters: { nombre: string } | null };
-      const inv = (invRes.data || []) as unknown as InvRow[];
+      const inv = ((invRes.data || []) as unknown as InvRow[]).filter((i) => cajasVisiblesIds.has(i.caja_id));
+      // El estudio (insumos/despensa) solo lo ve Marcello.
+      const puedeEstudio = veEstudio(user?.perfil);
       setAlertas({
         out: inv.filter((i) => i.out).length,
         stockBajo: inv.filter((i) => !i.out && i.cantidad > 0 && i.cantidad < 3).length,
         sampleFalta: inv.filter((i) => i.sample_falta).length,
-        materiales: matRes.data?.length || 0,
-        insumos: insRes.data?.length || 0,
+        materiales: 0, // se ajusta abajo con los materiales visibles
+        insumos: puedeEstudio ? (insRes.data?.length || 0) : 0,
       });
 
-      type MatRow = { nombre: string; cajas: { nombre: string } | null };
+      type MatRow = { nombre: string; cajas: { nombre: string; perfil?: string | null } | null };
+      const materialesVis = ((matRes.data as unknown as MatRow[]) || []).filter((m) => verPerfil(m.cajas?.perfil));
       setMaterialesPendientes(
-        ((matRes.data as unknown as MatRow[]) || []).map((m) => ({
+        materialesVis.map((m) => ({
           nombre: m.nombre,
           detalle: m.cajas?.nombre,
         }))
       );
+      setAlertas((prev) => ({ ...prev, materiales: materialesVis.length }));
 
       type InsRow = { nombre: string; cantidad: number; unidad: string };
       setInsumosPendientes(
-        ((insRes.data as unknown as InsRow[]) || []).map((i) => ({
+        !puedeEstudio ? [] : ((insRes.data as unknown as InsRow[]) || []).map((i) => ({
           nombre: i.nombre,
           detalle: tr("remaining", { qty: i.cantidad, unit: i.unidad }),
         }))
       );
 
-      const cajasData = cajasRes.data || [];
+      const cajasData = cajasVisibles;
       setCajas(cajasData.map((c) => {
         const cajaInv = inv.filter((i) => i.caja_id === c.id);
         return {
@@ -158,17 +168,20 @@ export default function Dashboard() {
           .sort((a, b) => a.caja.localeCompare(b.caja) || a.nombre.localeCompare(b.nombre)),
       });
 
-      type SesionRow = { fecha: string; trabajador: string; mercados: { nombre: string } | null };
+      type SesionRow = { fecha: string; trabajador: string; mercados: { nombre: string; perfil?: string | null } | null };
       setUltimasSesiones(
-        (sesRes.data as unknown as SesionRow[] || []).map((s) => ({
-          nombre: s.mercados?.nombre || "—",
-          fecha: s.fecha,
-          trabajador: s.trabajador,
-        }))
+        (sesRes.data as unknown as SesionRow[] || [])
+          .filter((s) => verPerfil(s.mercados?.perfil))
+          .slice(0, 5)
+          .map((s) => ({
+            nombre: s.mercados?.nombre || "—",
+            fecha: s.fecha,
+            trabajador: s.trabajador,
+          }))
       );
 
-      setComisiones((comRes.data || []) as Comision[]);
-      setIdeas((ideasRes.data || []) as Idea[]);
+      setComisiones(((comRes.data || []) as (Comision & { perfil?: string | null })[]).filter((c) => verPerfil(c.perfil)));
+      setIdeas(((ideasRes.data || []) as (Idea & { perfil?: string | null })[]).filter((i) => verPerfil(i.perfil)));
     } catch {
       setConfigured(false);
     } finally {

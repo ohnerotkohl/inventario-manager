@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/app/components/AuthProvider";
 import { useLang } from "@/app/components/LangProvider";
 import { SkeletonPage } from "@/app/components/Skeleton";
+import { veEstudio } from "@/lib/perfil";
 
 type Talla = "A4" | "A3";
 type Origen = "taller" | "externo";
@@ -56,6 +57,8 @@ export default function PrintsPage() {
 
   useEffect(() => {
     if (user?.rol === "empleado") { router.replace("/sesion"); return; }
+    // El almacén de prints del estudio solo lo ve Marcello.
+    if (user && !veEstudio(user.perfil)) { router.replace("/"); return; }
     fetchData();
   }, [user]);
 

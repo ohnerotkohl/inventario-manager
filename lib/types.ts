@@ -20,6 +20,7 @@ export interface Caja {
   id: string
   nombre: string
   descripcion: string
+  perfil?: 'marcello' | 'nuria'
 }
 
 export interface Mercado {
@@ -30,6 +31,7 @@ export interface Mercado {
   costo_stand?: number
   contabilidad?: 'negocio' | 'marcello' | 'nuria'
   responsable?: string | null
+  perfil?: 'marcello' | 'nuria'
   cajas?: Caja
 }
 

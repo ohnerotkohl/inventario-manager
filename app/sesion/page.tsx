@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Mercado, Poster, Serie, Inventario } from "@/lib/types";
+import { veMercado } from "@/lib/perfil";
 import { SkeletonList } from "@/app/components/Skeleton";
 import { Check, CheckCircle, Printer, Pencil, Dot } from "@/app/components/Icons";
 import { useLang } from "@/app/components/LangProvider";
@@ -164,14 +165,17 @@ export default function SesionPage() {
   }, [user]);
 
   useEffect(() => {
+    if (!user) return;
     supabase.from("mercados").select("*, cajas(*)").then(({ data }) => {
-      setMercados(data || []);
-      if (data && data.length > 0) setMercadoId(data[0].id);
+      // Solo los mercados del perfil del usuario (separación Marcello / Nuria)
+      const visibles = (data || []).filter((m) => veMercado(user.perfil, m.perfil));
+      setMercados(visibles);
+      if (visibles.length > 0) setMercadoId(visibles[0].id);
     });
-    supabase.from("cajas").select("id, nombre").then(({ data }) => {
-      setCajas(data || []);
+    supabase.from("cajas").select("id, nombre, perfil").then(({ data }) => {
+      setCajas((data || []).filter((c) => veMercado(user.perfil, c.perfil)));
     });
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (tabPrincipal === "historial") fetchHistorial();
@@ -186,13 +190,13 @@ export default function SesionPage() {
       materiales_faltantes: string[] | null;
       combos_a4: number | null;
       combos_a3: number | null;
-      mercados: { id: string; nombre: string; caja_id: string; precio_a4: number; precio_a3: number; precio_combo_a4: number; precio_combo_a3: number } | null;
+      mercados: { id: string; nombre: string; caja_id: string; perfil: string | null; precio_a4: number; precio_a3: number; precio_combo_a4: number; precio_combo_a3: number } | null;
       ventas: { cantidad: number; talla: string; posters: { nombre: string } | null }[];
     };
     const [sesRes, preciosRes, balancesRes] = await Promise.all([
       supabase
         .from("sesiones")
-        .select("id, fecha, trabajador, materiales_faltantes, combos_a4, combos_a3, mercados(id, nombre, caja_id, precio_a4, precio_a3, precio_combo_a4, precio_combo_a3), ventas(cantidad, talla, posters(nombre))")
+        .select("id, fecha, trabajador, materiales_faltantes, combos_a4, combos_a3, mercados(id, nombre, caja_id, perfil, precio_a4, precio_a3, precio_combo_a4, precio_combo_a3), ventas(cantidad, talla, posters(nombre))")
         .order("fecha", { ascending: false })
         .limit(50),
       supabase.from("mercados").select("id, precio_a4, precio_a3, precio_combo_a4, precio_combo_a3"),
@@ -208,7 +212,8 @@ export default function SesionPage() {
     }
     const TOLERANCIA = 10; // EUR: diferencias menores se consideran cuadradas
 
-    const rows = (sesRes.data || []) as unknown as SesionRow[];
+    // Solo los cierres de mercados del perfil del usuario (separación Marcello / Nuria)
+    const rows = ((sesRes.data || []) as unknown as SesionRow[]).filter((r) => veMercado(user?.perfil, r.mercados?.perfil));
     setHistorial(rows.map((r) => {
       const mercadoId = r.mercados?.id || "";
       const mercadoNombre = r.mercados?.nombre || "—";
@@ -484,10 +489,12 @@ export default function SesionPage() {
     // no crear sesión, solo guardar las notas y enviar el reporte
     const totalVentasSubmit = Object.values(ventas).reduce((a, b) => a + b, 0);
     if (!modoEdicion && totalVentasSubmit === 0) {
-      const mercadoNombreSolo = mercados.find((m) => m.id === mercadoId)?.nombre || "";
+      const mercadoSolo = mercados.find((m) => m.id === mercadoId);
+      const mercadoNombreSolo = mercadoSolo?.nombre || "";
+      const perfilSolo = mercadoSolo?.perfil || "marcello";
       const extras: PromiseLike<unknown>[] = [];
-      if (notas.trim()) extras.push(supabase.from("comisiones").insert({ texto: notas.trim(), fecha, mercado: mercadoNombreSolo }));
-      if (ideas.trim()) extras.push(supabase.from("ideas").insert({ texto: ideas.trim(), fecha, mercado: mercadoNombreSolo }));
+      if (notas.trim()) extras.push(supabase.from("comisiones").insert({ texto: notas.trim(), fecha, mercado: mercadoNombreSolo, perfil: perfilSolo }));
+      if (ideas.trim()) extras.push(supabase.from("ideas").insert({ texto: ideas.trim(), fecha, mercado: mercadoNombreSolo, perfil: perfilSolo }));
       if (extras.length > 0) await Promise.all(extras);
       setReporteImpresion({ a4: [], a3: [] });
       setSesionId("");
@@ -682,13 +689,15 @@ export default function SesionPage() {
       reportSesionId = nuevaSesionId;
     }
 
-    const mercadoNombreGuardar = mercados.find((m) => m.id === mercadoId)?.nombre || "";
+    const mercadoGuardar = mercados.find((m) => m.id === mercadoId);
+    const mercadoNombreGuardar = mercadoGuardar?.nombre || "";
+    const perfilGuardar = mercadoGuardar?.perfil || "marcello";
     const insertExtras: PromiseLike<unknown>[] = [];
     if (notas.trim()) {
-      insertExtras.push(supabase.from("comisiones").insert({ texto: notas.trim(), fecha, mercado: mercadoNombreGuardar }));
+      insertExtras.push(supabase.from("comisiones").insert({ texto: notas.trim(), fecha, mercado: mercadoNombreGuardar, perfil: perfilGuardar }));
     }
     if (ideas.trim()) {
-      insertExtras.push(supabase.from("ideas").insert({ texto: ideas.trim(), fecha, mercado: mercadoNombreGuardar }));
+      insertExtras.push(supabase.from("ideas").insert({ texto: ideas.trim(), fecha, mercado: mercadoNombreGuardar, perfil: perfilGuardar }));
     }
     if (insertExtras.length > 0) await Promise.all(insertExtras);
 

@@ -6,6 +6,7 @@ import { supabase, fetchAllRows } from "@/lib/supabase";
 import { useAuth } from "@/app/components/AuthProvider";
 import { useLang } from "@/app/components/LangProvider";
 import type { Caja, Serie, Poster, Inventario } from "@/lib/types";
+import { veMercado } from "@/lib/perfil";
 
 const SERIES_ORDER = [
   "Life is Food - Kitchen", "Animals", "Fun", "Frases",
@@ -197,7 +198,7 @@ export default function RestockPage() {
   useEffect(() => {
     if (user?.rol === "empleado") { router.replace("/sesion"); return; }
     supabase.from("cajas").select("*").then(({ data }) => {
-      setCajas(data || []);
+      setCajas((data || []).filter((c) => veMercado(user?.perfil, c.perfil)));
     });
   }, [user]);
 

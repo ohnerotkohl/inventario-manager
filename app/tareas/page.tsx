@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/app/components/AuthProvider";
 import { useLang } from "@/app/components/LangProvider";
 import { SkeletonPage } from "@/app/components/Skeleton";
+import { veMercado } from "@/lib/perfil";
 
 type Tab = "activas" | "pendientes" | "completadas" | "coles";
 type Frecuencia = "diaria" | "semanal" | "mensual" | "puntual";
@@ -98,7 +99,8 @@ export default function TareasPage() {
       supabase.from("usuarios").select("id, nombre, rol").eq("activo", true),
       supabase.from("coles_log").select("*").order("created_at", { ascending: false }).limit(200),
     ]);
-    setTareas((tRes.data as Tarea[]) || []);
+    // Separación por perfil: cada quien ve solo sus tareas (y las de "ambos").
+    setTareas(((tRes.data as (Tarea & { perfil?: string | null })[]) || []).filter((t) => veMercado(user?.perfil, t.perfil)));
     setUsuarios((uRes.data as UsuarioMin[]) || []);
     setColes((cRes.data as ColesMove[]) || []);
     setLoading(false);
@@ -163,7 +165,7 @@ export default function TareasPage() {
     };
     const { error } = editandoId
       ? await supabase.from("tareas").update(campos).eq("id", editandoId)
-      : await supabase.from("tareas").insert({ ...campos, estado: "pendiente", creada_por: user?.id || null });
+      : await supabase.from("tareas").insert({ ...campos, estado: "pendiente", creada_por: user?.id || null, perfil: user?.perfil || "ambos" });
     setCreando(false);
     if (error) { alert(t.saveError); return; }
     setFNombre(""); setFDescripcion(""); setFCategoria("Otra"); setFAsignada("");

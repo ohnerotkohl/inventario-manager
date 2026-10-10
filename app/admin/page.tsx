@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { hashPin } from "@/lib/auth";
 import { useAuth } from "@/app/components/AuthProvider";
 import { useLang } from "@/app/components/LangProvider";
+import { veMercado } from "@/lib/perfil";
 
 interface UsuarioRow {
   id: string;
@@ -47,7 +48,8 @@ export default function AdminPage() {
       return;
     }
     fetchUsuarios();
-    supabase.from("cajas").select("id, nombre").order("nombre").then(({ data }) => setCajas(data ?? []));
+    supabase.from("cajas").select("id, nombre, perfil").order("nombre").then(({ data }) =>
+      setCajas((data ?? []).filter((c) => veMercado(user?.perfil, (c as { perfil?: string | null }).perfil))));
   }, [user]);
 
   async function fetchUsuarios() {

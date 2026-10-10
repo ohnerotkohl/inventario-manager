@@ -6,6 +6,7 @@ import { useAuth } from "@/app/components/AuthProvider";
 import { useLang } from "@/app/components/LangProvider";
 import { SkeletonPage } from "@/app/components/Skeleton";
 import type { Mercado, Balance, GastoBalance } from "@/lib/types";
+import { veMercado } from "@/lib/perfil";
 
 type Tab = "nuevo" | "historial";
 type TurnoTipo = "na" | "horas";
@@ -75,11 +76,13 @@ export default function BalancePage() {
   const [abierto, setAbierto] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!user) return;
     supabase.from("mercados").select("*").order("nombre").then(({ data }) => {
-      setMercados(data || []);
+      // Solo los mercados del perfil del usuario (separación Marcello / Nuria)
+      setMercados((data || []).filter((m) => veMercado(user.perfil, m.perfil)));
       setLoading(false);
     });
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (user && !trabajador) setTrabajador(user.nombre);
@@ -91,7 +94,13 @@ export default function BalancePage() {
 
   async function fetchHistorial() {
     const { data } = await supabase.from("balances").select("*").order("fecha", { ascending: false }).order("created_at", { ascending: false });
-    setHistorial((data as Balance[]) || []);
+    // Solo los balances de mercados del perfil del usuario (separación Marcello / Nuria)
+    const idsVis = new Set(mercados.map((m) => m.id));
+    const nombresVis = new Set(mercados.map((m) => m.nombre));
+    const visibles = ((data as Balance[]) || []).filter((b) =>
+      (b.mercado_id && idsVis.has(b.mercado_id)) || nombresVis.has(b.mercado_nombre)
+    );
+    setHistorial(visibles);
     setHistorialCargado(true);
   }
 
