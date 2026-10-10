@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "./AuthProvider";
@@ -139,6 +139,9 @@ export default function Nav() {
   const { user } = useAuth();
   const { t } = useLang();
   const [masAbierto, setMasAbierto] = useState(false);
+  // explosión de partículas donde tocas el menú (grande al abrir "Más")
+  const [estallido, setEstallido] = useState<{ id: number; x: number; y: number; grande: boolean } | null>(null);
+  const tocar = (e: React.PointerEvent, grande = false) => setEstallido({ id: Date.now(), x: e.clientX, y: e.clientY, grande });
 
   if (!user || pathname === "/login") return null;
 
@@ -192,14 +195,21 @@ export default function Nav() {
       {/* Panel "Más" */}
       {masAbierto && esAdmin && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-10" onClick={() => setMasAbierto(false)} />
-          <div className="fixed bottom-[52px] left-0 right-0 z-10">
+          <div className="fixed inset-0 bg-black/50 z-10 mas-velo" onClick={() => setMasAbierto(false)} />
+          <div className="fixed bottom-[52px] left-0 right-0 z-10 mas-sube">
             <div className={`max-w-2xl mx-auto rounded-t-2xl shadow-lg border ${oscuro ? "bg-gray-900 border-gray-800" : "bg-white border-gray-200"}`}>
               <div className="grid grid-cols-3 gap-y-2 py-3">
-                {masLinks.map(({ href, label, Icon }) => {
+                {masLinks.map(({ href, label, Icon }, i) => {
                   const active = pathname === href;
                   return (
-                    <Link key={href} href={href} onClick={() => setMasAbierto(false)} className={itemClass(active)}>
+                    <Link
+                      key={href}
+                      href={href}
+                      onClick={() => setMasAbierto(false)}
+                      onPointerDown={(e) => tocar(e)}
+                      className={`${itemClass(active)} mas-icono`}
+                      style={{ animationDelay: `${80 + i * 35}ms` }}
+                    >
                       <Icon />
                       {label}
                     </Link>
@@ -216,20 +226,104 @@ export default function Nav() {
           {links.map(({ href, label, Icon }) => {
             const active = pathname === href;
             return (
-              <Link key={href} href={href} onClick={() => setMasAbierto(false)} className={itemClass(active)}>
+              <Link key={href} href={href} onClick={() => setMasAbierto(false)} onPointerDown={(e) => tocar(e)} className={itemClass(active)}>
                 <Icon />
                 {label}
               </Link>
             );
           })}
           {esAdmin && (
-            <button onClick={() => setMasAbierto(!masAbierto)} className={itemClass(enMas || masAbierto)}>
+            <button
+              onPointerDown={(e) => tocar(e, !masAbierto)}
+              onClick={() => setMasAbierto(!masAbierto)}
+              className={itemClass(enMas || masAbierto)}
+            >
               <MasIcon />
               {t.more}
             </button>
           )}
         </div>
       </nav>
+      {estallido && <Chispas key={estallido.id} x={estallido.x} y={estallido.y} grande={estallido.grande} />}
     </>
   );
+}
+
+// Al tocar el menú: un anillo de luz morada se expande y unas partículas saltan, caen con
+// gravedad y se apagan. Al abrir "Más" la explosión es más grande y sale hacia arriba.
+// Solo decoración: no recibe toques y desaparece sola.
+function Chispas({ x, y, grande }: { x: number; y: number; grande: boolean }) {
+  const lienzo = useRef<HTMLCanvasElement>(null);
+  const [vivo, setVivo] = useState(true);
+
+  useEffect(() => {
+    const cv = lienzo.current;
+    if (!cv || matchMedia("(prefers-reduced-motion: reduce)").matches) return setVivo(false);
+    const dpr = Math.min(2, devicePixelRatio || 1);
+    cv.width = innerWidth * dpr;
+    cv.height = innerHeight * dpr;
+    const cx = cv.getContext("2d")!;
+    const ox = x * dpr,
+      oy = y * dpr;
+    const colores = ["179,136,255", "144,133,233", "110,98,214", "236,238,242"];
+    const ps = Array.from({ length: grande ? 34 : 16 }, () => {
+      // grande: abanico hacia arriba; pequeña: en todas direcciones, más suave
+      const ang = grande ? -Math.PI / 2 + (Math.random() - 0.65) * 1.9 : Math.random() * Math.PI * 2,
+        vel = (grande ? 3 + Math.random() * 5.5 : 1.2 + Math.random() * 2.6) * dpr;
+      return {
+        x: ox,
+        y: oy,
+        vx: Math.cos(ang) * vel,
+        vy: Math.sin(ang) * vel - (grande ? 0 : 1.2 * dpr),
+        r: (1 + Math.random() * (grande ? 1.8 : 1.3)) * dpr,
+        c: colores[Math.floor(Math.random() * colores.length)],
+        vida: 0,
+        dura: (grande ? 50 : 32) + Math.random() * 30,
+      };
+    });
+    let marco = 0,
+      cancelado = false;
+    const paso = () => {
+      if (cancelado) return;
+      cx.clearRect(0, 0, cv.width, cv.height);
+      marco++;
+      // anillo de luz que se expande desde el dedo
+      const anillo = marco / 24;
+      if (anillo < 1) {
+        cx.shadowBlur = 0;
+        cx.strokeStyle = `rgba(179,136,255,${0.55 * (1 - anillo)})`;
+        cx.lineWidth = 2 * dpr * (1 - anillo) + 0.5;
+        cx.beginPath();
+        cx.arc(ox, oy, (grande ? 46 : 30) * dpr * (1 - Math.pow(1 - anillo, 3)), 0, 7);
+        cx.stroke();
+      }
+      let quedan = anillo < 1;
+      for (const p of ps) {
+        if (p.vida > p.dura) continue;
+        quedan = true;
+        p.vida++;
+        p.vy += 0.16 * dpr; // gravedad
+        p.vx *= 0.975; // rozamiento del aire
+        p.vy *= 0.975;
+        p.x += p.vx;
+        p.y += p.vy;
+        const a = 1 - p.vida / p.dura;
+        cx.shadowBlur = 8 * dpr;
+        cx.shadowColor = `rgba(${p.c},${a})`;
+        cx.fillStyle = `rgba(${p.c},${a})`;
+        cx.beginPath();
+        cx.arc(p.x, p.y, p.r * (0.6 + a * 0.4), 0, 7);
+        cx.fill();
+      }
+      if (quedan) requestAnimationFrame(paso);
+      else setVivo(false);
+    };
+    requestAnimationFrame(paso);
+    return () => {
+      cancelado = true;
+    };
+  }, [x, y, grande]);
+
+  if (!vivo) return null;
+  return <canvas ref={lienzo} aria-hidden className="fixed inset-0 w-full h-full z-20 pointer-events-none" />;
 }

@@ -120,6 +120,24 @@ body.body-dark {
   animation: fadeIn 0.25s ease-out;
 }
 
+/* Menú "Más": sube con un rebote suave y los iconos aparecen uno tras otro */
+@keyframes masSube {
+  0% { transform: translateY(100%); opacity: 0; }
+  65% { transform: translateY(-6px); opacity: 1; }
+  100% { transform: none; }
+}
+@keyframes masIcono {
+  0% { transform: translateY(10px) scale(0.7); opacity: 0; }
+  70% { transform: translateY(-2px) scale(1.06); opacity: 1; }
+  100% { transform: none; opacity: 1; }
+}
+.mas-velo { animation: fadeIn 0.25s ease-out; }
+.mas-sube { animation: masSube 0.45s cubic-bezier(0.2, 0.9, 0.3, 1); }
+.mas-icono { animation: masIcono 0.45s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .mas-velo, .mas-sube, .mas-icono { animation: none; }
+}
+
 /* ======================================================================
    Tema morado (el mismo de Contabilidad). Solo es visual y solo en pantalla:
    al imprimir todo sigue en blanco. Lo activa components/Tema.tsx con clases
