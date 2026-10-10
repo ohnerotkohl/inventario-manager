@@ -76,6 +76,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
           rol: data.rol,
           puede_inventario: data.puede_inventario,
           cajas_permitidas: data.cajas_permitidas ?? null,
+          perfil: data.perfil ?? "marcello",
         };
         setSession(fresh);
         setUser(fresh);
