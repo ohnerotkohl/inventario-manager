@@ -15,11 +15,8 @@ export default function Header() {
 
   return (
     <header className="bg-[#0b0c0f] border-b border-white/[.07] px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)] flex items-center justify-between sticky top-0 z-10">
-      <img
-        src="https://cdn.shopify.com/s/files/1/0955/8471/5077/files/logo-Blanco.png?v=1776366740"
-        alt="Ohne Rotkohl"
-        className="h-7"
-      />
+      {/* logo con el mismo tornasol animado que la pantalla de entrada */}
+      <div role="img" aria-label="Ohne Rotkohl" className="logo-tornasol logo-cabecera h-7 w-[200px] max-w-[52vw]" />
       <div className="flex items-center gap-2">
         {/* Feedback de la beta */}
         {!isPublic && <FeedbackWidget />}

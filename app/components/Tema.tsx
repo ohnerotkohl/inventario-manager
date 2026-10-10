@@ -43,9 +43,67 @@ export default function Tema() {
     else b.style.removeProperty("--ceja");
   }, [ruta, base, sinTema]);
 
+  // al cambiar de página, cada bloque entra con un muelle: sube, se pasa un poco y se asienta
+  useEffect(() => {
+    if (sinTema || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const main = document.querySelector("main");
+    if (!main) return;
+    const raiz = () => main.firstElementChild;
+    const animables = (el: Element) => !el.matches(".fixed, .sticky");
+    let orden = 0;
+    const entrar = (el: Element, retraso: number) => {
+      if (animables(el)) (el as HTMLElement).animate(MUELLE, { duration: MUELLE_MS, delay: retraso, fill: "backwards" });
+    };
+    const r = raiz();
+    if (r) [...r.children].forEach((el, i) => entrar(el, Math.min(i, 6) * 70));
+    // lo que aparece después (al terminar de cargar datos) también entra con el muelle
+    const ob = new MutationObserver((cambios) => {
+      for (const c of cambios)
+        for (const n of c.addedNodes) {
+          if (!(n instanceof Element)) continue;
+          if (c.target === main) [...n.children].forEach((el, i) => entrar(el, Math.min(i, 6) * 70));
+          else if (c.target === raiz()) entrar(n, Math.min(orden++, 4) * 50);
+        }
+      orden = 0;
+    });
+    ob.observe(main, { childList: true });
+    if (r) ob.observe(r, { childList: true });
+    return () => ob.disconnect();
+  }, [ruta, sinTema]);
+
   if (sinTema) return null;
   return <Fondo />;
 }
+
+// Fotogramas de un muelle real (rigidez 170, amortiguación 14): se calculan una vez.
+// La posición rebota un poco por encima de su sitio y se asienta; la opacidad sube rápido.
+const { MUELLE, MUELLE_MS } = (() => {
+  const k = 170,
+    c = 14,
+    dt = 1 / 120;
+  let x = 1,
+    v = 0,
+    t = 0;
+  const pasos: { x: number; t: number }[] = [];
+  while (t < 2 && !(t > 0.2 && Math.abs(x) < 0.002 && Math.abs(v) < 0.02)) {
+    pasos.push({ x, t });
+    const f = -k * x - c * v;
+    v += f * dt;
+    x += v * dt;
+    t += dt;
+  }
+  pasos.push({ x: 0, t });
+  const total = t;
+  const marcos = pasos
+    .filter((_, i) => i % 4 === 0 || i === pasos.length - 1)
+    .map((p) => ({
+      offset: p.t / total,
+      opacity: Math.min(1, (p.t / total) * 4),
+      transform: `translateY(${(p.x * 18).toFixed(2)}px) scale(${(1 - p.x * 0.015).toFixed(4)})`,
+    }));
+  marcos[marcos.length - 1].offset = 1;
+  return { MUELLE: marcos as Keyframe[], MUELLE_MS: Math.round(total * 1000) };
+})();
 
 function Fondo() {
   const lienzo = useRef<HTMLCanvasElement>(null);
