@@ -504,19 +504,12 @@ export default function BalancePage() {
           {historialVisible.length === 0 && <p className="text-sm text-gray-400 text-center py-8">{t.noBalances}</p>}
           {historialVisible.map((b) => {
             const open = abierto === b.id;
-            const contab = mercados.find((m) => m.id === b.mercado_id)?.contabilidad;
-            const personal = contab === "marcello" || contab === "nuria";
             return (
               <div key={b.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
                 <button onClick={() => setAbierto(open ? null : b.id)} className="w-full flex items-center justify-between px-4 py-3 text-left">
                   <div>
                     <p className="text-sm font-semibold text-gray-900">
                       {b.mercado_nombre}
-                      {personal && (
-                        <span className="ml-2 text-[10px] font-normal text-purple-600 bg-purple-50 border border-purple-200 rounded-full px-2 py-0.5 align-middle">
-                          {tr("personalBadge", { name: contab === "marcello" ? "Marcello" : "Nuria" })}
-                        </span>
-                      )}
                     </p>
                     <p className="text-xs text-gray-500">{b.fecha} · {b.trabajador}</p>
                   </div>
