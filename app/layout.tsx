@@ -6,6 +6,7 @@ import AuthProvider from "./components/AuthProvider";
 import Header from "./components/Header";
 import LangProvider from "./components/LangProvider";
 import LangSetter from "./components/LangSetter";
+import Tema from "./components/Tema";
 
 const geist = Geist({ subsets: ["latin"] });
 
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <LangProvider>
         <AuthProvider>
           <LangSetter />
+          <Tema />
           <Header />
           <main className="max-w-2xl mx-auto px-4 py-6">{children}</main>
           <Nav />

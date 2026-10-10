@@ -211,7 +211,7 @@ export default function Nav() {
         </>
       )}
 
-      <nav className={`fixed bottom-0 left-0 right-0 border-t z-10 ${oscuro ? "bg-[#131517] border-gray-800" : "bg-white border-gray-200"}`}>
+      <nav className={`fixed bottom-0 left-0 right-0 border-t z-10 ${oscuro ? "bg-[rgba(11,12,15,.8)] backdrop-blur-md border-white/[.07]" : "bg-white border-gray-200"}`}>
         <div className="flex justify-around items-center max-w-2xl mx-auto">
           {links.map(({ href, label, Icon }) => {
             const active = pathname === href;
