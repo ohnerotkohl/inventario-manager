@@ -429,7 +429,7 @@ export default function Dashboard() {
       {/* Acción rápida */}
       <Link
         href="/sesion"
-        className="flex items-center justify-center gap-3 bg-white text-black rounded-2xl p-4 font-semibold text-lg hover:bg-gray-200 transition-colors"
+        className="flex items-center justify-center gap-3 bg-[#5b4bc4] text-white rounded-2xl p-4 font-semibold text-lg hover:bg-[#6a5ad6] transition-colors"
       >
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
           <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
