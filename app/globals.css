@@ -346,6 +346,8 @@ body.body-dark {
   body.invertir .fixed.bg-white,
   body.invertir .sticky.bg-white { background-color: #17181e; }
   body.invertir .bg-black { background-color: #5b4bc4; }
+  /* botón morado que aún no se puede pulsar: texto blanco y algo más tenue, no gris */
+  body.invertir button.bg-black:disabled { color: #fff; opacity: 0.45; }
   body.invertir .text-black { color: #eceef2; }
   body.invertir .border-black { border-color: rgba(255, 255, 255, 0.3); }
   /* fondos grises oscuros con texto blanco encima: se quedan oscuros */
