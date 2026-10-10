@@ -20,29 +20,40 @@ export default function Header() {
         alt="Ohne Rotkohl"
         className="h-7"
       />
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         {/* Feedback de la beta */}
         {!isPublic && <FeedbackWidget />}
         {/* Language toggle */}
         <button
           onClick={() => setLang(lang === "es" ? "en" : "es")}
-          className="flex items-center gap-1 bg-white/10 hover:bg-white/20 active:scale-95 text-white text-xs font-bold tracking-widest px-2.5 py-1 rounded-lg transition-all"
+          className="flex items-center bg-white/10 hover:bg-white/20 active:scale-95 text-white text-[10px] font-bold tracking-widest px-2 py-[3px] rounded-md transition-all"
         >
           {lang === "es" ? "EN" : "ES"}
         </button>
 
         {!isPublic && user && (
-          <button
-            onClick={logout}
-            className="text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-1.5"
-          >
-            {user.nombre}
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
-              <polyline points="16 17 21 12 16 7"/>
-              <line x1="21" y1="12" x2="9" y2="12"/>
-            </svg>
-          </button>
+          <>
+            {/* Solo la inicial de quien ha entrado, para que el logo respire */}
+            <span
+              title={user.nombre}
+              aria-label={user.nombre}
+              className="ml-1 w-[26px] h-[26px] rounded-full grid place-items-center text-[11px] font-semibold text-white bg-gradient-to-br from-[#8b7cf0] to-[#4a32a0] ring-1 ring-white/15"
+            >
+              {user.nombre.trim().charAt(0).toUpperCase()}
+            </span>
+            <button
+              onClick={logout}
+              title="Salir"
+              aria-label="Salir"
+              className="w-[26px] h-[26px] grid place-items-center rounded-full text-[#8b909c] hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+            </button>
+          </>
         )}
       </div>
     </header>
