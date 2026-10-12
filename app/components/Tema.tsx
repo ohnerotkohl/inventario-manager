@@ -116,16 +116,18 @@ function Fondo() {
     const quieto = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const colores = ["144,133,233", "179,136,255", "110,98,214"];
     const toque = { x: -1e4, y: -1e4 };
-    type P = { x: number; y: number; vx: number; vy: number; bx: number; by: number; r: number; c: string };
+    type P = { x: number; y: number; vx: number; vy: number; bx: number; by: number; hx: number; hy: number; r: number; c: string };
     let W = 0,
       H = 0,
       ps: P[] = [],
-      vivo = true;
+      vivo = true,
+      ultimo = 0;
 
     // posición del dedo o del ratón: aparta las partículas y enciende el borde de la tarjeta
     const mover = (e: PointerEvent) => {
       toque.x = e.clientX * dpr;
       toque.y = e.clientY * dpr;
+      ultimo = performance.now();
       const t = (e.target as Element | null)?.closest?.(".rounded-2xl.border") as HTMLElement | null;
       if (t) {
         const r = t.getBoundingClientRect();
@@ -151,10 +153,16 @@ function Fondo() {
           vy,
           bx: vx,
           by: vy,
+          hx: 0,
+          hy: 0,
           r: (Math.random() * 1.6 + 0.6) * dpr,
           c: colores[Math.floor(Math.random() * 3)],
         };
       });
+      for (const p of ps) {
+        p.hx = p.x;
+        p.hy = p.y;
+      }
     };
     tam();
     addEventListener("resize", tam);
@@ -167,27 +175,33 @@ function Fondo() {
     const paso = () => {
       if (!vivo) return;
       cx.clearRect(0, 0, W, H);
+      // el empuje del ratón o del dedo solo dura mientras se mueve (se apaga en 1,5 s)
+      const empuje = Math.max(0, 1 - (performance.now() - ultimo) / 1500);
       for (const p of ps) {
+        // cada partícula tiene un origen que se pasea despacio y rebota en los bordes
+        p.hx += p.bx;
+        p.hy += p.by;
+        if (p.hx < 0 || p.hx > W) {
+          p.hx = Math.min(W, Math.max(0, p.hx));
+          p.bx = -p.bx;
+        }
+        if (p.hy < 0 || p.hy > H) {
+          p.hy = Math.min(H, Math.max(0, p.hy));
+          p.by = -p.by;
+        }
         const dx = p.x - toque.x,
           dy = p.y - toque.y,
           d = Math.hypot(dx, dy);
-        if (d < radio && d > 0) {
-          const f = (1 - d / radio) * 0.9;
+        if (empuje > 0 && d < radio && d > 0) {
+          const f = (1 - d / radio) * 0.9 * empuje;
           p.vx += (dx / d) * f;
           p.vy += (dy / d) * f;
         }
-        p.vx += (p.bx - p.vx) * 0.03;
-        p.vy += (p.by - p.vy) * 0.03;
+        // unida a su origen como con una goma: se aparta y vuelve flotando
+        p.vx = (p.vx + (p.hx - p.x) * 0.004) * 0.94;
+        p.vy = (p.vy + (p.hy - p.y) * 0.004) * 0.94;
         p.x += p.vx;
         p.y += p.vy;
-        if (p.x < 0 || p.x > W) {
-          p.x = Math.min(W, Math.max(0, p.x));
-          p.vx = p.x === 0 ? Math.abs(p.vx) : -Math.abs(p.vx);
-        }
-        if (p.y < 0 || p.y > H) {
-          p.y = Math.min(H, Math.max(0, p.y));
-          p.vy = p.y === 0 ? Math.abs(p.vy) : -Math.abs(p.vy);
-        }
       }
       cx.lineWidth = dpr * 0.8;
       for (let i = 0; i < ps.length; i++) {
@@ -204,8 +218,8 @@ function Fondo() {
           }
         }
         const dm = Math.hypot(a.x - toque.x, a.y - toque.y);
-        if (dm < radio * 1.4) {
-          cx.strokeStyle = `rgba(${a.c},${0.28 * (1 - dm / (radio * 1.4))})`;
+        if (empuje > 0 && dm < radio * 1.4) {
+          cx.strokeStyle = `rgba(${a.c},${0.28 * empuje * (1 - dm / (radio * 1.4))})`;
           cx.beginPath();
           cx.moveTo(a.x, a.y);
           cx.lineTo(toque.x, toque.y);
