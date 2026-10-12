@@ -9,6 +9,7 @@ import { Check, Printer, Pencil, Dot } from "@/app/components/Icons";
 import { useLang } from "@/app/components/LangProvider";
 import { useAuth } from "@/app/components/AuthProvider";
 import RepolloJuego from "@/app/components/RepolloJuego";
+import TituloBrillante from "@/app/components/TituloBrillante";
 
 // Fecha de HOY en horario local (Berlín), no UTC. new Date().toISOString() da la
 // fecha UTC, que entre medianoche y las 01:00/02:00 devuelve el día de AYER y
@@ -828,7 +829,7 @@ export default function SesionPage() {
       <div className="space-y-6">
         <div className="text-center">
           <RepolloJuego />
-          <h2 className="text-2xl font-bold text-gray-900 mt-2">{t.sessionSaved}</h2>
+          <TituloBrillante className="text-2xl mt-2">{t.sessionSaved}</TituloBrillante>
           <p className="text-gray-500 text-sm">{t.inventoryUpdated}</p>
         </div>
 

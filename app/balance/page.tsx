@@ -8,6 +8,7 @@ import { SkeletonPage } from "@/app/components/Skeleton";
 import type { Mercado, Balance, GastoBalance } from "@/lib/types";
 import { veMercado } from "@/lib/perfil";
 import RepolloJuego from "@/app/components/RepolloJuego";
+import TituloBrillante from "@/app/components/TituloBrillante";
 
 type Tab = "nuevo" | "historial";
 type TurnoTipo = "na" | "horas";
@@ -280,7 +281,7 @@ export default function BalancePage() {
       <div className="space-y-6">
         <div className="bg-white border border-gray-200 rounded-2xl p-6 text-center space-y-3">
           <RepolloJuego alto={210} />
-          <h2 className="text-xl font-bold text-gray-900">{t.balanceSaved}</h2>
+          <TituloBrillante className="text-xl">{t.balanceSaved}</TituloBrillante>
           <p className="text-gray-500 text-sm">{guardado.mercado_nombre} · {guardado.fecha} · {guardado.trabajador}</p>
           <p className={`text-3xl font-bold ${guardado.neto >= 0 ? "text-green-600" : "text-red-600"}`}>
             {guardado.neto >= 0 ? "+" : ""}{eur(guardado.neto)}

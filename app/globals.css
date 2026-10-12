@@ -121,6 +121,39 @@ textarea {
   mask-position: left center;
 }
 
+/* título de las confirmaciones: morado con un brillo que lo recorre */
+@keyframes brilloTitulo {
+  0% { background-position: 120% 50%; }
+  100% { background-position: -20% 50%; }
+}
+.titulo-brillante {
+  background: linear-gradient(100deg, #9d8ff7 0%, #b3a8ff 40%, #f3f0ff 50%, #b3a8ff 60%, #9d8ff7 100%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+  animation: brilloTitulo 3.2s ease-in-out infinite;
+  filter: drop-shadow(0 0 12px rgba(157, 143, 247, 0.35));
+}
+/* partículas que suben desde el título */
+@keyframes chispaSube {
+  0% { transform: translate(0, 0) scale(0.6); opacity: 0; }
+  20% { opacity: 0.9; }
+  100% { transform: translate(var(--deriva, 0px), -38px) scale(1); opacity: 0; }
+}
+.chispa-titulo {
+  position: absolute;
+  bottom: 30%;
+  border-radius: 50%;
+  background: #c4b8ff;
+  box-shadow: 0 0 6px rgba(179, 168, 255, 0.9);
+  opacity: 0;
+  animation: chispaSube 2.6s ease-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .titulo-brillante, .chispa-titulo { animation: none; }
+}
+
 /* Prueba dark mode (solo el Dashboard la activa): mismo patrón de
    puntitos flotantes, en gris oscuro elegante */
 body.body-dark {

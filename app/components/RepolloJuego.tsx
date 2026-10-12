@@ -23,7 +23,7 @@ export default function RepolloJuego({ alto = 230 }: { alto?: number }) {
     const cx = cv.getContext("2d")!;
     const dpr = Math.min(2, devicePixelRatio || 1);
 
-    type P = { u: number; v: number; z: number; x: number; y: number; vx: number; vy: number; linea: boolean; fase: number; prof: number; tx: number; ty: number };
+    type P = { u: number; v: number; z: number; x: number; y: number; vx: number; vy: number; linea: boolean; polvo?: boolean; fase: number; prof: number; tx: number; ty: number };
     const ps: P[] = [];
     // en el móvil basta con la mitad de los puntos (va fluido y gasta menos batería)
     const meter = (lista: number[], linea: boolean) => {
@@ -36,6 +36,18 @@ export default function RepolloJuego({ alto = 230 }: { alto?: number }) {
     };
     meter(RELLENO, false);
     meter(LINEAS, true);
+    // polvo: unas pocas partículas sueltas flotando en una capa alrededor de la esfera
+    for (let i = 0; i < 90; i++) {
+      const a = Math.random() * Math.PI * 2,
+        b = Math.acos(Math.random() * 2 - 1),
+        r = 1.08 + Math.random() * 0.4;
+      ps.push({
+        u: Math.sin(b) * Math.cos(a) * r,
+        v: Math.sin(b) * Math.sin(a) * r,
+        z: Math.cos(b) * r * 0.75,
+        x: 0, y: 0, vx: 0, vy: 0, linea: false, polvo: true, fase: Math.random() * 6.28, prof: 1, tx: 0, ty: 0,
+      });
+    }
 
     // el lienzo ocupa toda la pantalla (los puntos pueden volar por todas partes);
     // el repollo se dibuja centrado en su caja
@@ -182,8 +194,9 @@ export default function RepolloJuego({ alto = 230 }: { alto?: number }) {
       cx.globalCompositeOperation = "source-over";
 
       for (const p of ps) {
-        const fu = p.u + Math.sin(t * 0.8 + p.fase) * 0.008,
-          fv = p.v + Math.cos(t * 0.7 + p.fase * 1.3) * 0.008;
+        const amp = p.polvo ? 0.05 : 0.008;
+        const fu = p.u + Math.sin(t * (p.polvo ? 0.45 : 0.8) + p.fase) * amp,
+          fv = p.v + Math.cos(t * (p.polvo ? 0.4 : 0.7) + p.fase * 1.3) * amp;
         const x1 = fu * cyr + p.z * syr,
           z1 = -fu * syr + p.z * cyr;
         const y2 = fv * cxr - z1 * sxr,
@@ -223,6 +236,7 @@ export default function RepolloJuego({ alto = 230 }: { alto?: number }) {
         viva = new Path2D();
       for (let i = 0; i < ps.length; i++) {
         const p = ps[i];
+        if (p.polvo) continue;
         const suelto = Math.abs(p.x - p.tx) + Math.abs(p.y - p.ty) > 5 * dpr;
         if (!suelto && i % 3) continue;
         const gx = Math.floor(p.x / CELDA),
@@ -252,11 +266,11 @@ export default function RepolloJuego({ alto = 230 }: { alto?: number }) {
 
       for (const p of ps) {
         const suelto = Math.min(1, (Math.abs(p.x - p.tx) + Math.abs(p.y - p.ty)) / (60 * dpr));
-        let brillo = Math.max(0.3, Math.min(1.25, (p.prof - 0.75) * 1.6));
+        let brillo = p.polvo ? 0.75 + 0.5 * Math.sin(t * 1.3 + p.fase) ** 2 : Math.max(0.3, Math.min(1.25, (p.prof - 0.75) * 1.6));
         const dl = Math.hypot(p.x - lx, p.y - ly);
         if (dl < lr) brillo += (1 - dl / lr) * 0.6;
-        const tamano = (p.linea ? 1.8 : 1.3) * dpr * p.prof;
-        const al = Math.min(1, (p.linea ? 0.9 : 0.45) * brillo);
+        const tamano = (p.linea ? 1.8 : p.polvo ? 1.5 : 1.3) * dpr * p.prof;
+        const al = Math.min(1, (p.linea ? 0.9 : p.polvo ? 0.55 : 0.45) * brillo);
         if (suelto > 0.04) {
           const r = Math.round(215 + 30 * suelto),
             gg = Math.round(205 - 100 * suelto),
@@ -285,7 +299,7 @@ export default function RepolloJuego({ alto = 230 }: { alto?: number }) {
     <div className="w-full">
       <div ref={caja} className="relative w-full select-none touch-none" style={{ height: alto }} aria-label="Repollo para jugar" />
 
-      <p className="text-center text-[11px] tracking-wide text-[#8b909c] mt-1">Desliza para girarlo · toca para que estalle</p>
+      <p className="text-center text-[9px] font-medium uppercase tracking-[2.5px] text-[#6f7480] mt-1">Desliza para girarlo · toca para que estalle</p>
     </div>
   );
 }

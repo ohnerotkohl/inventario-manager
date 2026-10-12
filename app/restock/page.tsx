@@ -8,6 +8,7 @@ import { useLang } from "@/app/components/LangProvider";
 import type { Caja, Serie, Poster, Inventario } from "@/lib/types";
 import { veMercado } from "@/lib/perfil";
 import RepolloJuego from "@/app/components/RepolloJuego";
+import TituloBrillante from "@/app/components/TituloBrillante";
 
 const SERIES_ORDER = [
   "Life is Food - Kitchen", "Animals", "Fun", "Frases",
@@ -503,7 +504,7 @@ export default function RestockPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center gap-4">
         <RepolloJuego />
-        <h2 className="text-2xl font-bold text-gray-900">{t.restockDone}</h2>
+        <TituloBrillante className="text-2xl">{t.restockDone}</TituloBrillante>
         <p className="text-gray-500">
           Se añadieron <strong>{totalUnidades} unidades</strong> ({totalA4 > 0 ? `A4: ${totalA4}` : ""}{totalA4 > 0 && totalA3 > 0 ? " · " : ""}{totalA3 > 0 ? `A3: ${totalA3}` : ""}) al stock de <strong>{caja?.nombre}</strong>.
         </p>
