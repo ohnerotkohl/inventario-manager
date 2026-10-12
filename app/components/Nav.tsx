@@ -168,6 +168,8 @@ export default function Nav() {
     { href: "/admin", label: t.team, Icon: AdminIcon },
     { href: "/novedades", label: t.news, Icon: NovedadesIcon },
     { href: "/guia", label: t.guide, Icon: GuiaIcon },
+    // temporal: para probar el repollo de las confirmaciones (quitar después)
+    { href: "/prueba-repollo", label: "Repollo", Icon: NovedadesIcon },
   ];
 
   const empleadoLinks = [
