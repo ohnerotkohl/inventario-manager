@@ -10,6 +10,30 @@ import { LINEAS, RELLENO, REPOLLO_ASPECTO } from "@/lib/repollo";
 // Solo decoración: no toca ningún dato.
 export default function RepolloJuego({ alto = 230 }: { alto?: number }) {
   const caja = useRef<HTMLDivElement>(null);
+  const pista = useRef<HTMLParagraphElement>(null);
+
+  // la caja del repollo se estira hacia arriba hasta la cabecera (sin mover el resto de la
+  // página), así el repollo queda centrado entre la cabecera y "Desliza y presiona"
+  useEffect(() => {
+    const ajustar = () => {
+      const c = caja.current,
+        p = pista.current;
+      if (!c || !p) return;
+      const cabecera = document.querySelector("header")?.getBoundingClientRect().bottom ?? 0;
+      const hueco = p.getBoundingClientRect().top - 6 - (cabecera + 10);
+      const altoNuevo = Math.max(alto, hueco);
+      c.style.height = `${altoNuevo}px`;
+      c.style.marginTop = `${alto - altoNuevo}px`;
+    };
+    ajustar();
+    // tras la entrada animada de la página, se vuelve a medir
+    const t = setTimeout(ajustar, 900);
+    addEventListener("resize", ajustar);
+    return () => {
+      clearTimeout(t);
+      removeEventListener("resize", ajustar);
+    };
+  }, [alto]);
 
   useEffect(() => {
     const cont = caja.current;
@@ -61,7 +85,7 @@ export default function RepolloJuego({ alto = 230 }: { alto?: number }) {
       const r = cont.getBoundingClientRect();
       cX = (r.left + r.width / 2) * dpr;
       cY = (r.top + r.height / 2) * dpr;
-      radio = (Math.min(r.width * 0.9, (r.height * 0.92) / REPOLLO_ASPECTO) / 2) * dpr;
+      radio = (Math.min(r.width * 0.9, (Math.min(r.height, alto) * 0.92) / REPOLLO_ASPECTO) / 2) * dpr;
     };
     const tam = () => {
       W = cv.width = Math.round(innerWidth * dpr);
@@ -293,13 +317,13 @@ export default function RepolloJuego({ alto = 230 }: { alto?: number }) {
       cont.removeEventListener("pointercancel", fuera);
       cont.removeEventListener("pointerleave", fuera);
     };
-  }, []);
+  }, [alto]);
 
   return (
     <div className="w-full">
       <div ref={caja} className="relative w-full select-none touch-none" style={{ height: alto }} aria-label="Repollo para jugar" />
 
-      <p className="text-center text-[9px] font-medium uppercase tracking-[2.5px] text-[#6f7480] mt-1">Desliza y presiona</p>
+      <p ref={pista} className="text-center text-[9px] font-medium uppercase tracking-[2.5px] text-[#6f7480] mt-1">Desliza y presiona</p>
     </div>
   );
 }
