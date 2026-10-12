@@ -126,9 +126,10 @@ textarea {
   0% { background-position: 120% 50%; }
   100% { background-position: -20% 50%; }
 }
+/* halo tipo neón: ceñido a las letras, intenso, que respira un poco */
 @keyframes haloTitulo {
-  0%, 100% { filter: drop-shadow(0 0 10px rgba(157, 120, 247, 0.45)) drop-shadow(0 0 22px rgba(190, 90, 220, 0.18)); }
-  50% { filter: drop-shadow(0 0 14px rgba(170, 120, 255, 0.6)) drop-shadow(0 0 30px rgba(200, 90, 220, 0.28)); }
+  0%, 100% { filter: drop-shadow(0 0 1.5px rgba(200, 170, 255, 0.9)) drop-shadow(0 0 4px rgba(160, 110, 250, 0.65)); }
+  50% { filter: drop-shadow(0 0 2px rgba(215, 185, 255, 1)) drop-shadow(0 0 6px rgba(175, 110, 250, 0.8)); }
 }
 .titulo-brillante {
   background: linear-gradient(100deg, #9d8ff7 0%, #b3a8ff 38%, #d58ef0 50%, #b3a8ff 62%, #9d8ff7 100%);
