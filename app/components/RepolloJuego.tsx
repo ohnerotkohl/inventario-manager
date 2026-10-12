@@ -22,7 +22,6 @@ export default function RepolloJuego({ alto = 230 }: { alto?: number }) {
     document.body.appendChild(cv);
     const cx = cv.getContext("2d")!;
     const dpr = Math.min(2, devicePixelRatio || 1);
-    const quieto = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     type P = { u: number; v: number; z: number; x: number; y: number; vx: number; vy: number; linea: boolean; fase: number; prof: number; tx: number; ty: number };
     const ps: P[] = [];
@@ -56,12 +55,12 @@ export default function RepolloJuego({ alto = 230 }: { alto?: number }) {
       W = cv.width = Math.round(innerWidth * dpr);
       H = cv.height = Math.round(innerHeight * dpr);
       medir();
+      // el repollo ya está ahí al aparecer la confirmación: cada punto empieza en su sitio
       if (primera) {
         for (const p of ps) {
-          const a = Math.random() * Math.PI * 2,
-            d = quieto ? 0 : Math.max(W, H) * (0.4 + Math.random() * 0.4);
-          p.x = cX + Math.cos(a) * d;
-          p.y = cY + Math.sin(a) * d;
+          const persp = 1 / (1 - p.z * 0.35);
+          p.x = cX + p.u * radio * persp;
+          p.y = cY + p.v * radio * persp;
         }
         primera = false;
       }
@@ -77,8 +76,13 @@ export default function RepolloJuego({ alto = 230 }: { alto?: number }) {
       velY = 0,
       explosion = -1e9;
     const pos = (e: PointerEvent) => ({ x: e.clientX * dpr, y: e.clientY * dpr });
-    const mover = (e: PointerEvent) => {
+    const mover = (e: PointerEvent, nuevo = false) => {
       const q = pos(e);
+      if (nuevo || dedo.x < -1000) {
+        dedo.x = q.x;
+        dedo.y = q.y;
+        dedo.vx = dedo.vy = 0;
+      }
       if (dedo.t) {
         dedo.vx = q.x - dedo.x;
         dedo.vy = q.y - dedo.y;
@@ -93,7 +97,7 @@ export default function RepolloJuego({ alto = 230 }: { alto?: number }) {
     };
     const bajar = (e: PointerEvent) => {
       cont.setPointerCapture?.(e.pointerId);
-      mover(e);
+      mover(e, true);
       dedo.abajo = true;
       dedo.x0 = dedo.x;
       dedo.y0 = dedo.y;
