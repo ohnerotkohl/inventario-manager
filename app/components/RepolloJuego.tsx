@@ -56,14 +56,14 @@ export default function RepolloJuego({ alto = 230 }: { alto?: number }) {
         const u = lista[i] * 2 - 1,
           v = (lista[i + 1] * 2 - 1) * REPOLLO_ASPECTO;
         const r2 = Math.min(1, u * u + v * v);
-        ps.push({ u, v, z: Math.sqrt(1 - r2) * 0.75, x: 0, y: 0, vx: 0, vy: 0, linea, fase: Math.random() * 6.28, prof: 1, tx: 0, ty: 0 });
+        ps.push({ u, v, z: Math.sqrt(1 - r2), x: 0, y: 0, vx: 0, vy: 0, linea, fase: Math.random() * 6.28, prof: 1, tx: 0, ty: 0 });
       }
     };
     meter(RELLENO, false);
     meter(LINEAS, true);
     // la mitad trasera (dibujos de atrás y de los lados), ya colocada sobre la esfera
     for (let i = 0; i < ATRAS.length; i += 8)
-      ps.push({ u: ATRAS[i], v: ATRAS[i + 1], z: ATRAS[i + 2], x: 0, y: 0, vx: 0, vy: 0, linea: ATRAS[i + 3] === 1, fase: Math.random() * 6.28, prof: 1, tx: 0, ty: 0 });
+      ps.push({ u: ATRAS[i], v: ATRAS[i + 1], z: ATRAS[i + 2] / 0.75, x: 0, y: 0, vx: 0, vy: 0, linea: ATRAS[i + 3] === 1, fase: Math.random() * 6.28, prof: 1, tx: 0, ty: 0 });
     // polvo: unas pocas partículas sueltas flotando en una capa alrededor de la esfera
     for (let i = 0; i < 90; i++) {
       const a = Math.random() * Math.PI * 2,
@@ -72,7 +72,7 @@ export default function RepolloJuego({ alto = 230 }: { alto?: number }) {
       ps.push({
         u: Math.sin(b) * Math.cos(a) * r,
         v: Math.sin(b) * Math.sin(a) * r,
-        z: Math.cos(b) * r * 0.75,
+        z: Math.cos(b) * r,
         x: 0, y: 0, vx: 0, vy: 0, linea: false, polvo: true, fase: Math.random() * 6.28, prof: 1, tx: 0, ty: 0,
       });
     }
@@ -304,7 +304,17 @@ export default function RepolloJuego({ alto = 230 }: { alto?: number }) {
             gg = Math.round(205 - 100 * suelto),
             b = Math.round(255 - 150 * suelto);
           cx.fillStyle = `rgba(${r},${gg},${b},${Math.min(1, al + 0.15)})`;
-        } else cx.fillStyle = p.linea ? `rgba(215,205,255,${al})` : `rgba(130,115,230,${al})`;
+        } else {
+          // franjas de color que pasan despacio: morado rojizo/magenta y azulado sobre el morado de siempre
+          const o1 = Math.max(0, Math.sin((p.u * 0.9 + p.v * 0.45) * 2.2 - t * 0.6)) ** 6,
+            o2 = Math.max(0, Math.sin((p.v * 0.8 - p.u * 0.3) * 2.6 + t * 0.45 + 1.7)) ** 6;
+          const base = 1 - Math.min(1, o1 + o2) * 0.85;
+          const k = p.linea ? 1 : 0.62;
+          const r = (215 * base + 232 * o1 * 0.85 + 125 * o2 * 0.85) * k,
+            g = (205 * base + 110 * o1 * 0.85 + 140 * o2 * 0.85) * k,
+            b = (255 * base + 230 * o1 * 0.85 + 255 * o2 * 0.85) * k;
+          cx.fillStyle = `rgba(${r | 0},${g | 0},${b | 0},${al})`;
+        }
         cx.fillRect(p.x - tamano / 2, p.y - tamano / 2, tamano, tamano);
       }
       requestAnimationFrame(paso);
