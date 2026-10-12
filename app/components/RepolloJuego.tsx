@@ -10,12 +10,16 @@ import { LINEAS, RELLENO, REPOLLO_ASPECTO } from "@/lib/repollo";
 // Solo decoración: no toca ningún dato.
 export default function RepolloJuego({ alto = 230 }: { alto?: number }) {
   const caja = useRef<HTMLDivElement>(null);
-  const lienzo = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    const cv = lienzo.current,
-      cont = caja.current;
-    if (!cv || !cont) return;
+    const cont = caja.current;
+    if (!cont) return;
+    // el lienzo va directamente en <body>: ocupa toda la pantalla aunque la página esté
+    // animándose, queda por encima del contenido y por debajo de la cabecera y el menú
+    const cv = document.createElement("canvas");
+    cv.setAttribute("aria-hidden", "true");
+    cv.className = "fixed inset-0 w-screen h-screen pointer-events-none z-[5]";
+    document.body.appendChild(cv);
     const cx = cv.getContext("2d")!;
     const dpr = Math.min(2, devicePixelRatio || 1);
     const quieto = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -34,28 +38,36 @@ export default function RepolloJuego({ alto = 230 }: { alto?: number }) {
     meter(RELLENO, false);
     meter(LINEAS, true);
 
+    // el lienzo ocupa toda la pantalla (los puntos pueden volar por todas partes);
+    // el repollo se dibuja centrado en su caja
     let W = 0,
       H = 0,
-      radio = 1;
+      radio = 1,
+      cX = 0,
+      cY = 0;
     let primera = true;
-    const tam = () => {
+    const medir = () => {
       const r = cont.getBoundingClientRect();
-      W = cv.width = Math.round(r.width * dpr);
-      H = cv.height = Math.round(r.height * dpr);
+      cX = (r.left + r.width / 2) * dpr;
+      cY = (r.top + r.height / 2) * dpr;
       radio = (Math.min(r.width * 0.9, (r.height * 0.92) / REPOLLO_ASPECTO) / 2) * dpr;
+    };
+    const tam = () => {
+      W = cv.width = Math.round(innerWidth * dpr);
+      H = cv.height = Math.round(innerHeight * dpr);
+      medir();
       if (primera) {
         for (const p of ps) {
           const a = Math.random() * Math.PI * 2,
             d = quieto ? 0 : Math.max(W, H) * (0.4 + Math.random() * 0.4);
-          p.x = W / 2 + Math.cos(a) * d;
-          p.y = H / 2 + Math.sin(a) * d;
+          p.x = cX + Math.cos(a) * d;
+          p.y = cY + Math.sin(a) * d;
         }
         primera = false;
       }
     };
     tam();
-    const ro = new ResizeObserver(tam);
-    ro.observe(cont);
+    addEventListener("resize", tam);
 
     // ---- dedo ----
     const dedo = { x: -1e4, y: -1e4, vx: 0, vy: 0, t: 0, abajo: false, x0: 0, y0: 0, t0: 0 };
@@ -64,10 +76,7 @@ export default function RepolloJuego({ alto = 230 }: { alto?: number }) {
       velX = 0,
       velY = 0,
       explosion = -1e9;
-    const pos = (e: PointerEvent) => {
-      const r = cv.getBoundingClientRect();
-      return { x: (e.clientX - r.left) * dpr, y: (e.clientY - r.top) * dpr };
-    };
+    const pos = (e: PointerEvent) => ({ x: e.clientX * dpr, y: e.clientY * dpr });
     const mover = (e: PointerEvent) => {
       const q = pos(e);
       if (dedo.t) {
@@ -83,7 +92,7 @@ export default function RepolloJuego({ alto = 230 }: { alto?: number }) {
       dedo.t = performance.now();
     };
     const bajar = (e: PointerEvent) => {
-      cv.setPointerCapture?.(e.pointerId);
+      cont.setPointerCapture?.(e.pointerId);
       mover(e);
       dedo.abajo = true;
       dedo.x0 = dedo.x;
@@ -100,7 +109,7 @@ export default function RepolloJuego({ alto = 230 }: { alto?: number }) {
         const dx = p.x - dedo.x,
           dy = p.y - dedo.y,
           d = Math.hypot(dx, dy) || 1;
-        const f = (8 * dpr) / Math.max(0.3, d / (70 * dpr));
+        const f = (17 * dpr) / Math.max(0.3, d / (110 * dpr));
         p.vx += (dx / d) * f * (0.5 + Math.random());
         p.vy += (dy / d) * f * (0.5 + Math.random());
       }
@@ -109,11 +118,11 @@ export default function RepolloJuego({ alto = 230 }: { alto?: number }) {
       dedo.abajo = false;
       dedo.x = dedo.y = -1e4;
     };
-    cv.addEventListener("pointermove", mover);
-    cv.addEventListener("pointerdown", bajar);
-    cv.addEventListener("pointerup", subir);
-    cv.addEventListener("pointercancel", fuera);
-    cv.addEventListener("pointerleave", fuera);
+    cont.addEventListener("pointermove", mover);
+    cont.addEventListener("pointerdown", bajar);
+    cont.addEventListener("pointerup", subir);
+    cont.addEventListener("pointercancel", fuera);
+    cont.addEventListener("pointerleave", fuera);
 
     const CELDA = 16 * dpr;
     let vivo = true;
@@ -138,16 +147,27 @@ export default function RepolloJuego({ alto = 230 }: { alto?: number }) {
 
       const activo = dedo.t > 0 && ahora - dedo.t < 900;
       const alcance = 60 * dpr;
-      const desde = (ahora - explosion) / 2800;
-      const k = desde < 1 ? 0.0015 + 0.0155 * desde * desde : 0.017;
-      const roce = desde < 1 ? 0.96 - 0.06 * desde : 0.9;
+      // explosión: medio segundo de vuelo libre (sin nada que tire de los puntos) y luego
+      // vuelven planeando en unos 2-3 s, frenando al llegar, sin rebotes de gelatina
+      const tras = (ahora - explosion) / 1000;
+      let k = 0.017,
+        roce = 0.9;
+      if (tras < 0.5) {
+        k = 0;
+        roce = 0.965;
+      } else if (tras < 3.2) {
+        const f = (tras - 0.5) / 2.7;
+        k = 0.0025 + 0.0145 * f * f;
+        roce = 1 - 2.05 * Math.sqrt(k);
+      }
+      medir();
 
       cx.clearRect(0, 0, W, H);
 
       // una luz morada suave que pasa despacio
       const a = ahora * 0.00018;
-      const lx = W / 2 + Math.cos(a) * radio * 1.2,
-        ly = H / 2 + Math.sin(a * 1.3) * radio * 0.7,
+      const lx = cX + Math.cos(a) * radio * 1.2,
+        ly = cY + Math.sin(a * 1.3) * radio * 0.7,
         lr = radio * 0.8;
       cx.globalCompositeOperation = "lighter";
       const g = cx.createRadialGradient(lx, ly, 0, lx, ly, lr);
@@ -166,8 +186,8 @@ export default function RepolloJuego({ alto = 230 }: { alto?: number }) {
           z2 = fv * sxr + z1 * cxr;
         const persp = 1 / (1 - z2 * 0.35);
         p.prof = persp;
-        p.tx = W / 2 + x1 * radio * persp;
-        p.ty = H / 2 + y2 * radio * persp;
+        p.tx = cX + x1 * radio * persp;
+        p.ty = cY + y2 * radio * persp;
         if (activo) {
           const dx = p.x - dedo.x,
             dy = p.y - dedo.y,
@@ -247,20 +267,20 @@ export default function RepolloJuego({ alto = 230 }: { alto?: number }) {
 
     return () => {
       vivo = false;
-      ro.disconnect();
-      cv.removeEventListener("pointermove", mover);
-      cv.removeEventListener("pointerdown", bajar);
-      cv.removeEventListener("pointerup", subir);
-      cv.removeEventListener("pointercancel", fuera);
-      cv.removeEventListener("pointerleave", fuera);
+      cv.remove();
+      removeEventListener("resize", tam);
+      cont.removeEventListener("pointermove", mover);
+      cont.removeEventListener("pointerdown", bajar);
+      cont.removeEventListener("pointerup", subir);
+      cont.removeEventListener("pointercancel", fuera);
+      cont.removeEventListener("pointerleave", fuera);
     };
   }, []);
 
   return (
     <div className="w-full">
-      <div ref={caja} className="relative w-full select-none" style={{ height: alto }}>
-        <canvas ref={lienzo} className="absolute inset-0 w-full h-full touch-none" aria-label="Repollo para jugar" />
-      </div>
+      <div ref={caja} className="relative w-full select-none touch-none" style={{ height: alto }} aria-label="Repollo para jugar" />
+
       <p className="text-center text-[11px] tracking-wide text-[#8b909c] mt-1">Desliza para girarlo · toca para que estalle</p>
     </div>
   );
