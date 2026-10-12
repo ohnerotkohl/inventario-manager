@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react";
 import { LINEAS, RELLENO, REPOLLO_ASPECTO } from "@/lib/repollo";
-import { ATRAS } from "@/lib/repollo-atras";
 
 // Pequeño juego para las pantallas de confirmación: el repollo de Ohne Rotkohl hecho de
 // partículas en 3D (el mismo de la página Relax de Contabilidad, adaptado al móvil).
@@ -37,9 +36,6 @@ export default function RepolloJuego({ alto = 230 }: { alto?: number }) {
     };
     meter(RELLENO, false);
     meter(LINEAS, true);
-    // la mitad trasera (dibujos de atrás y de los lados), ya colocada sobre la esfera
-    for (let i = 0; i < ATRAS.length; i += 8)
-      ps.push({ u: ATRAS[i], v: ATRAS[i + 1], z: ATRAS[i + 2], x: 0, y: 0, vx: 0, vy: 0, linea: ATRAS[i + 3] === 1, fase: Math.random() * 6.28, prof: 1, tx: 0, ty: 0 });
     // polvo: unas pocas partículas sueltas flotando en una capa alrededor de la esfera
     for (let i = 0; i < 90; i++) {
       const a = Math.random() * Math.PI * 2,
