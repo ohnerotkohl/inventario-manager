@@ -103,6 +103,18 @@ textarea {
   mask-position: center;
 }
 
+/* cabecera: negro arriba (para que el tornasol del logo resalte) que se funde hacia
+   abajo con el fondo morado; es transparente, así que se ven pasar las partículas */
+.cabecera-degradado {
+  background: linear-gradient(
+    to bottom,
+    rgba(11, 12, 15, 0.96) 0%,
+    rgba(11, 12, 15, 0.82) 50%,
+    rgba(11, 12, 15, 0.4) 78%,
+    rgba(11, 12, 15, 0) 100%
+  );
+}
+
 /* en la cabecera el logo va pegado a la izquierda */
 .logo-cabecera {
   -webkit-mask-position: left center;
