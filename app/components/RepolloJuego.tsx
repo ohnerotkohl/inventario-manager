@@ -299,7 +299,7 @@ export default function RepolloJuego({ alto = 230 }: { alto?: number }) {
     <div className="w-full">
       <div ref={caja} className="relative w-full select-none touch-none" style={{ height: alto }} aria-label="Repollo para jugar" />
 
-      <p className="text-center text-[9px] font-medium uppercase tracking-[2.5px] text-[#6f7480] mt-1">Desliza para girarlo · toca para que estalle</p>
+      <p className="text-center text-[9px] font-medium uppercase tracking-[2.5px] text-[#6f7480] mt-1">Desliza y presiona</p>
     </div>
   );
 }
