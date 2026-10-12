@@ -35,14 +35,23 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+// Mismas reglas que components/Tema.tsx: las hojas de imprimir quedan en blanco;
+// Inicio y la entrada ya eran oscuras (fondo morado sin invertir colores).
+const TEMA_INICIAL = `(function(){var r=location.pathname,b="/"+(r.split("/")[1]||""),c=document.body.classList;
+if(b==="/imprimir"||b==="/hoja-escaneo")return;c.add("tema");if(r!=="/"&&r!=="/login")c.add("invertir");})();`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es" className={geist.className}>
-      <body className="bg-gray-50 min-h-screen pb-20">
+      <body className="bg-gray-50 min-h-screen pb-20" suppressHydrationWarning>
+        {/* Activa el tema morado antes de pintar nada, para que al abrir la app no
+            aparezca un instante el diseño antiguo (blanco con puntitos) */}
+        <script dangerouslySetInnerHTML={{ __html: TEMA_INICIAL }} />
         <LangProvider>
+        {/* el fondo animado no espera a comprobar la sesión: está desde el primer momento */}
+        <Tema />
         <AuthProvider>
           <LangSetter />
-          <Tema />
           <Header />
           <main className="max-w-2xl mx-auto px-4 py-6">{children}</main>
           <Nav />
