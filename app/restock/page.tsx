@@ -7,6 +7,7 @@ import { useAuth } from "@/app/components/AuthProvider";
 import { useLang } from "@/app/components/LangProvider";
 import type { Caja, Serie, Poster, Inventario } from "@/lib/types";
 import { veMercado } from "@/lib/perfil";
+import RepolloJuego from "@/app/components/RepolloJuego";
 
 const SERIES_ORDER = [
   "Life is Food - Kitchen", "Animals", "Fun", "Frases",
@@ -501,12 +502,7 @@ export default function RestockPage() {
   if (step === "confirmado") {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center gap-4">
-        <div className="text-green-600">
-          <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
-            <polyline points="22 4 12 14.01 9 11.01" />
-          </svg>
-        </div>
+        <RepolloJuego />
         <h2 className="text-2xl font-bold text-gray-900">{t.restockDone}</h2>
         <p className="text-gray-500">
           Se añadieron <strong>{totalUnidades} unidades</strong> ({totalA4 > 0 ? `A4: ${totalA4}` : ""}{totalA4 > 0 && totalA3 > 0 ? " · " : ""}{totalA3 > 0 ? `A3: ${totalA3}` : ""}) al stock de <strong>{caja?.nombre}</strong>.

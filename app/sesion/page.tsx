@@ -5,9 +5,10 @@ import { supabase } from "@/lib/supabase";
 import type { Mercado, Poster, Serie, Inventario } from "@/lib/types";
 import { veMercado } from "@/lib/perfil";
 import { SkeletonList } from "@/app/components/Skeleton";
-import { Check, CheckCircle, Printer, Pencil, Dot } from "@/app/components/Icons";
+import { Check, Printer, Pencil, Dot } from "@/app/components/Icons";
 import { useLang } from "@/app/components/LangProvider";
 import { useAuth } from "@/app/components/AuthProvider";
+import RepolloJuego from "@/app/components/RepolloJuego";
 
 // Fecha de HOY en horario local (Berlín), no UTC. new Date().toISOString() da la
 // fecha UTC, que entre medianoche y las 01:00/02:00 devuelve el día de AYER y
@@ -826,10 +827,8 @@ export default function SesionPage() {
     return (
       <div className="space-y-6">
         <div className="text-center">
-          <div className="flex justify-center mb-2 text-green-600">
-            <CheckCircle size={56} strokeWidth={1.4} />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900">{t.sessionSaved}</h2>
+          <RepolloJuego />
+          <h2 className="text-2xl font-bold text-gray-900 mt-2">{t.sessionSaved}</h2>
           <p className="text-gray-500 text-sm">{t.inventoryUpdated}</p>
         </div>
 

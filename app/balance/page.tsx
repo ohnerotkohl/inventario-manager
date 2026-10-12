@@ -7,6 +7,7 @@ import { useLang } from "@/app/components/LangProvider";
 import { SkeletonPage } from "@/app/components/Skeleton";
 import type { Mercado, Balance, GastoBalance } from "@/lib/types";
 import { veMercado } from "@/lib/perfil";
+import RepolloJuego from "@/app/components/RepolloJuego";
 
 type Tab = "nuevo" | "historial";
 type TurnoTipo = "na" | "horas";
@@ -278,7 +279,7 @@ export default function BalancePage() {
     return (
       <div className="space-y-6">
         <div className="bg-white border border-gray-200 rounded-2xl p-6 text-center space-y-3">
-          <div className="text-4xl">✅</div>
+          <RepolloJuego alto={210} />
           <h2 className="text-xl font-bold text-gray-900">{t.balanceSaved}</h2>
           <p className="text-gray-500 text-sm">{guardado.mercado_nombre} · {guardado.fecha} · {guardado.trabajador}</p>
           <p className={`text-3xl font-bold ${guardado.neto >= 0 ? "text-green-600" : "text-red-600"}`}>
