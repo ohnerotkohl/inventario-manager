@@ -1,6 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 import { useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
 import type { Mercado, Poster, Serie, Inventario } from "@/lib/types";
 import { veMercado } from "@/lib/perfil";
@@ -1674,7 +1675,7 @@ export default function SesionPage() {
       )}
 
       {/* Review overlay — employee verifies numbers before saving */}
-      {showReview && (
+      {showReview && typeof document !== "undefined" && createPortal((
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end">
           <div className="bg-white rounded-t-3xl w-full max-h-[88vh] flex flex-col">
             <div className="p-5 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
@@ -1854,7 +1855,7 @@ export default function SesionPage() {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
     </div>
   );
 }
