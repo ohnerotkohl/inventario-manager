@@ -5,7 +5,11 @@ import { usePathname } from "next/navigation";
 
 // Tema morado común con Contabilidad. Solo es visual: pone clases en <body>
 // y dibuja el fondo animado. Las hojas que se imprimen se quedan en blanco.
-const SIN_TEMA = ["/imprimir", "/hoja-escaneo"];
+// /hoja-escaneo se queda en blanco (es una hoja para imprimir/escanear).
+// /imprimir SÍ lleva el tema morado: las hojas de vista previa son blancas por
+// su cuenta (.print-page) y el PDF se genera aparte, así que el fondo morado
+// solo afecta al espacio alrededor.
+const SIN_TEMA = ["/hoja-escaneo"];
 // Estas ya eran oscuras por su cuenta: llevan fondo y cristal, pero sin invertir colores
 const YA_OSCURAS = ["/", "/login"];
 

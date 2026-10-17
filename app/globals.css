@@ -530,5 +530,5 @@ body.body-dark {
 @keyframes deriva1 { to { transform: translate(220px, 140px) scale(1.15); } }
 @keyframes deriva2 { to { transform: translate(-260px, -120px) scale(0.9); } }
 @keyframes deriva3 { to { transform: translate(-200px, 120px) scale(1.2); } }
-@media print { .fondo { display: none; } }
+@media print { .fondo { display: none; } body.tema { background: #fff !important; } }
 @media (prefers-reduced-motion: reduce) { .fondo .mancha { animation: none; } }

@@ -38,7 +38,7 @@ export const viewport: Viewport = {
 // Mismas reglas que components/Tema.tsx: las hojas de imprimir quedan en blanco;
 // Inicio y la entrada ya eran oscuras (fondo morado sin invertir colores).
 const TEMA_INICIAL = `(function(){var r=location.pathname,b="/"+(r.split("/")[1]||""),c=document.body.classList;
-if(b==="/imprimir"||b==="/hoja-escaneo")return;c.add("tema");if(r!=="/"&&r!=="/login")c.add("invertir");})();`;
+if(b==="/hoja-escaneo")return;c.add("tema");if(r!=="/"&&r!=="/login")c.add("invertir");})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

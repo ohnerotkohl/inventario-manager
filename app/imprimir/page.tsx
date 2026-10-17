@@ -260,7 +260,7 @@ export default function ImprimirPage() {
   return (
     <>
       <style>{`
-        body { background: #f3f4f6; font-family: sans-serif; margin: 0; }
+        body { font-family: sans-serif; margin: 0; }
         .print-page {
           background: white;
           margin: 24px auto;
