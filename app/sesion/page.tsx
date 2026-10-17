@@ -490,6 +490,29 @@ export default function SesionPage() {
     setVentas((prev) => ({ ...prev, [`${posterId}-${talla}`]: Math.max(0, cantidad) }));
   }
 
+  // Aplica lo marcado en el cierre directamente en la base, por caja+póster+talla
+  // (no depende del inventario en memoria). SOLD OUT = agotado: stock a 0 y out=true,
+  // así el restock lo repone desde cero. Se usa haya ventas o no.
+  async function aplicarFlagsInventario(cajaId: string) {
+    const ops: PromiseLike<unknown>[] = [];
+    const parts = (key: string) => ({ posterId: key.slice(0, -3), talla: key.slice(-2) });
+    for (const key of soldOut) {
+      const { posterId, talla } = parts(key);
+      ops.push(
+        supabase.from("inventario").update({ out: true, cantidad: 0 })
+          .eq("caja_id", cajaId).eq("poster_id", posterId).eq("talla", talla)
+      );
+    }
+    for (const key of samplesFaltantes) {
+      const { posterId, talla } = parts(key);
+      ops.push(
+        supabase.from("inventario").update({ sample_falta: true })
+          .eq("caja_id", cajaId).eq("poster_id", posterId).eq("talla", talla)
+      );
+    }
+    if (ops.length > 0) await Promise.all(ops);
+  }
+
   async function handleSubmit() {
     if (submittingRef.current) return;
     submittingRef.current = true;
@@ -506,6 +529,9 @@ export default function SesionPage() {
       if (notas.trim()) extras.push(supabase.from("comisiones").insert({ texto: notas.trim(), fecha, mercado: mercadoNombreSolo, perfil: perfilSolo }));
       if (ideas.trim()) extras.push(supabase.from("ideas").insert({ texto: ideas.trim(), fecha, mercado: mercadoNombreSolo, perfil: perfilSolo }));
       if (extras.length > 0) await Promise.all(extras);
+      // Aunque no haya ventas, aplicar los sold out / falta sample marcados
+      // (antes se perdían: el stock no bajaba a 0 y no entraba a reponer).
+      if (mercadoSolo?.caja_id) await aplicarFlagsInventario(mercadoSolo.caja_id);
       setReporteImpresion({ a4: [], a3: [] });
       setSesionId("");
       setStep("confirmado");
@@ -711,24 +737,10 @@ export default function SesionPage() {
     }
     if (insertExtras.length > 0) await Promise.all(insertExtras);
 
-    // Aplicar lo marcado durante el cierre (sold out / falta sample, por póster)
-    if (mercado) {
-      const flagUpdates: PromiseLike<unknown>[] = [];
-      for (const inv of inventario) {
-        const key = `${inv.poster_id}-${inv.talla}`;
-        const update: { sample_falta?: boolean; out?: boolean; cantidad?: number } = {};
-        if (samplesFaltantes.has(key) && !inv.sample_falta) update.sample_falta = true;
-        // sold out: no queda ninguno en la caja, así que el stock baja a 0 y se
-        // marca agotado. Con stock 0 entra solo en la lista de imprimir/reponer.
-        if (soldOut.has(key)) { update.out = true; update.cantidad = 0; }
-        if (Object.keys(update).length > 0) {
-          flagUpdates.push(
-            supabase.from("inventario").update(update).eq("id", inv.id).then(() => { return; })
-          );
-        }
-      }
-      if (flagUpdates.length > 0) await Promise.all(flagUpdates);
-    }
+    // Aplicar lo marcado durante el cierre (sold out / falta sample). Va DESPUÉS
+    // de descontar las ventas, para que el sold out deje el stock en 0 aunque la
+    // venta lo hubiera dejado en otro número.
+    if (mercado?.caja_id) await aplicarFlagsInventario(mercado.caja_id);
 
     const reporte = await generarReporte(reportSesionId);
 
