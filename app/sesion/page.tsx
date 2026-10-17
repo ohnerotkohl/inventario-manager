@@ -1,6 +1,6 @@
 "use client";
 export const dynamic = "force-dynamic";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useLayoutEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
 import type { Mercado, Poster, Serie, Inventario } from "@/lib/types";
@@ -183,6 +183,13 @@ export default function SesionPage() {
   useEffect(() => {
     if (tabPrincipal === "historial") fetchHistorial();
   }, [tabPrincipal]);
+
+  // Al cambiar de paso (p. ej. al confirmar el cierre) subir arriba del todo,
+  // ANTES de pintar, para que la pantalla de "¡Cierre guardado!" empiece en la
+  // carita flotante y no quede a mitad de scroll sobre los botones (sin parpadeo).
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, [step]);
 
   async function fetchHistorial() {
     setLoadingHistorial(true);
