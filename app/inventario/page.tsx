@@ -577,21 +577,31 @@ function InventarioInner() {
                     </p>
                     <p className="text-[11px] text-gray-400">{tr("currentStock", { n: r.stock })}</p>
                   </div>
-                  <button
-                    onClick={() => marcarAgotadoRepaso(r.posterId, r.talla)}
-                    className="shrink-0 bg-red-500 text-white text-xs font-semibold rounded-lg px-3 py-2 hover:bg-red-600 transition-colors"
-                  >
-                    {t.markSoldOut}
-                  </button>
+                  <div className="shrink-0 flex gap-2">
+                    {/* Bien: el número está correcto, solo se quita de la lista */}
+                    <button
+                      onClick={() => setRepaso((prev) => (prev ? prev.filter((x) => !(x.posterId === r.posterId && x.talla === r.talla)) : prev))}
+                      className="bg-green-600 text-white text-xs font-semibold rounded-lg px-3 py-2 hover:bg-green-700 transition-colors"
+                    >
+                      {t.markOk}
+                    </button>
+                    <button
+                      onClick={() => marcarAgotadoRepaso(r.posterId, r.talla)}
+                      className="bg-red-500 text-white text-xs font-semibold rounded-lg px-3 py-2 hover:bg-red-600 transition-colors"
+                    >
+                      {t.markSoldOut}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
             <div className="p-4 border-t border-gray-100 flex-shrink-0">
+              {/* Con pósters en la lista: "Los demás están bien" los deja tal cual y cierra */}
               <button
                 onClick={() => setRepaso(null)}
                 className="w-full bg-black text-white py-3 rounded-2xl font-semibold hover:bg-gray-900 transition-colors"
               >
-                {t.done}
+                {repaso.length > 0 ? t.restAreOk : t.done}
               </button>
             </div>
           </div>
