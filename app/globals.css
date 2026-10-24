@@ -532,3 +532,15 @@ body.body-dark {
 @keyframes deriva3 { to { transform: translate(-200px, 120px) scale(1.2); } }
 @media print { .fondo { display: none; } body.tema { background: #fff !important; } }
 @media (prefers-reduced-motion: reduce) { .fondo .mancha { animation: none; } }
+
+/* "Pop" de las pantallas de confirmación (cierre y balance): aparece desde
+   pequeño, se pasa un poco y se asienta — como si estallara. Lleva .sin-muelle
+   para que el muelle de la página no la anime también y choquen. */
+@keyframes popConfirmacion {
+  0%   { opacity: 0; transform: scale(0.5); }
+  55%  { opacity: 1; transform: scale(1.07); }
+  78%  { transform: scale(0.98); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.pop-confirmacion { animation: popConfirmacion 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@media (prefers-reduced-motion: reduce) { .pop-confirmacion { animation: none; } }

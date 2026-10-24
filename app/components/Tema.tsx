@@ -53,7 +53,7 @@ export default function Tema() {
     const main = document.querySelector("main");
     if (!main) return;
     const raiz = () => main.firstElementChild;
-    const animables = (el: Element) => !el.matches(".fixed, .sticky");
+    const animables = (el: Element) => !el.matches(".fixed, .sticky, .sin-muelle");
     let orden = 0;
     const entrar = (el: Element, retraso: number) => {
       if (animables(el)) (el as HTMLElement).animate(MUELLE, { duration: MUELLE_MS, delay: retraso, fill: "backwards" });

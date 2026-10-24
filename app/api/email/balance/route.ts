@@ -87,12 +87,14 @@ export async function POST(req: NextRequest) {
     </div>
   `;
 
-  // Separación Marcello / Nuria: los mercados de Nuria (Boxhagener, Hackescher, RAW)
-  // van a su correo; Mauerpark es personal de Marcello; el resto al correo del negocio.
+  // Separación Marcello / Nuria: los mercados de Nuria (Boxhagener, Hackescher,
+  // RAW) van a su correo; los de Marcello (Kollwitzplatz, Mauerpark) a su correo
+  // personal, NO al del negocio; cualquier otro, al correo del negocio.
   const mercadosNuria = ["Boxhagener Platz", "Hackescher Markt", "RAW"];
+  const mercadosMarcello = ["Kollwitzplatz", "Mauerpark"];
   const destinatario =
     mercadosNuria.includes(b.mercado_nombre) ? "nuriajuncamarti@gmail.com"
-    : b.mercado_nombre === "Mauerpark" ? "marcello.castellani@gmail.com"
+    : mercadosMarcello.includes(b.mercado_nombre) ? "marcello.castellani@gmail.com"
     : process.env.EMAIL_TO;
 
   try {

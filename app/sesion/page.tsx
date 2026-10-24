@@ -121,6 +121,8 @@ export default function SesionPage() {
   // Marcados durante el cierre, por poster_id
   const [samplesFaltantes, setSamplesFaltantes] = useState<Set<string>>(new Set());
   const [soldOut, setSoldOut] = useState<Set<string>>(new Set());
+  // Series colapsadas en el cierre (igual que en Stock): para plegar/ampliar
+  const [seriesColapsadas, setSeriesColapsadas] = useState<Set<string>>(new Set());
   // Registro de mercado cancelado (calor, lluvia...)
   const [cancelAbierto, setCancelAbierto] = useState(false);
   const [cMercadoId, setCMercadoId] = useState("");
@@ -360,6 +362,7 @@ export default function SesionPage() {
     // Empiezan vacíos: marcas lo que pasó en este turno (sold out / falta sample)
     setSamplesFaltantes(new Set());
     setSoldOut(new Set());
+    setSeriesColapsadas(new Set());
 
     if (modoEdicion && sesionId) {
       const [ventasRes, sesionRes] = await Promise.all([
@@ -847,7 +850,7 @@ export default function SesionPage() {
     const mercado = mercados.find((m) => m.id === mercadoId);
     return (
       <div className="space-y-6">
-        <div className="text-center">
+        <div className="text-center pop-confirmacion sin-muelle">
           <RepolloJuego />
           <TituloBrillante className="text-2xl mt-2">{t.sessionSaved}</TituloBrillante>
           <p className="text-gray-500 text-sm">{t.inventoryUpdated}</p>
@@ -860,7 +863,7 @@ export default function SesionPage() {
               <p className="font-bold flex items-center gap-2">
                 <Printer size={16} /> {t.printReport}
               </p>
-              <p className="text-xs text-gray-400">{mercado?.nombre} · {new Date(fecha + "T12:00:00").toLocaleDateString("es-DE", { day: "numeric", month: "long" })}</p>
+              <p className="text-xs text-gray-200">{mercado?.nombre} · {new Date(fecha + "T12:00:00").toLocaleDateString("es-DE", { day: "numeric", month: "long" })}</p>
             </div>
 
             {reporteImpresion.a4.length > 0 && (
@@ -1509,6 +1512,21 @@ export default function SesionPage() {
         </div>
       ) : (
         <>
+          {seriesIds.length > 0 && (
+            <div className="flex justify-end">
+              {(() => {
+                const todasColapsadas = seriesIds.every((id) => seriesColapsadas.has(id));
+                return (
+                  <button
+                    onClick={() => setSeriesColapsadas(todasColapsadas ? new Set() : new Set(seriesIds))}
+                    className="text-xs text-gray-400 hover:text-gray-700 underline transition-colors"
+                  >
+                    {todasColapsadas ? t.expandAll : t.collapseAll}
+                  </button>
+                );
+              })()}
+            </div>
+          )}
           <div className="space-y-6">
             {seriesIds.map((sid) => {
               const serie = series.find((s) => s.id === sid);
@@ -1520,14 +1538,29 @@ export default function SesionPage() {
                   const ib = orden.indexOf(b.nombre);
                   return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
                 });
+              const colapsada = seriesColapsadas.has(sid);
               return (
                 <div key={sid}>
-                  <div
-                    className="text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-lg mb-2 inline-block"
+                  <button
+                    type="button"
+                    onClick={() => setSeriesColapsadas((prev) => {
+                      const next = new Set(prev);
+                      next.has(sid) ? next.delete(sid) : next.add(sid);
+                      return next;
+                    })}
+                    className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-lg mb-2"
                     style={{ backgroundColor: (serie?.color || "#6B7280") + "22", color: serie?.color || "#6B7280" }}
                   >
+                    <svg
+                      width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                      strokeLinecap="round" strokeLinejoin="round"
+                      style={{ transform: colapsada ? "rotate(-90deg)" : "rotate(0deg)", transition: "transform 0.15s" }}
+                    >
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
                     {serie?.nombre}
-                  </div>
+                  </button>
+                  {!colapsada && (
                   <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
                     <div className="grid grid-cols-[1fr_80px_80px] gap-2 px-4 py-2 bg-gray-50 border-b border-gray-100">
                       <span className="text-xs font-semibold text-gray-700">{t.poster}</span>
@@ -1585,6 +1618,7 @@ export default function SesionPage() {
                       );
                     })}
                   </div>
+                  )}
                 </div>
               );
             })}

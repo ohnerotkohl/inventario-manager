@@ -279,7 +279,7 @@ export default function BalancePage() {
   if (guardado) {
     return (
       <div className="space-y-6">
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 text-center space-y-3">
+        <div className="text-center space-y-3 pop-confirmacion sin-muelle">
           <RepolloJuego alto={210} />
           <TituloBrillante className="text-xl">{t.balanceSaved}</TituloBrillante>
           <p className="text-gray-500 text-sm">{guardado.mercado_nombre} · {guardado.fecha} · {guardado.trabajador}</p>
