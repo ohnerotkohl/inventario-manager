@@ -1,6 +1,6 @@
 "use client";
 export const dynamic = "force-dynamic";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useLayoutEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase, fetchAllRows } from "@/lib/supabase";
 import { useAuth } from "@/app/components/AuthProvider";
@@ -57,6 +57,9 @@ export default function RestockPage() {
   const { t, tr } = useLang();
   const [tabPrincipal, setTabPrincipal] = useState<TabPrincipal>("restock");
   const [step, setStep] = useState<Step>("seleccion");
+  // Al cambiar de paso (p.ej. al confirmar el restock) subir arriba del todo,
+  // para que la confirmación empiece en el globo y no a mitad de scroll.
+  useLayoutEffect(() => { window.scrollTo(0, 0); }, [step]);
   const [cajas, setCajas] = useState<Caja[]>([]);
   const [cajaId, setCajaId] = useState("");
   const [series, setSeries] = useState<Serie[]>([]);
@@ -502,22 +505,24 @@ export default function RestockPage() {
 
   if (step === "confirmado") {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center gap-4">
-        <RepolloJuego />
-        <TituloBrillante className="text-2xl">{t.restockDone}</TituloBrillante>
-        <p className="text-gray-500">
-          Se añadieron <strong>{totalUnidades} unidades</strong> ({totalA4 > 0 ? `A4: ${totalA4}` : ""}{totalA4 > 0 && totalA3 > 0 ? " · " : ""}{totalA3 > 0 ? `A3: ${totalA3}` : ""}) al stock de <strong>{caja?.nombre}</strong>.
-        </p>
-        <div className="flex gap-3 mt-2">
+      <div className="space-y-6">
+        <div className="text-center pop-confirmacion sin-muelle">
+          <RepolloJuego />
+          <TituloBrillante className="text-2xl mt-2">{t.restockDone}</TituloBrillante>
+          <p className="text-gray-500 text-sm mt-1">
+            Se añadieron <strong>{totalUnidades} unidades</strong> ({totalA4 > 0 ? `A4: ${totalA4}` : ""}{totalA4 > 0 && totalA3 > 0 ? " · " : ""}{totalA3 > 0 ? `A3: ${totalA3}` : ""}) al stock de <strong>{caja?.nombre}</strong>.
+          </p>
+        </div>
+        <div className="flex gap-3">
           <button
             onClick={() => { setStep("seleccion"); setCantidades({}); setCajaId(""); }}
-            className="bg-black text-white px-6 py-3 rounded-2xl font-semibold hover:bg-gray-900"
+            className="flex-1 bg-black text-white py-3 rounded-2xl font-semibold hover:bg-gray-900 transition-colors"
           >
             {t.anotherRestock}
           </button>
           <button
             onClick={() => { setStep("seleccion"); setCantidades({}); setCajaId(""); setTabPrincipal("historial"); }}
-            className="border-2 border-black text-black px-6 py-3 rounded-2xl font-semibold hover:bg-gray-50"
+            className="flex-1 border-2 border-black text-black py-3 rounded-2xl font-semibold hover:bg-gray-50 transition-colors"
           >
             {t.viewHistory}
           </button>
