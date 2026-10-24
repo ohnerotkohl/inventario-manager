@@ -78,6 +78,10 @@ function InventarioInner() {
   const { t, tr } = useLang();
   const [cajas, setCajas] = useState<Caja[]>([]);
   const [cajaId, setCajaId] = useState<string>("");
+  // Ventana dedicada de "Hacer inventario" (/inventario?conteo=1): ahí se cuenta
+  // todo y vive "Terminar conteo" con el repaso de agotados. Entrando a un mercado
+  // sin este modo es solo ver/editar rápido, sin repaso.
+  const modoConteo = params.get("conteo") === "1";
 
   // Permiso por caja: admin = todas; empleado con puede_inventario =
   // solo sus cajas_permitidas (NULL = ninguna); resto = solo lectura
@@ -328,8 +332,8 @@ function InventarioInner() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t.inventory}</h1>
-          <p className="text-gray-500 text-sm">{t.selectBoxFirst}</p>
+          <h1 className="text-2xl font-bold text-gray-900">{modoConteo ? t.inventoryCountTitle : t.inventory}</h1>
+          <p className="text-gray-500 text-sm">{modoConteo ? t.inventoryCountPick : t.selectBoxFirst}</p>
         </div>
         <div className="grid grid-cols-1 gap-3">
           {cajas.map((c) => {
@@ -348,8 +352,30 @@ function InventarioInner() {
             );
           })}
           {cajas.length === 0 && <SkeletonPage />}
+          {/* En la ventana de inventario: volver a Stock normal */}
+          {modoConteo && cajas.length > 0 && (
+            <Link
+              href="/inventario"
+              className="text-center text-sm text-gray-400 hover:text-gray-700 underline transition-colors py-2"
+            >
+              {t.exitCount}
+            </Link>
+          )}
+          {/* Hacer inventario: abre la ventana dedicada al conteo completo */}
+          {!modoConteo && cajas.length > 0 && cajas.some((c) => puedeEditarCaja(c.id)) && (
+            <Link
+              href="/inventario?conteo=1"
+              className="flex items-center justify-center gap-2 text-sm font-semibold bg-black text-white rounded-2xl px-5 py-4 hover:bg-gray-900 transition-colors"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 11l3 3L22 4"/>
+                <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+              </svg>
+              {t.doInventory}
+            </Link>
+          )}
           {/* Restock vive aquí dentro para liberar espacio en el menú inferior */}
-          {user?.rol === "admin" && cajas.length > 0 && (
+          {!modoConteo && user?.rol === "admin" && cajas.length > 0 && (
             <Link
               href="/restock"
               className="flex items-center justify-center gap-2 text-sm font-semibold bg-black text-white rounded-2xl px-5 py-4 hover:bg-gray-900 transition-colors"
@@ -370,8 +396,8 @@ function InventarioInner() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">{t.inventory}</h1>
-        <p className="text-gray-500 text-sm">{t.inventorySubtitle}</p>
+        <h1 className="text-2xl font-bold text-gray-900">{modoConteo ? t.inventoryCountTitle : t.inventory}</h1>
+        <p className="text-gray-500 text-sm">{modoConteo ? t.inventoryCountHint : t.inventorySubtitle}</p>
       </div>
       {readOnly && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-2xl px-4 py-3 text-sm text-yellow-700">
@@ -406,7 +432,7 @@ function InventarioInner() {
               }
             </div>
             <button
-              onClick={terminarRecuento}
+              onClick={modoConteo ? terminarRecuento : guardarTodo}
               disabled={guardandoTodo}
               className="bg-black text-white px-5 py-2 rounded-xl font-semibold text-sm disabled:opacity-40 hover:bg-gray-900 transition-colors"
             >
@@ -416,12 +442,13 @@ function InventarioInner() {
         </div>
       )}
 
-      {/* Sin cambios pendientes: botón para terminar el recuento y repasar agotados */}
-      {!readOnly && !loading && seriesConPosters.length > 0 && Object.keys(editando).length === 0 && (
+      {/* Ventana de inventario, sin cambios pendientes: terminar el conteo y repasar
+          los pósters que quedaron sin contar. Morado flotante, como el resto. */}
+      {modoConteo && !readOnly && !loading && seriesConPosters.length > 0 && Object.keys(editando).length === 0 && (
         <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-20 pointer-events-none">
           <button
             onClick={terminarRecuento}
-            className="pointer-events-auto w-full bg-black/80 backdrop-blur text-white py-2.5 rounded-2xl font-semibold text-sm shadow-lg hover:bg-black transition-colors"
+            className="pointer-events-auto w-full bg-[#5b4bc4] text-white py-3 rounded-2xl font-semibold text-sm shadow-lg shadow-[#5b4bc4]/40 hover:bg-[#6a5ad6] transition-colors"
           >
             {t.finishCount}
           </button>
