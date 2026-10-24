@@ -1,6 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 import { useEffect, useState, useCallback, Suspense } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -95,6 +96,13 @@ function InventarioInner() {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [guardandoTodo, setGuardandoTodo] = useState(false);
   const [saveErrInv, setSaveErrInv] = useState("");
+  // Recuento: pósters cuyo input se tocó/contó en esta sesión, y el repaso de los
+  // que quedaron SIN contar (posibles agotados que no se ven en la carpeta).
+  const [contados, setContados] = useState<Set<string>>(new Set());
+  const [repaso, setRepaso] = useState<{ posterId: string; nombre: string; talla: "A4" | "A3"; stock: number; color?: string }[] | null>(null);
+  const marcarContado = useCallback((key: string) => {
+    setContados((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
+  }, []);
 
   function toggleSerie(id: string) {
     setCollapsed((prev) => {
@@ -142,6 +150,7 @@ function InventarioInner() {
       };
     });
     setPosters(postersConStock);
+    setContados(new Set());
     setLoading(false);
   }, [cajaId]);
 
@@ -253,6 +262,45 @@ function InventarioInner() {
     setGuardandoTodo(false);
   }
 
+  // Repaso de agotados: los pósters que NO se contaron en esta sesión (no se tocó
+  // su casilla) y que aún figuran con stock. Son los sospechosos de estar agotados
+  // y no verse en la carpeta. Se le muestran para que confirme cuáles están en 0.
+  function revisarAgotados() {
+    const faltan: { posterId: string; nombre: string; talla: "A4" | "A3"; stock: number; color?: string }[] = [];
+    for (const p of posters) {
+      (["A4", "A3"] as const).forEach((talla) => {
+        const tiene = talla === "A4" ? p.tiene_a4 : p.tiene_a3;
+        if (!tiene) return;
+        const st = talla === "A4" ? p.a4 : p.a3;
+        const key = `${p.id}-${talla}`;
+        const stock = st?.cantidad ?? 0;
+        const out = st?.out ?? false;
+        if (!contados.has(key) && !out && stock > 0) {
+          faltan.push({ posterId: p.id, nombre: p.nombre, talla, stock, color: series.find((s) => s.id === p.serie_id)?.color });
+        }
+      });
+    }
+    setRepaso(faltan);
+  }
+
+  // "Terminar recuento": guarda lo pendiente y abre el repaso de agotados.
+  async function terminarRecuento() {
+    if (Object.keys(editando).length > 0) await guardarTodo();
+    revisarAgotados();
+  }
+
+  // Desde el repaso: marcar un póster como agotado (stock 0 + OUT).
+  async function marcarAgotadoRepaso(posterId: string, talla: "A4" | "A3") {
+    try {
+      await upsertInventario(posterId, talla, "cantidad", 0);
+      await upsertInventario(posterId, talla, "out", true);
+      marcarContado(`${posterId}-${talla}`);
+      setRepaso((prev) => (prev ? prev.filter((r) => !(r.posterId === posterId && r.talla === talla)) : prev));
+    } catch (e) {
+      alert(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   const seriesIds = [...new Set(posters.map((p) => p.serie_id))];
   const seriesConPosters = seriesIds
     .map((sid) => {
@@ -358,13 +406,25 @@ function InventarioInner() {
               }
             </div>
             <button
-              onClick={guardarTodo}
+              onClick={terminarRecuento}
               disabled={guardandoTodo}
               className="bg-black text-white px-5 py-2 rounded-xl font-semibold text-sm disabled:opacity-40 hover:bg-gray-900 transition-colors"
             >
               {guardandoTodo ? t.saving : t.save}
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Sin cambios pendientes: botón para terminar el recuento y repasar agotados */}
+      {!readOnly && !loading && seriesConPosters.length > 0 && Object.keys(editando).length === 0 && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-20 pointer-events-none">
+          <button
+            onClick={terminarRecuento}
+            className="pointer-events-auto w-full bg-black/80 backdrop-blur text-white py-2.5 rounded-2xl font-semibold text-sm shadow-lg hover:bg-black transition-colors"
+          >
+            {t.finishCount}
+          </button>
         </div>
       )}
 
@@ -441,6 +501,7 @@ function InventarioInner() {
                         setEditando={setEditando}
                         guardarCantidad={guardarCantidad}
                         upsertInventario={upsertInventario}
+                        marcarContado={marcarContado}
                         readOnly={readOnly}
                       />
                     ) : <div className="w-24" />}
@@ -455,6 +516,7 @@ function InventarioInner() {
                         setEditando={setEditando}
                         guardarCantidad={guardarCantidad}
                         upsertInventario={upsertInventario}
+                        marcarContado={marcarContado}
                         readOnly={readOnly}
                       />
                     ) : <div className="w-24" />}
@@ -467,6 +529,47 @@ function InventarioInner() {
           })}
         </div>
       )}
+
+      {/* Repaso de agotados tras terminar el recuento */}
+      {repaso !== null && typeof document !== "undefined" && createPortal((
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end">
+          <div className="bg-white rounded-t-3xl w-full max-h-[85vh] flex flex-col">
+            <div className="p-5 border-b border-gray-100 flex-shrink-0">
+              <h3 className="font-bold text-gray-900 text-lg">{t.reviewSoldOutTitle}</h3>
+              <p className="text-xs text-gray-500 mt-1">
+                {repaso.length > 0 ? t.reviewSoldOutDesc : t.allReviewed}
+              </p>
+            </div>
+            <div className="overflow-y-auto flex-1 p-4 space-y-2">
+              {repaso.map((r) => (
+                <div key={`${r.posterId}-${r.talla}`} className="flex items-center justify-between gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      <span className="inline-block w-2 h-2 rounded-full mr-2 align-middle" style={{ backgroundColor: r.color || "#9ca3af" }} />
+                      {r.nombre} <span className="text-gray-400 font-normal">{r.talla}</span>
+                    </p>
+                    <p className="text-[11px] text-gray-400">{tr("currentStock", { n: r.stock })}</p>
+                  </div>
+                  <button
+                    onClick={() => marcarAgotadoRepaso(r.posterId, r.talla)}
+                    className="shrink-0 bg-red-500 text-white text-xs font-semibold rounded-lg px-3 py-2 hover:bg-red-600 transition-colors"
+                  >
+                    {t.markSoldOut}
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="p-4 border-t border-gray-100 flex-shrink-0">
+              <button
+                onClick={() => setRepaso(null)}
+                className="w-full bg-black text-white py-3 rounded-2xl font-semibold hover:bg-gray-900 transition-colors"
+              >
+                {t.done}
+              </button>
+            </div>
+          </div>
+        </div>
+      ), document.body)}
     </div>
   );
 }
@@ -480,10 +583,11 @@ interface TallaCellProps {
   setEditando: React.Dispatch<React.SetStateAction<{ [key: string]: number }>>;
   guardarCantidad: (posterId: string, talla: "A4" | "A3") => Promise<void>;
   upsertInventario: (posterId: string, talla: "A4" | "A3", field: string, value: number | boolean) => Promise<void>;
+  marcarContado?: (key: string) => void;
   readOnly?: boolean;
 }
 
-function TallaCell({ posterId, talla, stock, saving, editando, setEditando, guardarCantidad, upsertInventario, readOnly }: TallaCellProps) {
+function TallaCell({ posterId, talla, stock, saving, editando, setEditando, guardarCantidad, upsertInventario, marcarContado, readOnly }: TallaCellProps) {
   const { t } = useLang();
   const key = `${posterId}-${talla}`;
   const isSaving = saving?.startsWith(key);
@@ -503,7 +607,7 @@ function TallaCell({ posterId, talla, stock, saving, editando, setEditando, guar
             min={0}
             value={editando[key] !== undefined ? editando[key] : (stock?.cantidad ?? 0)}
             onChange={(e) => setEditando((prev) => ({ ...prev, [key]: Math.max(0, parseInt(e.target.value) || 0) }))}
-            onFocus={(e) => e.target.select()}
+            onFocus={(e) => { e.target.select(); marcarContado?.(key); }}
             onBlur={() => guardarCantidad(posterId, talla)}
             className={`w-12 text-center text-sm font-semibold border rounded-lg py-1 focus:outline-none transition-colors ${
               editando[key] !== undefined
