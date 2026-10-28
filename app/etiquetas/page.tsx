@@ -4,6 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/components/AuthProvider";
 import { useLang } from "@/app/components/LangProvider";
+import { supabase } from "@/lib/supabase";
+
+// Pedido de Shopify pendiente de enviar (lo devuelve /api/shopify/pedidos)
+type Pedido = {
+  id: string; numero: string; fecha: string;
+  nombre: string; calle: string; cpCiudad: string; pais: string;
+  articulos: { titulo: string; cantidad: number }[];
+};
 
 // Posición FIJA de la estampilla de Deutsche Post (Internetmarke "1 Stk") dentro
 // del A4, en puntos PDF. Verificado: todas salen en el mismo sitio. Se recorta a
@@ -23,6 +31,11 @@ export default function EtiquetasPage() {
   const [nombre, setNombre] = useState("");
   const [calle, setCalle] = useState("");
   const [cpCiudad, setCpCiudad] = useState("");
+  const [pais, setPais] = useState(""); // solo si el envío no es a Alemania
+  // Pedidos de Shopify para rellenar la dirección sin copiar y pegar
+  const [pedidos, setPedidos] = useState<Pedido[]>([]);
+  const [pedidosEstado, setPedidosEstado] = useState<"cargando" | "ok" | "no_configurado" | "error">("cargando");
+  const [pedidoSel, setPedidoSel] = useState("");
   const [stampFile, setStampFile] = useState<File | null>(null);
   const [generando, setGenerando] = useState(false);
   const [generada, setGenerada] = useState<string | null>(null); // nombre de la última etiqueta descargada
@@ -40,6 +53,33 @@ export default function EtiquetasPage() {
       if (raw) setRemitente(JSON.parse(raw));
     } catch { /* localStorage no disponible */ }
   }, []);
+  async function cargarPedidos() {
+    setPedidosEstado("cargando");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/shopify/pedidos", {
+        headers: { Authorization: `Bearer ${session?.access_token || ""}` },
+        cache: "no-store",
+      });
+      const json = await res.json();
+      if (res.status === 503 && json.error === "no_configurado") { setPedidosEstado("no_configurado"); return; }
+      if (!res.ok) { setPedidosEstado("error"); return; }
+      setPedidos(json.pedidos || []);
+      setPedidosEstado("ok");
+    } catch {
+      setPedidosEstado("error");
+    }
+  }
+  useEffect(() => { if (user && user.rol !== "empleado") cargarPedidos(); }, [user]);
+
+  function elegirPedido(id: string) {
+    setPedidoSel(id);
+    const p = pedidos.find((x) => x.id === id);
+    if (!p) return;
+    setNombre(p.nombre); setCalle(p.calle); setCpCiudad(p.cpCiudad); setPais(p.pais);
+  }
+  const pedidoElegido = pedidos.find((x) => x.id === pedidoSel);
+
   function guardarRemitente(lineas: string[]) {
     setRemitente(lineas);
     try { localStorage.setItem(REMITENTE_KEY, JSON.stringify(lineas)); } catch { /* */ }
@@ -82,7 +122,7 @@ export default function EtiquetasPage() {
       const rSize = 17, rLead = 23;
       let ry = PH * 0.52;
       page.drawText("An:", { x: M, y: ry + rLead, size: 9, font, color: GREY });
-      const lineas = [nombre.trim(), calle.trim(), cpCiudad.trim()].filter(Boolean);
+      const lineas = [nombre.trim(), calle.trim(), cpCiudad.trim(), pais.trim()].filter(Boolean);
       for (let i = 0; i < lineas.length; i++) {
         page.drawText(lineas[i], { x: M, y: ry, size: rSize, font: i === 0 ? bold : font, color: INK });
         ry -= rLead;
@@ -93,13 +133,16 @@ export default function EtiquetasPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       const slug = nombre.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-      a.href = url; a.download = `etiqueta-${slug || "envio"}.pdf`;
+      const num = pedidoElegido ? pedidoElegido.numero.replace(/[^0-9a-zA-Z]+/g, "") + "-" : "";
+      a.href = url; a.download = `etiqueta-${num}${slug || "envio"}.pdf`;
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
 
       // Confirmación + dejar listo para la siguiente (el remitente se mantiene)
       setGenerada(nombre.trim());
-      setNombre(""); setCalle(""); setCpCiudad(""); setStampFile(null);
+      setNombre(""); setCalle(""); setCpCiudad(""); setPais(""); setStampFile(null);
+      // el pedido ya enviado sale de la lista (en Shopify sigue pendiente hasta marcarlo)
+      if (pedidoSel) { setPedidos((prev) => prev.filter((x) => x.id !== pedidoSel)); setPedidoSel(""); }
       if (fileRef.current) fileRef.current.value = "";
     } catch (e) {
       setError((e instanceof Error ? e.message : String(e)));
@@ -155,9 +198,44 @@ export default function EtiquetasPage() {
       {/* Destinatario */}
       <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-2">
         <p className="text-sm font-semibold text-gray-700">{t.labelRecipient}</p>
+
+        {/* Pedido de Shopify: rellena la dirección sola */}
+        <div className="space-y-1.5 pb-2">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-gray-500">{t.labelOrder}</p>
+            {pedidosEstado !== "no_configurado" && (
+              <button type="button" onClick={cargarPedidos} className="text-xs text-gray-400 underline hover:text-gray-700">
+                {t.labelOrderRefresh}
+              </button>
+            )}
+          </div>
+          {pedidosEstado === "cargando" && <p className="text-xs text-gray-400">{t.labelOrderLoading}</p>}
+          {pedidosEstado === "no_configurado" && <p className="text-xs text-gray-400">{t.labelOrderNotConfigured}</p>}
+          {pedidosEstado === "error" && <p className="text-xs text-red-500">{t.labelOrderError}</p>}
+          {pedidosEstado === "ok" && pedidos.length === 0 && <p className="text-xs text-gray-400">{t.labelOrderNone}</p>}
+          {pedidosEstado === "ok" && pedidos.length > 0 && (
+            <select value={pedidoSel} onChange={(e) => elegirPedido(e.target.value)} className={inputClass}>
+              <option value="">{t.labelOrderPick}</option>
+              {pedidos.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.numero} · {p.nombre} · {p.cpCiudad}{p.pais ? ` (${p.pais})` : ""}
+                </option>
+              ))}
+            </select>
+          )}
+          {pedidoElegido && pedidoElegido.articulos.length > 0 && (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+              {pedidoElegido.articulos.map((a, i) => (
+                <p key={i} className="text-xs text-gray-600">{a.cantidad}× {a.titulo}</p>
+              ))}
+            </div>
+          )}
+        </div>
+
         <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder={t.labelName} className={inputClass} />
         <input value={calle} onChange={(e) => setCalle(e.target.value)} placeholder={t.labelStreet} className={inputClass} />
         <input value={cpCiudad} onChange={(e) => setCpCiudad(e.target.value)} placeholder={t.labelCityZip} className={inputClass} />
+        <input value={pais} onChange={(e) => setPais(e.target.value)} placeholder={t.labelCountry} className={inputClass} />
       </div>
 
       {/* Estampilla */}
