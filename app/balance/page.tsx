@@ -9,6 +9,7 @@ import type { Mercado, Balance, GastoBalance } from "@/lib/types";
 import { veMercado } from "@/lib/perfil";
 import RepolloJuego from "@/app/components/RepolloJuego";
 import TituloBrillante from "@/app/components/TituloBrillante";
+import NoHuboMercado, { type DiaSinMercado } from "@/app/components/NoHuboMercado";
 
 type Tab = "nuevo" | "historial";
 type TurnoTipo = "na" | "horas";
@@ -75,6 +76,8 @@ export default function BalancePage() {
   // Historial
   const [historial, setHistorial] = useState<Balance[]>([]);
   const [historialCargado, setHistorialCargado] = useState(false);
+  // Días marcados como "no hubo mercado" (tabla cancelaciones), para el historial
+  const [diasSinMercado, setDiasSinMercado] = useState<DiaSinMercado[]>([]);
   const [abierto, setAbierto] = useState<string | null>(null);
 
   useEffect(() => {
@@ -103,6 +106,8 @@ export default function BalancePage() {
       (b.mercado_id && idsVis.has(b.mercado_id)) || nombresVis.has(b.mercado_nombre)
     );
     setHistorial(visibles);
+    const { data: canc } = await supabase.from("cancelaciones").select("id, mercado_nombre, fecha, motivo").order("fecha", { ascending: false });
+    setDiasSinMercado(((canc as DiaSinMercado[]) || []).filter((c) => nombresVis.has(c.mercado_nombre)));
     setHistorialCargado(true);
   }
 
@@ -498,13 +503,49 @@ export default function BalancePage() {
           >
             {saving ? t.saving : t.saveBalance}
           </button>
+
+          {/* Ese día no hubo mercado: no hace falta rellenar el balance */}
+          <NoHuboMercado
+            mercados={mercados}
+            mercadoInicial={mercadoId}
+            fechaInicial={fechaCierre}
+            registradoPor={trabajador}
+            onRegistrado={(d) => { if (historialCargado) setDiasSinMercado((prev) => [d, ...prev]); }}
+          />
         </div>
       )}
 
       {tab === "historial" && esAdmin && (
         <div className="space-y-3">
-          {historialVisible.length === 0 && <p className="text-sm text-gray-400 text-center py-8">{t.noBalances}</p>}
-          {historialVisible.map((b) => {
+          {historialVisible.length === 0 && diasSinMercado.length === 0 && <p className="text-sm text-gray-400 text-center py-8">{t.noBalances}</p>}
+          {[
+            ...historialVisible.map((b) => ({ fecha: b.fecha, b, d: null as DiaSinMercado | null })),
+            ...diasSinMercado.map((d) => ({ fecha: d.fecha, b: null as Balance | null, d })),
+          ].sort((x, y) => y.fecha.localeCompare(x.fecha)).map(({ b: bal, d }) => {
+            // Día sin mercado: fila sencilla, con opción de quitarla si fue un error
+            if (d) {
+              return (
+                <div key={`sin-${d.id}`} className="bg-white border border-dashed border-gray-300 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-500">{d.mercado_nombre}</p>
+                    <p className="text-xs text-gray-400">
+                      {d.fecha} · {t.noMarketRow}{d.motivo ? ` — ${d.motivo}` : ""}
+                    </p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      if (!confirm(t.deleteCancellationConfirm)) return;
+                      await supabase.from("cancelaciones").delete().eq("id", d.id);
+                      setDiasSinMercado((prev) => prev.filter((x) => x.id !== d.id));
+                    }}
+                    className="shrink-0 text-gray-300 hover:text-red-500 text-lg leading-none px-1"
+                  >
+                    ×
+                  </button>
+                </div>
+              );
+            }
+            const b = bal!;
             const open = abierto === b.id;
             return (
               <div key={b.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden">

@@ -11,6 +11,7 @@ import { useLang } from "@/app/components/LangProvider";
 import { useAuth } from "@/app/components/AuthProvider";
 import RepolloJuego from "@/app/components/RepolloJuego";
 import TituloBrillante from "@/app/components/TituloBrillante";
+import NoHuboMercado from "@/app/components/NoHuboMercado";
 
 // Fecha de HOY en horario local (Berlín), no UTC. new Date().toISOString() da la
 // fecha UTC, que entre medianoche y las 01:00/02:00 devuelve el día de AYER y
@@ -124,12 +125,6 @@ export default function SesionPage() {
   // Series colapsadas en el cierre (igual que en Stock): para plegar/ampliar
   const [seriesColapsadas, setSeriesColapsadas] = useState<Set<string>>(new Set());
   // Registro de mercado cancelado (calor, lluvia...)
-  const [cancelAbierto, setCancelAbierto] = useState(false);
-  const [cMercadoId, setCMercadoId] = useState("");
-  const [cFecha, setCFecha] = useState(fechaLocalHoy);
-  const [cMotivo, setCMotivo] = useState("");
-  const [cGuardando, setCGuardando] = useState(false);
-  const [cAviso, setCAviso] = useState("");
   const [cajas, setCajas] = useState<{ id: string; nombre: string }[]>([]);
   const [nuevoMercado, setNuevoMercado] = useState(false);
   const [nuevoNombre, setNuevoNombre] = useState("");
@@ -411,26 +406,6 @@ export default function SesionPage() {
 
     cargarPosters();
     setStep("ventas");
-  }
-
-  // Registrar que un mercado se canceló (calor, lluvia...): contexto para stats
-  async function registrarCancelacion() {
-    if (!cMercadoId || !cFecha || cGuardando) return;
-    setCGuardando(true);
-    const nombreM = mercados.find((m) => m.id === cMercadoId)?.nombre || "";
-    const { error } = await supabase.from("cancelaciones").insert({
-      mercado_id: cMercadoId,
-      mercado_nombre: nombreM,
-      fecha: cFecha,
-      motivo: cMotivo.trim() || null,
-      registrado_por: trabajador.trim() || null,
-    });
-    setCGuardando(false);
-    if (error) { alert(t.saveError); return; }
-    setCAviso(t.cancellationSaved);
-    setTimeout(() => setCAviso(""), 5000);
-    setCancelAbierto(false);
-    setCMercadoId(""); setCMotivo("");
   }
 
   function toggleSample(posterId: string) {
@@ -1448,47 +1423,14 @@ export default function SesionPage() {
           </button>
         )}
 
-        {/* Mercado cancelado (calor, lluvia...): se registra como contexto, sin tocar ventas */}
-        {cAviso && <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-xl px-4 py-3">✓ {cAviso}</div>}
-        {cancelAbierto ? (
-          <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-3">
-            <p className="text-xs font-bold uppercase tracking-wider text-gray-500">{t.cancelMarketTitle}</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">{t.market}</label>
-                <select value={cMercadoId} onChange={(e) => setCMercadoId(e.target.value)} className="w-full text-sm border border-gray-200 rounded-lg py-2 px-3 focus:outline-none focus:border-black">
-                  <option value="">{t.selectBox}</option>
-                  {mercados.map((m) => <option key={m.id} value={m.id}>{m.nombre}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">{t.date}</label>
-                <input type="date" value={cFecha} onChange={(e) => setCFecha(e.target.value)} className="w-full text-sm border border-gray-200 rounded-lg py-2 px-3 focus:outline-none focus:border-black" />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">{t.cancelReason}</label>
-              <input type="text" value={cMotivo} onChange={(e) => setCMotivo(e.target.value)} placeholder={t.cancelReasonPh} className="w-full text-sm border border-gray-200 rounded-lg py-2 px-3 focus:outline-none focus:border-black" />
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={registrarCancelacion}
-                disabled={!cMercadoId || !cFecha || cGuardando}
-                className="flex-1 py-2.5 rounded-xl bg-black text-white font-medium text-sm disabled:bg-gray-200 disabled:text-gray-400"
-              >
-                {cGuardando ? t.saving : t.saveCancellation}
-              </button>
-              <button onClick={() => setCancelAbierto(false)} className="px-4 text-sm text-gray-400">{t.cancel}</button>
-            </div>
-          </div>
-        ) : (
-          <button
-            onClick={() => setCancelAbierto(true)}
-            className="w-full text-sm text-gray-400 hover:text-gray-700 underline py-1"
-          >
-            {t.marketCancelledQ}
-          </button>
-        )}
+        {/* Ese día no hubo mercado (calor, lluvia, no se fue...): se guarda como
+            día sin mercado, sin tocar ventas. El mismo registro sirve en Balance. */}
+        <NoHuboMercado
+          mercados={mercados}
+          mercadoInicial={mercadoId}
+          fechaInicial={fecha}
+          registradoPor={trabajador}
+        />
         </>}
       </div>
     );
