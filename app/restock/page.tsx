@@ -61,6 +61,9 @@ export default function RestockPage() {
   // para que la confirmación empiece en el globo y no a mitad de scroll.
   useLayoutEffect(() => { window.scrollTo(0, 0); }, [step]);
   const [cajas, setCajas] = useState<Caja[]>([]);
+  // El almacén de prints del estudio es de Marcello: las cajas de Nuria no cuentan
+  // con él (ni lo descuentan del PDF, ni lo restan al reponer, ni lo suman al borrar).
+  const usaEstudio = (id: string) => cajas.find((c) => c.id === id)?.perfil !== "nuria";
   const [cajaId, setCajaId] = useState("");
   const [series, setSeries] = useState<Serie[]>([]);
   const [posters, setPosters] = useState<PosterConStock[]>([]);
@@ -292,6 +295,7 @@ export default function RestockPage() {
           const nuevo = Math.max(0, inv.cantidad - l.cantidad);
           ops.push(supabase.from("inventario").update({ cantidad: nuevo, out: nuevo === 0 }).eq("id", inv.id));
         }
+        if (!usaEstudio(r.cajaId)) continue;
         const pr = printMap[`${l.posterId}-${l.talla}`];
         if (pr) {
           ops.push(supabase.from("prints_estudio").update({ cantidad: pr.cantidad + l.cantidad, updated_at: new Date().toISOString() }).eq("id", pr.id));
@@ -328,7 +332,7 @@ export default function RestockPage() {
     for (const p of (printsRes.data || []) as { poster_id: string; talla: string; cantidad: number }[]) {
       printMap[`${p.poster_id}-${p.talla}`] = p.cantidad;
     }
-    setAlmacenPrints(printMap);
+    setAlmacenPrints(usaEstudio(cajaId) ? printMap : {});
 
     const postersConStock: PosterConStock[] = (postersRes.data || []).map((p: Poster & { series?: Serie }) => {
       const a4 = inv.find((i) => i.poster_id === p.id && i.talla === "A4");
@@ -456,7 +460,7 @@ export default function RestockPage() {
 
       // B2: descontar del almacén central de prints lo que se acaba de reponer.
       // Va aparte y no rompe el restock si falla: reponer la caja es lo crítico.
-      try {
+      if (usaEstudio(cajaId)) try {
         const { data: printsActuales } = await supabase
           .from("prints_estudio")
           .select("id, poster_id, talla, cantidad");
