@@ -35,6 +35,13 @@ const EtiquetaIcon = () => (
   </svg>
 );
 
+const PedidosIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+    <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+  </svg>
+);
+
 const NovedadesIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
     <path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
@@ -165,6 +172,8 @@ export default function Nav() {
     ...(soloEstudio ? [{ href: "/prints", label: t.prints, Icon: PrintsIcon }] : []),
     { href: "/hoja-escaneo", label: t.scanSheet, Icon: ScanIcon },
     ...(soloEstudio ? [{ href: "/etiquetas", label: t.labels, Icon: EtiquetaIcon }] : []),
+    // Pedidos de Shopify para imprimir: solo Marcello
+    ...(user.perfil === "marcello" ? [{ href: "/pedidos", label: t.ordersTitle, Icon: PedidosIcon }] : []),
     { href: "/admin", label: t.team, Icon: AdminIcon },
     { href: "/novedades", label: t.news, Icon: NovedadesIcon },
     { href: "/guia", label: t.guide, Icon: GuiaIcon },

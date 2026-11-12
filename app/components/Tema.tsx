@@ -26,6 +26,7 @@ const CEJA: Record<string, string> = {
   "/estadisticas": "Ventas",
   "/finanzas": "Ventas",
   "/etiquetas": "Envíos",
+  "/pedidos": "Envíos",
   "/escanear": "Escáner",
   "/novedades": "Novedades",
   "/guia": "Ayuda",

@@ -29,7 +29,7 @@ const QUERY = `
       nodes {
         id name createdAt cancelledAt displayFulfillmentStatus
         shippingAddress { name company address1 address2 zip city country countryCodeV2 }
-        lineItems(first: 10) { nodes { title variantTitle quantity } }
+        lineItems(first: 20) { nodes { title variantTitle quantity } }
       }
     }
   }
@@ -68,6 +68,9 @@ export async function GET(req: NextRequest) {
           articulos: o.lineItems.nodes.map((l) => ({
             titulo: l.variantTitle ? `${l.title} (${l.variantTitle})` : l.title,
             cantidad: l.quantity,
+            // Para /pedidos: producto y variante por separado (póster, talla)
+            producto: l.title,
+            variante: l.variantTitle || "",
           })),
         };
       });
