@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/components/AuthProvider";
 import { useLang } from "@/app/components/LangProvider";
 import { supabase } from "@/lib/supabase";
+import { localizarEstampilla, quitarMarcasDeCorte } from "@/lib/estampilla";
 
 // Pedido de Shopify pendiente de enviar (lo devuelve /api/shopify/pedidos)
 type Pedido = {
@@ -13,10 +14,10 @@ type Pedido = {
   articulos: { titulo: string; cantidad: number }[];
 };
 
-// Posición FIJA de la estampilla de Deutsche Post (Internetmarke "1 Stk") dentro
-// del A4, en puntos PDF. Verificado: todas salen en el mismo sitio. Se recorta a
-// esta caja y se coloca a tamaño real para que el datamatrix escanee bien.
-const STAMP_BBOX = { left: 105, bottom: 678, right: 217, top: 747 };
+// La estampilla de Deutsche Post (Internetmarke "1 Stk") no sale siempre en el
+// mismo sitio del A4: se localiza en el propio PDF (lib/estampilla.ts), se le
+// quitan las cruces de corte y se coloca a tamaño real para que el datamatrix
+// escanee bien.
 
 const REMITENTE_KEY = "or_etiqueta_remitente";
 const REMITENTE_DEFECTO = ["Ohne Rotkohl", "c/o Castellani", "Rudower Str. 3A", "12439 Berlin"];
@@ -93,7 +94,7 @@ export default function EtiquetasPage() {
     setError("");
     setGenerando(true);
     try {
-      const { PDFDocument, rgb, StandardFonts } = await import("pdf-lib");
+      const { PDFDocument, rgb, StandardFonts, PDFArray, PDFRawStream, PDFName, decodePDFRawStream } = await import("pdf-lib");
       const pdf = await PDFDocument.create();
       const font = await pdf.embedFont(StandardFonts.Helvetica);
       const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -103,11 +104,28 @@ export default function EtiquetasPage() {
       const page = pdf.addPage([PW, PH]);
       page.drawRectangle({ x: 2, y: 2, width: PW - 4, height: PH - 4, borderColor: LINE, borderWidth: 0.5 });
 
-      // Estampilla (recortada a su caja fija, tamaño real, arriba a la derecha)
+      // Estampilla: se busca dónde está en el PDF de Deutsche Post (cambia de
+      // sitio según el día), se recorta a tamaño real y va arriba a la derecha
       const stampBytes = await stampFile.arrayBuffer();
       const stampDoc = await PDFDocument.load(stampBytes);
-      const [emb] = await pdf.embedPages([stampDoc.getPage(0)], [STAMP_BBOX]);
-      const sw = STAMP_BBOX.right - STAMP_BBOX.left, sh = STAMP_BBOX.top - STAMP_BBOX.bottom;
+      const stampPage = stampDoc.getPage(0);
+      const contents = stampPage.node.Contents();
+      const streams = contents instanceof PDFArray
+        ? contents.asArray().map((r) => stampDoc.context.lookup(r))
+        : [contents];
+      let contenido = "";
+      for (const st of streams) {
+        if (st instanceof PDFRawStream) {
+          const bytes = decodePDFRawStream(st).decode();
+          for (let i = 0; i < bytes.length; i++) contenido += String.fromCharCode(bytes[i]);
+          contenido += "\n";
+        }
+      }
+      const caja = localizarEstampilla(contenido);
+      if (!caja) { setError(t.labelStampNotFound); return; }
+      stampPage.node.set(PDFName.of("Contents"), stampDoc.context.flateStream(quitarMarcasDeCorte(contenido)));
+      const [emb] = await pdf.embedPages([stampPage], [caja]);
+      const sw = caja.right - caja.left, sh = caja.top - caja.bottom;
       page.drawPage(emb, { x: PW - M - sw, y: PH - M - sh, width: sw, height: sh });
 
       // Remitente (pequeño, arriba a la izquierda)
