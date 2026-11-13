@@ -89,6 +89,12 @@ export default function RestockPage() {
   const [hasSales, setHasSales] = useState<Set<string>>(new Set());
   const [printQty, setPrintQty] = useState<{ [key: string]: number }>({});
   const [printLoading, setPrintLoading] = useState(false);
+  // Pósters extra que se añaden a mano a la lista de imprimir (además de lo
+  // que recomienda la app). Van al PDF y luego al restock como los demás.
+  const [agregando, setAgregando] = useState(false);
+  const [extraPoster, setExtraPoster] = useState("");
+  const [extraTalla, setExtraTalla] = useState<"A4" | "A3">("A4");
+  const [extras, setExtras] = useState<Set<string>>(new Set());
   // Lista fija de samples que faltaban al abrir la caja; se marca cada uno
   // como hecho sin que desaparezca, para poder tacharlos como checklist
   const [samplesList, setSamplesList] = useState<{ posterId: string; nombre: string; talla: "A4" | "A3" }[]>([]);
@@ -361,6 +367,9 @@ export default function RestockPage() {
 
     setCantidades({});
     setPrintQty({});
+    setExtras(new Set());
+    setAgregando(false);
+    setExtraPoster("");
     setTop8(new Set());
     setHasSales(new Set());
     setTabRestock("imprimir");
@@ -830,7 +839,7 @@ export default function RestockPage() {
           <div className="flex items-center justify-between">
             <p className="text-xs text-gray-500">{t.printTabDesc}</p>
             <button
-              onClick={() => setPrintQty({})}
+              onClick={() => { setPrintQty({}); setExtras(new Set()); }}
               className="text-xs text-gray-400 hover:text-red-500 transition-colors underline"
             >
               Limpiar todo
@@ -856,14 +865,76 @@ export default function RestockPage() {
             const a3Items = posters.filter((p) => p.tiene_a3 && (printQty[`${p.id}-A3`] ?? 0) > 0);
             const a4Print = a4Items.filter((p) => aImprimir(`${p.id}-A4`) > 0);
             const a3Print = a3Items.filter((p) => aImprimir(`${p.id}-A3`) > 0);
+
+            // Agregar un póster a mano: suma 1 a esa talla (o lo mete en la lista)
+            const posterExtra = posters.find((p) => p.id === extraPoster);
+            const tallaValida = (p: PosterConStock | undefined, tl: "A4" | "A3") => !!p && (tl === "A4" ? p.tiene_a4 : p.tiene_a3);
+            function agregarExtra() {
+              if (!posterExtra || !tallaValida(posterExtra, extraTalla)) return;
+              const key = `${posterExtra.id}-${extraTalla}`;
+              setPrintQty((prev) => ({ ...prev, [key]: (prev[key] ?? 0) + 1 }));
+              setExtras((prev) => new Set(prev).add(key));
+              setExtraPoster("");
+              setAgregando(false);
+            }
+            const agregarUI = agregando ? (
+              <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-3">
+                <select
+                  value={extraPoster}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setExtraPoster(id);
+                    const p = posters.find((pp) => pp.id === id);
+                    if (p && !tallaValida(p, extraTalla)) setExtraTalla(extraTalla === "A4" ? "A3" : "A4");
+                  }}
+                  className="w-full text-sm border border-gray-200 rounded-xl py-2.5 px-3 focus:outline-none focus:border-black"
+                >
+                  <option value="">{t.addPosterPick}</option>
+                  {[...posters].sort((a, b) => a.nombre.localeCompare(b.nombre)).map((p) => (
+                    <option key={p.id} value={p.id}>{p.nombre}</option>
+                  ))}
+                </select>
+                <div className="flex gap-2">
+                  {(["A4", "A3"] as const).map((tl) => (
+                    <button
+                      key={tl}
+                      onClick={() => setExtraTalla(tl)}
+                      disabled={!!posterExtra && !tallaValida(posterExtra, tl)}
+                      className={`flex-1 py-2 rounded-xl font-semibold text-sm transition-colors disabled:opacity-30 ${extraTalla === tl ? "bg-black text-white" : "bg-gray-100 text-gray-600"}`}
+                    >
+                      {tl}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => { setAgregando(false); setExtraPoster(""); }} className="flex-1 py-2.5 rounded-xl border-2 border-gray-200 text-gray-600 font-semibold text-sm">
+                    {t.cancel}
+                  </button>
+                  <button onClick={agregarExtra} disabled={!tallaValida(posterExtra, extraTalla)} className="flex-1 py-2.5 rounded-xl bg-black text-white font-semibold text-sm disabled:opacity-40">
+                    {t.addPosterBtn}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setAgregando(true)}
+                className="w-full py-3 border-2 border-dashed border-gray-300 text-gray-600 rounded-2xl font-semibold text-sm hover:border-gray-400 transition-colors"
+              >
+                + {t.addPoster}
+              </button>
+            );
+
             if (a4Items.length === 0 && a3Items.length === 0) {
               return (
-                <div className="text-center py-12 text-gray-400">
-                  <svg className="mx-auto mb-3 text-green-400" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
-                  </svg>
-                  <p className="font-medium text-gray-500">{t.nothingToPrint}</p>
-                </div>
+                <>
+                  <div className="text-center py-12 text-gray-400">
+                    <svg className="mx-auto mb-3 text-green-400" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                    <p className="font-medium text-gray-500">{t.nothingToPrint}</p>
+                  </div>
+                  {agregarUI}
+                </>
               );
             }
             const PrintSection = ({ items, talla, label }: { items: PosterConStock[]; talla: "A4" | "A3"; label: string }) => (
@@ -886,6 +957,7 @@ export default function RestockPage() {
                         <div className="flex-1 min-w-0">
                           {isTop8 && <span className="text-xs bg-amber-100 text-amber-700 font-semibold px-1.5 py-0.5 rounded-md">{t.bestseller}</span>}
                           {isMed && <span className="text-xs bg-blue-50 text-blue-600 font-semibold px-1.5 py-0.5 rounded-md">↗ {t.medSeller}</span>}
+                          {extras.has(key) && <span className="text-xs bg-violet-100 text-violet-700 font-semibold px-1.5 py-0.5 rounded-md ml-1">+ {t.addedExtra}</span>}
                           <div className="flex flex-wrap items-center gap-2 mt-0.5">
                             <p className="text-sm font-medium text-gray-900">{p.nombre}</p>
                             {backup > 0 && (
@@ -926,6 +998,7 @@ export default function RestockPage() {
               <>
                 {a4Items.length > 0 && <PrintSection items={a4Items} talla="A4" label={`A4 — ${a4Items.length} diseños`} />}
                 {a3Items.length > 0 && <PrintSection items={a3Items} talla="A3" label={`A3 — ${a3Items.length} diseños`} />}
+                {agregarUI}
                 {a4Print.length === 0 && a3Print.length === 0 && (
                   <div className="bg-yellow-50 border border-yellow-200 rounded-2xl px-4 py-3 text-center">
                     <p className="text-sm font-semibold text-yellow-800">{t.nothingToPrintBackup}</p>
