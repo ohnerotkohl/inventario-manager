@@ -17,6 +17,43 @@ const SERIES_ORDER = [
   "Bauhaus", "Berlin Prints", "Berlin Botanica", "Cocina",
 ];
 
+// Mismo orden que en Stock (copiado de app/inventario/page.tsx)
+const POSTERS_ORDER: { [serie: string]: string[] } = {
+  "Life is Food - Kitchen": [
+    "Garlic", "Onion", "Gurke", "Egg plant", "Limes", "Oranges",
+    "Paprika fever", "Capuccino fever", "Kaffee beans", "Croissants", "Mushrooms", "Sushi",
+  ],
+  "Animals": [
+    "Octopus", "The Boss Cat (Red)", "The Boss Cat (Yellow)",
+    "My dog is super chill", "Gato trippy", "Miau",
+  ],
+  "Fun": [
+    "Best Seat Vintage", "Microdose", "Mit Karte Bitte", "Fick Dich", "Harry Pommes",
+    "U make me feel high pink", "U make me feel high blue", "Ready for your shit",
+    "Expresso yourself", "Keep your spirit high", "Clean is Good", "Stay Chili",
+  ],
+  "Frases": [
+    "Genau", "Berlin", "Schön", "Danke", "Bitte", "Alles Klar",
+    "Genau Vortice", "Genau dit lauf shon",
+  ],
+  "Bauhaus": [
+    "01 Orange chair", "02 Blue sky chair", "03 Blue sky building", "04 Blue building",
+    "05 Orange house", "06 Yellow house", "07 Blue Orange House", "08 Black chair", "09 Bowie BH",
+  ],
+  "Berlin Prints": [
+    "Berlin Döner", "Mauerpark Flower", "Wie Geht's? - Mauerpark",
+    "Berlin Mauerpark - vintage girl", "Neukölln graffiti", "Brandenburger Tor",
+    "Kreuzberg 36", "I love Berlin", "Ick bin Bearliner", "Berlin Disco Ball",
+  ],
+  "Berlin Botanica": [
+    "Mitte", "Kreuzberg", "Neukölln", "Schöneberg", "Prenzlauer Berg",
+    "Wedding", "Friedriechshain", "Lichtenberg", "Charlottenburg", "Moabit", "Pankow", "Spandau",
+  ],
+  "Cocina": [
+    "Siracha", "Negroni", "Prost", "All we need is Ramen",
+  ],
+};
+
 // La selección se guarda en el navegador para no perderla al ir al PDF y volver
 const CLAVE = "or_impresion_sel";
 
@@ -34,7 +71,7 @@ export default function ImpresionPage() {
 
   useEffect(() => {
     if (user?.rol === "empleado") { router.replace("/sesion"); return; }
-    supabase.from("posters").select("*, series(*)").eq("activo", true).then(({ data }) => {
+    supabase.from("posters").select("*, series(*)").eq("activo", true).order("nombre").then(({ data }) => {
       setPosters((data as PosterConSerie[]) || []);
       setCargando(false);
     });
@@ -85,7 +122,13 @@ export default function ImpresionPage() {
       serie,
       posters: visibles
         .filter((p) => (p.series?.nombre || "") === serie)
-        .sort((a, b) => a.nombre.localeCompare(b.nombre, "es", { numeric: true })),
+        // Como en Stock: primero el orden fijo de la serie; los que no están en
+        // la lista (pósters nuevos) van al final, por nombre
+        .sort((a, b) => {
+          const orden = POSTERS_ORDER[serie] || [];
+          const ia = orden.indexOf(a.nombre), ib = orden.indexOf(b.nombre);
+          return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+        }),
     }));
 
   const nA4 = total("A4"), nA3 = total("A3");
