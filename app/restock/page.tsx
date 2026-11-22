@@ -2,6 +2,7 @@
 export const dynamic = "force-dynamic";
 import { useEffect, useLayoutEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase, fetchAllRows } from "@/lib/supabase";
 import { useAuth } from "@/app/components/AuthProvider";
 import { useLang } from "@/app/components/LangProvider";
@@ -573,6 +574,17 @@ export default function RestockPage() {
             {t.history}
           </button>
         </div>
+
+        {/* Impresión personalizada: pósters elegidos a mano, sin tocar el stock */}
+        <Link
+          href="/impresion"
+          className="w-full py-3 border-2 border-dashed border-gray-300 text-gray-700 rounded-2xl font-semibold text-sm hover:border-gray-400 transition-colors flex items-center justify-center gap-2"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+          </svg>
+          {t.customPrint}
+        </Link>
 
         {tabPrincipal === "historial" && (
           <div className="space-y-3">

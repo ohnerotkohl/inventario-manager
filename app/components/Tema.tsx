@@ -18,6 +18,7 @@ const CEJA: Record<string, string> = {
   "/inventario": "Stock",
   "/prints": "Stock",
   "/restock": "Stock",
+  "/impresion": "Stock",
   "/compras": "Compras",
   "/balance": "Mercados",
   "/sesion": "Mercados",
