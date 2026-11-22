@@ -74,7 +74,8 @@ export default function ImpresionPage() {
   }
 
   const filtro = busca.trim().toLowerCase();
-  const visibles = posters.filter((p) => !filtro || p.nombre.toLowerCase().includes(filtro));
+  // Busca en el nombre y en la serie ("bauhaus" saca toda la serie)
+  const visibles = posters.filter((p) => !filtro || `${p.nombre} ${p.series?.nombre || ""}`.toLowerCase().includes(filtro));
   const grupos = [...new Set(visibles.map((p) => p.series?.nombre || ""))]
     .sort((a, b) => {
       const ia = SERIES_ORDER.indexOf(a), ib = SERIES_ORDER.indexOf(b);
@@ -89,7 +90,8 @@ export default function ImpresionPage() {
 
   const nA4 = total("A4"), nA3 = total("A3");
 
-  const Contador = ({ k }: { k: string }) => {
+  // Función (no componente) para que los botones no se vuelvan a montar en cada clic
+  const contador = (k: string) => {
     const n = sel[k] ?? 0;
     return (
       <div className="flex items-center gap-1.5">
@@ -134,13 +136,13 @@ export default function ImpresionPage() {
                   {p.tiene_a4 && (
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs font-semibold text-gray-400">A4</span>
-                      <Contador k={`${p.id}-A4`} />
+                      {contador(`${p.id}-A4`)}
                     </div>
                   )}
                   {p.tiene_a3 && (
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs font-semibold text-gray-400">A3</span>
-                      <Contador k={`${p.id}-A3`} />
+                      {contador(`${p.id}-A3`)}
                     </div>
                   )}
                 </div>
