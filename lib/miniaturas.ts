@@ -65,7 +65,10 @@ export async function cargarMiniaturas(nombres: string[]): Promise<Record<string
 export async function crearMiniatura(nombre: string): Promise<string | null> {
   try {
     const archivo = archivoPoster(nombre);
-    const { data: firmada } = await supabase.storage.from(BUCKET).createSignedUrl(archivo, 600);
+    // createSignedUrls (en plural): la versión de uno solo mete el nombre en la
+    // dirección sin codificar y un '?' la rompe
+    const { data: firmadas } = await supabase.storage.from(BUCKET).createSignedUrls([archivo], 600);
+    const firmada = firmadas?.[0];
     if (!firmada?.signedUrl) return null;
     const res = await fetch(arreglarUrl(firmada.signedUrl));
     if (!res.ok) return null;
