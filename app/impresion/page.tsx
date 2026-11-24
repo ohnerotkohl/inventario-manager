@@ -18,6 +18,12 @@ const CLAVE = "or_impresion_sel";
 
 type PosterConSerie = Poster & { series?: Serie };
 
+// Flyers de "Danke" para pedir reviews (PDF A5 horizontal en public/flyers)
+const FLYERS = [
+  { nombre: "Danke · Deutsch", archivo: "danke-flyer-deutsch.pdf" },
+  { nombre: "Thank you · English", archivo: "danke-flyer-english.pdf" },
+];
+
 export default function ImpresionPage() {
   const router = useRouter();
   const { user } = useAuth();
@@ -153,6 +159,21 @@ export default function ImpresionPage() {
           </div>
         ))
       )}
+
+      {/* Flyers de agradecimiento (A5). Viven en public/flyers, en la web de la app */}
+      <div>
+        <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1">{t.flyersTitle}</p>
+        <p className="text-xs text-gray-400 mb-2">{t.flyersSub}</p>
+        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+          {FLYERS.map((f, i) => (
+            <div key={f.archivo} className={`px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2 ${i < FLYERS.length - 1 ? "border-b border-gray-100" : ""}`}>
+              <p className="flex-1 min-w-[8rem] text-sm font-medium text-gray-900">{f.nombre}</p>
+              <a href={`/flyers/${f.archivo}`} target="_blank" rel="noopener" className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 text-xs font-semibold hover:bg-gray-200">{t.flyerOpen}</a>
+              <a href={`/flyers/${f.archivo}`} download className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 text-xs font-semibold hover:bg-gray-200">{t.flyerDownload}</a>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Barra flotante con los PDF, encima del menú de abajo */}
       <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-20 pointer-events-none">
