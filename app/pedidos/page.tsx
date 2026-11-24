@@ -1,19 +1,22 @@
 "use client";
 export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/app/components/AuthProvider";
 import { useLang } from "@/app/components/LangProvider";
+import { cargarMiniaturas, crearMiniatura } from "@/lib/miniaturas";
+import { posicionEnSerie, posicionSerie } from "@/lib/ordenPosters";
 
 // Pedidos de Shopify para imprimir (solo Marcello). Los pendientes se leen de
 // Shopify en vivo; al marcar "impreso" pasan al historial (tabla
 // pedidos_impresos), desde donde se puede volver a descargar el PDF.
 // Solo A4 y A3 van al PDF; A2, A1 y lo enmarcado se muestran aparte.
 
-type ArticuloShopify = { producto: string; variante: string; cantidad: number };
+type ArticuloShopify = { producto: string; variante: string; cantidad: number; imagen?: string };
 type PedidoShopify = { id: string; numero: string; fecha: string; nombre: string; articulos: ArticuloShopify[] };
-type PosterMin = { id: string; nombre: string };
+type PosterMin = { id: string; nombre: string; series?: { nombre: string } | null };
 type ArticuloImpreso = { nombre: string; talla: "A4" | "A3"; cantidad: number };
 type Impreso = { shopify_id: string; numero: string; fecha: string | null; cliente: string | null; articulos: ArticuloImpreso[]; impreso_at: string };
 
@@ -61,6 +64,11 @@ export default function PedidosPage() {
   const [mapa, setMapa] = useState<{ [clave: string]: string }>({}); // clave → poster_id
   const [impresos, setImpresos] = useState<Impreso[]>([]);
   const [guardando, setGuardando] = useState<string | null>(null);
+  // Miniaturas de los pósters de la app, por nombre
+  const [miniaturas, setMiniaturas] = useState<Record<string, string>>({});
+  // Producto de Shopify para el que se está eligiendo póster (ventana con miniaturas)
+  const [eligiendo, setEligiendo] = useState<{ producto: string; imagen: string } | null>(null);
+  const [buscaPoster, setBuscaPoster] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -75,7 +83,7 @@ export default function PedidosPage() {
       const { data: { session } } = await supabase.auth.getSession();
       const [resShop, posRes, mapRes, impRes] = await Promise.all([
         fetch("/api/shopify/pedidos", { headers: { Authorization: `Bearer ${session?.access_token || ""}` }, cache: "no-store" }),
-        supabase.from("posters").select("id, nombre").eq("activo", true).order("nombre"),
+        supabase.from("posters").select("id, nombre, series(nombre)").eq("activo", true).order("nombre"),
         supabase.from("shopify_poster_map").select("clave, poster_id"),
         supabase.from("pedidos_impresos").select("*").order("impreso_at", { ascending: false }),
       ]);
@@ -83,13 +91,27 @@ export default function PedidosPage() {
       const json = await resShop.json();
       if (!resShop.ok) { setError(json.error === "no_configurado" ? t.labelOrderNotConfigured : t.labelOrderError); setCargando(false); return; }
       setPedidos(json.pedidos || []);
-      setPosters((posRes.data as PosterMin[]) || []);
+      const lista = (posRes.data as unknown as PosterMin[]) || [];
+      setPosters(lista);
+      prepararMiniaturas(lista.map((p) => p.nombre));
       setMapa(Object.fromEntries(((mapRes.data as { clave: string; poster_id: string }[]) || []).map((m) => [m.clave, m.poster_id])));
       setImpresos((impRes.data as Impreso[]) || []);
     } catch {
       setError(t.labelOrderError);
     }
     setCargando(false);
+  }
+
+  // Carga las miniaturas que ya existen y crea, de una en una y en segundo
+  // plano, las que falten (p. ej. de un póster nuevo). Si una falla, para.
+  async function prepararMiniaturas(nombres: string[]) {
+    const ya = await cargarMiniaturas(nombres);
+    setMiniaturas(ya);
+    for (const n of nombres.filter((x) => !ya[x])) {
+      const url = await crearMiniatura(n);
+      if (!url) break;
+      setMiniaturas((prev) => ({ ...prev, [n]: url }));
+    }
   }
 
   // Póster de la app para un producto de Shopify: lo elegido antes o, si no,
@@ -183,7 +205,9 @@ export default function PedidosPage() {
                       );
                     }
                     return (
-                      <div key={i} className="space-y-1">
+                      <div key={i} className="flex gap-3 items-start">
+                        <Miniatura url={a.imagen} />
+                        <div className="flex-1 min-w-0 space-y-1">
                         <p className="text-sm text-gray-800">
                           {a.cantidad}× <span className="font-medium">{poster ? poster.nombre : a.producto}</span> · {talla}
                           {poster && normalizar(poster.nombre) !== normalizar(a.producto) && (
@@ -191,11 +215,14 @@ export default function PedidosPage() {
                           )}
                         </p>
                         {!poster && (
-                          <select defaultValue="" onChange={(e) => asignar(a.producto, e.target.value)} className="w-full text-sm border border-amber-300 bg-amber-50 rounded-lg py-2 px-3 focus:outline-none focus:border-black">
-                            <option value="">{t.ordersWhichPoster}</option>
-                            {posters.map((po) => <option key={po.id} value={po.id}>{po.nombre}</option>)}
-                          </select>
+                          <button
+                            onClick={() => { setBuscaPoster(""); setEligiendo({ producto: a.producto, imagen: a.imagen || "" }); }}
+                            className="w-full text-sm text-left border border-amber-300 bg-amber-50 text-amber-900 font-medium rounded-lg py-2 px-3 hover:bg-amber-100"
+                          >
+                            {t.ordersWhichPoster}
+                          </button>
                         )}
+                        </div>
                       </div>
                     );
                   })}
@@ -223,6 +250,59 @@ export default function PedidosPage() {
         </div>
       )}
 
+      {eligiendo && createPortal(
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setEligiendo(null)}>
+          <div className="bg-white w-full max-w-2xl max-h-[90vh] rounded-t-3xl sm:rounded-3xl flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="p-4 border-b border-gray-100 space-y-3">
+              <div className="flex gap-3 items-center">
+                <Miniatura url={eligiendo.imagen} grande />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-gray-500">{t.ordersShopifyProduct}</p>
+                  <p className="font-semibold text-gray-900">{eligiendo.producto}</p>
+                  <p className="text-sm text-amber-700 mt-1">{t.ordersWhichPoster}</p>
+                </div>
+                <button onClick={() => setEligiendo(null)} className="self-start w-8 h-8 rounded-full bg-gray-100 text-gray-500 font-bold">×</button>
+              </div>
+              <input
+                type="text"
+                value={buscaPoster}
+                onChange={(e) => setBuscaPoster(e.target.value)}
+                placeholder={t.customPrintSearch}
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-gray-400"
+              />
+            </div>
+            <div className="overflow-y-auto p-4">
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                {posters
+                  .filter((po) => {
+                    const f = buscaPoster.trim().toLowerCase();
+                    return !f || `${po.nombre} ${po.series?.nombre || ""}`.toLowerCase().includes(f);
+                  })
+                  .sort((x, y) => {
+                    const sx = x.series?.nombre || "", sy = y.series?.nombre || "";
+                    return posicionSerie(sx) - posicionSerie(sy) || sx.localeCompare(sy) || posicionEnSerie(sx, x.nombre) - posicionEnSerie(sy, y.nombre);
+                  })
+                  .map((po) => (
+                    <button
+                      key={po.id}
+                      onClick={async () => { await asignar(eligiendo.producto, po.id); setEligiendo(null); }}
+                      className="text-left rounded-xl border border-gray-200 p-1.5 hover:border-black transition-colors"
+                    >
+                      <div className="aspect-[1/1.414] rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center">
+                        {miniaturas[po.nombre]
+                          ? <img src={miniaturas[po.nombre]} alt="" loading="lazy" className="w-full h-full object-cover" />
+                          : <span className="text-[10px] text-gray-400">…</span>}
+                      </div>
+                      <p className="text-xs font-medium text-gray-800 mt-1 leading-tight">{po.nombre}</p>
+                    </button>
+                  ))}
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {!cargando && !error && tab === "historial" && (
         <div className="space-y-3">
           {impresos.length === 0 && <p className="text-sm text-gray-400 text-center py-8">{t.ordersHistoryEmpty}</p>}
@@ -244,6 +324,16 @@ export default function PedidosPage() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// Miniatura de un producto de Shopify (o un hueco gris si no hay)
+function Miniatura({ url, grande }: { url?: string; grande?: boolean }) {
+  const tam = grande ? "w-20 h-20" : "w-12 h-12";
+  return (
+    <div className={`${tam} shrink-0 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center`}>
+      {url ? <img src={url} alt="" className="w-full h-full object-contain" /> : null}
     </div>
   );
 }

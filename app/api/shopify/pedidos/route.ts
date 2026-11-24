@@ -20,16 +20,18 @@ type PedidoShopify = {
   cancelledAt: string | null;
   displayFulfillmentStatus: string;
   shippingAddress: Direccion | null;
-  lineItems: { nodes: { title: string; variantTitle: string | null; quantity: number }[] };
+  lineItems: { nodes: { title: string; variantTitle: string | null; quantity: number; image?: { url: string } | null }[] };
 };
 
-const QUERY = `
+// Con miniatura del producto (para reconocer el póster en /pedidos). Si Shopify
+// no deja leer la imagen con los permisos de la app, se pide sin ella.
+const consulta = (conImagen: boolean) => `
   query Pedidos {
     orders(first: 50, sortKey: CREATED_AT, reverse: true) {
       nodes {
         id name createdAt cancelledAt displayFulfillmentStatus
         shippingAddress { name company address1 address2 zip city country countryCodeV2 }
-        lineItems(first: 20) { nodes { title variantTitle quantity } }
+        lineItems(first: 20) { nodes { title variantTitle quantity${conImagen ? " image { url(transform: { maxWidth: 240, maxHeight: 240 }) }" : ""} } }
       }
     }
   }
@@ -51,7 +53,14 @@ export async function GET(req: NextRequest) {
   // 2) Shopify
   if (!shopifyConfigurado()) return NextResponse.json({ error: "no_configurado" }, { status: 503 });
   try {
-    const data = await shopifyGraphQL<{ orders: { nodes: PedidoShopify[] } }>(QUERY);
+    type Resp = { orders: { nodes: PedidoShopify[] } };
+    let data: Resp;
+    try {
+      data = await shopifyGraphQL<Resp>(consulta(true));
+    } catch (e) {
+      console.warn("Shopify pedidos sin imagen:", e);
+      data = await shopifyGraphQL<Resp>(consulta(false));
+    }
     const pedidos = data.orders.nodes
       .filter((o) => !o.cancelledAt && PENDIENTES.has(o.displayFulfillmentStatus) && o.shippingAddress)
       .map((o) => {
@@ -71,6 +80,7 @@ export async function GET(req: NextRequest) {
             // Para /pedidos: producto y variante por separado (póster, talla)
             producto: l.title,
             variante: l.variantTitle || "",
+            imagen: l.image?.url || "",
           })),
         };
       });
