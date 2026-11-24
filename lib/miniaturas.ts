@@ -40,11 +40,17 @@ function arreglarUrl(u: string): string {
   return prefijo.slice(0, m + marca.length) + ruta + u.slice(i);
 }
 
+// Ruta de la miniatura. Sin '?' ni '#': la librería de Supabase no los codifica
+// al subir y cortan la dirección ("Wie Geht's? - Mauerpark").
+function rutaMiniatura(nombre: string): string {
+  return CARPETA + archivoPoster(nombre).replace(/[?#]/g, "");
+}
+
 /** URLs de las miniaturas que ya existen, por nombre de póster. Las que faltan no vienen. */
 export async function cargarMiniaturas(nombres: string[]): Promise<Record<string, string>> {
   if (nombres.length === 0) return {};
   const porRuta: Record<string, string> = {};
-  for (const n of nombres) porRuta[CARPETA + archivoPoster(n)] = n;
+  for (const n of nombres) porRuta[rutaMiniatura(n)] = n;
   const { data } = await supabase.storage.from(BUCKET).createSignedUrls(Object.keys(porRuta), 3600);
   const out: Record<string, string> = {};
   for (const e of data || []) {
@@ -72,7 +78,7 @@ export async function crearMiniatura(nombre: string): Promise<string | null> {
     bmp.close();
     const blob = await new Promise<Blob | null>((ok) => lienzo.toBlob(ok, "image/jpeg", 0.8));
     if (!blob) return null;
-    const { error } = await supabase.storage.from(BUCKET).upload(CARPETA + archivo, blob, { contentType: "image/jpeg", upsert: false });
+    const { error } = await supabase.storage.from(BUCKET).upload(rutaMiniatura(nombre), blob, { contentType: "image/jpeg", upsert: false });
     if (error) return null;
     const m = await cargarMiniaturas([nombre]);
     return m[nombre] || null;
